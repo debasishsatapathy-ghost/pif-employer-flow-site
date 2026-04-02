@@ -282,74 +282,93 @@ function TrainingProgramCard({
 
 /* ── Skill Insights Charts ──────────────────────────────────────────────── */
 
+/*
+ * Shared chart geometry helper.
+ * Uses a fixed 500×175 viewBox (matching the Figma canvas).
+ * SVG is rendered with width="100%" so it scales to the card width while
+ * preserving aspect ratio (no preserveAspectRatio="none").
+ */
+const VB_W = 500;
+const VB_H = 175;
+const C_PAD = { top: 12, right: 8, bottom: 22, left: 32 };
+const C_CW = VB_W - C_PAD.left - C_PAD.right;
+const C_CH = VB_H - C_PAD.top - C_PAD.bottom;
+
+function cx(i: number, total: number) {
+  return C_PAD.left + (i / (total - 1)) * C_CW;
+}
+function cy(v: number, maxV: number) {
+  return C_PAD.top + C_CH - (v / maxV) * C_CH;
+}
+function linePath(pts: number[], maxV: number) {
+  return pts.map((v, i) => `${i === 0 ? "M" : "L"}${cx(i, pts.length).toFixed(1)},${cy(v, maxV).toFixed(1)}`).join(" ");
+}
+function areaPath(pts: number[], maxV: number) {
+  const n = pts.length;
+  return `${linePath(pts, maxV)} L${cx(n - 1, n).toFixed(1)},${(C_PAD.top + C_CH).toFixed(1)} L${cx(0, n).toFixed(1)},${(C_PAD.top + C_CH).toFixed(1)} Z`;
+}
+
+function ChartGrid({ maxV, yTicks, xLabels }: { maxV: number; yTicks: number[]; xLabels: string[] }) {
+  const n = xLabels.length;
+  return (
+    <>
+      {yTicks.map((t) => (
+        <g key={t}>
+          <line
+            x1={C_PAD.left} y1={cy(t, maxV)}
+            x2={VB_W - C_PAD.right} y2={cy(t, maxV)}
+            stroke="rgba(255,255,255,0.07)" strokeWidth={1}
+          />
+          <text x={C_PAD.left - 5} y={cy(t, maxV) + 3.5} fontSize={9} fill="#52525b" textAnchor="end">{t}</text>
+        </g>
+      ))}
+      {xLabels.map((l, i) => (
+        <text key={l} x={cx(i, n)} y={VB_H - 6} fontSize={9} fill="#52525b" textAnchor="middle">{l}</text>
+      ))}
+    </>
+  );
+}
+
 function SkillLevelTrendsChart() {
-  // Multi-series stacked-look area chart: overlapping fills create the dark blended effect
-  const months = ["Jan", "Feb", "Mar", "Apr", "May"];
+  // All series cluster in the 50–80 range — this creates the single blended dark area
+  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun"];
   const series = [
-    { label: "AI",     color: "#1dc558", data: [18, 28, 42, 58, 72] },
-    { label: "Cloud",  color: "#3689ff", data: [14, 22, 35, 50, 63] },
-    { label: "Data",   color: "#8b5cf6", data: [10, 18, 29, 42, 55] },
-    { label: "DevOps", color: "#ff9040", data: [7,  13, 22, 33, 45] },
+    { label: "AI",     color: "#1dc558", data: [56, 61, 65, 69, 73, 78] },
+    { label: "Cloud",  color: "#3689ff", data: [53, 58, 62, 66, 70, 75] },
+    { label: "Data",   color: "#ff6b35", data: [51, 56, 60, 64, 68, 72] },
+    { label: "DevOps", color: "#a855f7", data: [49, 54, 58, 62, 66, 70] },
   ];
-  const W = 280;
-  const H = 130;
-  const PAD = { top: 8, right: 8, bottom: 20, left: 24 };
-  const chartW = W - PAD.left - PAD.right;
-  const chartH = H - PAD.top - PAD.bottom;
-  const maxVal = 80;
-
-  const toX = (i: number) => PAD.left + (i / (series[0].data.length - 1)) * chartW;
-  const toY = (v: number) => PAD.top + chartH - (v / maxVal) * chartH;
-
-  const makePath = (data: number[]) =>
-    data.map((v, i) => `${i === 0 ? "M" : "L"}${toX(i)},${toY(v)}`).join(" ");
-
-  const makeArea = (data: number[]) =>
-    `${makePath(data)} L${toX(data.length - 1)},${PAD.top + chartH} L${toX(0)},${PAD.top + chartH} Z`;
+  const MAX = 100;
+  // Envelope = max across all series at each x — fills one large blended area
+  const envelope = MONTHS.map((_, i) => Math.max(...series.map(s => s.data[i])));
 
   return (
-    <div
-      className="flex flex-col p-4 rounded-xl gap-3"
-      style={{ background: CARD_BG, border: CARD_BORDER }}
-    >
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <span className="text-xs text-white font-medium">Skill Level Trends</span>
-        <div className="flex items-center gap-2">
-          {series.map((s) => (
-            <span key={s.label} className="flex items-center gap-1 text-[10px] text-[#d4d4d8]">
-              <span className="w-2 h-2 rounded-full" style={{ background: s.color }} />
+    <div className="flex flex-col gap-3 p-4 rounded-xl" style={{ background: CARD_BG, border: CARD_BORDER }}>
+      <div className="flex items-center justify-between flex-wrap gap-1">
+        <span className="text-sm font-semibold text-white">Skill Level Trends</span>
+        <div className="flex items-center gap-3">
+          {series.map(s => (
+            <span key={s.label} className="flex items-center gap-1 text-[10px]" style={{ color: "#71717b" }}>
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: s.color }} />
               {s.label}
             </span>
           ))}
         </div>
       </div>
-      <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
+      <svg width="100%" viewBox={`0 0 ${VB_W} ${VB_H}`} style={{ display: "block" }}>
         <defs>
-          {series.map((s) => (
-            <linearGradient key={s.label} id={`grad-slt-${s.label}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={s.color} stopOpacity={0.75} />
-              <stop offset="100%" stopColor={s.color} stopOpacity={0.12} />
-            </linearGradient>
-          ))}
+          <linearGradient id="slt-env-grad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#5b21b6" stopOpacity={0.82} />
+            <stop offset="60%" stopColor="#2e1065" stopOpacity={0.55} />
+            <stop offset="100%" stopColor="#0f0525" stopOpacity={0.10} />
+          </linearGradient>
         </defs>
-        {/* Y-axis grid lines */}
-        {[0, 25, 50, 75].map((tick) => (
-          <g key={tick}>
-            <line x1={PAD.left} y1={toY(tick)} x2={W - PAD.right} y2={toY(tick)} stroke="rgba(255,255,255,0.06)" strokeWidth={1} />
-            <text x={PAD.left - 4} y={toY(tick) + 4} fontSize={8} fill="#52525b" textAnchor="end">{tick}</text>
-          </g>
-        ))}
-        {/* X-axis labels */}
-        {months.map((m, i) => (
-          <text key={m} x={toX(i)} y={H - 4} fontSize={8} fill="#52525b" textAnchor="middle">{m}</text>
-        ))}
-        {/* Areas drawn back-to-front: overlapping creates blended dark look */}
-        {[...series].reverse().map((s) => (
-          <path key={s.label} d={makeArea(s.data)} fill={`url(#grad-slt-${s.label})`} />
-        ))}
-        {/* Lines on top */}
-        {series.map((s) => (
-          <path key={s.label} d={makePath(s.data)} fill="none" stroke={s.color} strokeWidth={1.5} />
+        <ChartGrid maxV={MAX} yTicks={[0, 25, 50, 75, 100]} xLabels={MONTHS} />
+        {/* Single dark envelope fill */}
+        <path d={areaPath(envelope, MAX)} fill="url(#slt-env-grad)" />
+        {/* Individual series lines on top (subtle, close together) */}
+        {series.map(s => (
+          <path key={s.label} d={linePath(s.data, MAX)} fill="none" stroke={s.color} strokeWidth={1.5} strokeOpacity={0.9} />
         ))}
       </svg>
     </div>
@@ -357,89 +376,64 @@ function SkillLevelTrendsChart() {
 }
 
 function CurrentVsRequiredChart() {
-  const W = 280;
-  const H = 130;
-  const PAD = { top: 8, right: 8, bottom: 20, left: 24 };
-  const chartW = W - PAD.left - PAD.right;
-  const chartH = H - PAD.top - PAD.bottom;
-  const maxVal = 100;
-  const pts = 5;
-
-  // Required stays high (flat-ish), Current grows to close the gap
-  const required = [88, 86, 83, 79, 75];
-  const current  = [55, 58, 62, 66, 70];
-  const labels = ["Jan", "Feb", "Mar", "Apr", "May"];
-
-  const toX = (i: number) => PAD.left + (i / (pts - 1)) * chartW;
-  const toY = (v: number) => PAD.top + chartH - (v / maxVal) * chartH;
-
-  const makePath = (data: number[]) =>
-    data.map((v, i) => `${i === 0 ? "M" : "L"}${toX(i)},${toY(v)}`).join(" ");
-
-  const makeArea = (data: number[]) =>
-    `${makePath(data)} L${toX(data.length - 1)},${PAD.top + chartH} L${toX(0)},${PAD.top + chartH} Z`;
+  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun"];
+  // Required: starts high and slowly declines (goal is lowering the gap)
+  // Current:  also high and rises slightly to meet required
+  const required = [82, 81, 79, 78, 77, 76];
+  const current  = [56, 59, 63, 66, 69, 73];
+  const MAX = 100;
+  // Envelope for the combined dark area
+  const envelope = MONTHS.map((_, i) => Math.max(required[i], current[i]));
 
   return (
-    <div
-      className="flex flex-col p-4 rounded-xl gap-3"
-      style={{ background: CARD_BG, border: CARD_BORDER }}
-    >
-      <span className="text-xs text-white font-medium">Current vs Required Skills</span>
-      <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
+    <div className="flex flex-col gap-3 p-4 rounded-xl" style={{ background: CARD_BG, border: CARD_BORDER }}>
+      <span className="text-sm font-semibold text-white">Current vs Required Skills</span>
+      <svg width="100%" viewBox={`0 0 ${VB_W} ${VB_H}`} style={{ display: "block" }}>
         <defs>
-          <linearGradient id="grad-required" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.75} />
-            <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.08} />
+          <linearGradient id="cvr-env-grad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#4c1d95" stopOpacity={0.88} />
+            <stop offset="60%" stopColor="#2e1065" stopOpacity={0.55} />
+            <stop offset="100%" stopColor="#0a0218" stopOpacity={0.08} />
           </linearGradient>
-          <linearGradient id="grad-current" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#6d28d9" stopOpacity={0.55} />
-            <stop offset="100%" stopColor="#6d28d9" stopOpacity={0.06} />
+          <linearGradient id="cvr-cur-grad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#7c3aed" stopOpacity={0.45} />
+            <stop offset="100%" stopColor="#7c3aed" stopOpacity={0.04} />
           </linearGradient>
         </defs>
-        {[0, 25, 50, 75, 100].map((tick) => (
-          <g key={tick}>
-            <line x1={PAD.left} y1={toY(tick)} x2={W - PAD.right} y2={toY(tick)} stroke="rgba(255,255,255,0.06)" strokeWidth={1} />
-            <text x={PAD.left - 4} y={toY(tick) + 4} fontSize={8} fill="#52525b" textAnchor="end">{tick}</text>
-          </g>
-        ))}
-        {labels.map((l, i) => (
-          <text key={l} x={toX(i)} y={H - 4} fontSize={8} fill="#52525b" textAnchor="middle">{l}</text>
-        ))}
-        {/* Required area (outer, drawn first so current overlaps) */}
-        <path d={makeArea(required)} fill="url(#grad-required)" />
-        <path d={makePath(required)} fill="none" stroke="#8b5cf6" strokeWidth={1.5} />
-        {/* Current area (inner) */}
-        <path d={makeArea(current)} fill="url(#grad-current)" />
-        <path d={makePath(current)} fill="none" stroke="#a78bfa" strokeWidth={1.5} />
+        <ChartGrid maxV={MAX} yTicks={[0, 25, 50, 75, 100]} xLabels={MONTHS} />
+        {/* Dark envelope fill */}
+        <path d={areaPath(envelope, MAX)} fill="url(#cvr-env-grad)" />
+        {/* Current area — lighter fill on top to show the gap */}
+        <path d={areaPath(current, MAX)} fill="url(#cvr-cur-grad)" />
+        {/* Lines */}
+        <path d={linePath(required, MAX)} fill="none" stroke="#a855f7" strokeWidth={1.5} />
+        <path d={linePath(current, MAX)} fill="none" stroke="#8b5cf6" strokeWidth={1.5} />
       </svg>
     </div>
   );
 }
 
 function SkillBarChart() {
-  const W = 280;
-  const H = 130;
-  const PAD = { top: 8, right: 16, bottom: 8, left: 60 };
-  const chartW = W - PAD.left - PAD.right;
-  const chartH = H - PAD.top - PAD.bottom;
+  // Uses VB_W × VB_H viewBox to match Figma proportions
+  const BAR_PAD = { top: 10, right: 20, bottom: 22, left: 72 };
+  const bCW = VB_W - BAR_PAD.left - BAR_PAD.right;
+  const bCH = VB_H - BAR_PAD.top - BAR_PAD.bottom;
 
   const skills = [
-    { label: "Engineering", value: 75 },
-    { label: "Product", value: 65 },
-    { label: "Data", value: 60 },
-    { label: "Design", value: 55 },
-    { label: "Sales", value: 50 },
+    { label: "Engineering", value: 83 },
+    { label: "Product",     value: 74 },
+    { label: "Data",        value: 76 },
+    { label: "Design",      value: 71 },
+    { label: "Sales",       value: 65 },
   ];
-  const barH = Math.floor(chartH / skills.length) - 4;
   const maxVal = 100;
+  const gap = 6;
+  const barH = Math.floor((bCH - gap * (skills.length - 1)) / skills.length);
 
   return (
-    <div
-      className="flex flex-col p-4 rounded-xl gap-3"
-      style={{ background: CARD_BG, border: CARD_BORDER }}
-    >
-      <span className="text-xs text-white font-medium">Skill Level Trends</span>
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+    <div className="flex flex-col gap-3 p-4 rounded-xl" style={{ background: CARD_BG, border: CARD_BORDER }}>
+      <span className="text-sm font-semibold text-white">Skill Level Trends</span>
+      <svg width="100%" viewBox={`0 0 ${VB_W} ${VB_H}`} style={{ display: "block" }}>
         <defs>
           <linearGradient id="bar-grad" x1="0" y1="0" x2="1" y2="0">
             <stop offset="0%" stopColor="#1dc558" />
@@ -447,47 +441,20 @@ function SkillBarChart() {
           </linearGradient>
         </defs>
         {skills.map((s, i) => {
-          const y = PAD.top + i * (barH + 4);
-          const bw = (s.value / maxVal) * chartW;
+          const y = BAR_PAD.top + i * (barH + gap);
+          const bw = (s.value / maxVal) * bCW;
           return (
             <g key={s.label}>
-              <text
-                x={PAD.left - 6}
-                y={y + barH / 2 + 4}
-                fontSize={9}
-                fill={SUBTLE}
-                textAnchor="end"
-              >
+              <text x={BAR_PAD.left - 8} y={y + barH / 2 + 3.5} fontSize={9} fill="#71717b" textAnchor="end">
                 {s.label}
               </text>
-              <rect
-                x={PAD.left}
-                y={y}
-                width={chartW}
-                height={barH}
-                rx={3}
-                fill="rgba(255,255,255,0.07)"
-              />
-              <rect
-                x={PAD.left}
-                y={y}
-                width={bw}
-                height={barH}
-                rx={3}
-                fill="url(#bar-grad)"
-              />
+              <rect x={BAR_PAD.left} y={y} width={bCW} height={barH} rx={3} fill="rgba(255,255,255,0.06)" />
+              <rect x={BAR_PAD.left} y={y} width={bw} height={barH} rx={3} fill="url(#bar-grad)" />
             </g>
           );
         })}
-        {[0, 25, 50, 75].map((tick) => (
-          <text
-            key={tick}
-            x={PAD.left + (tick / maxVal) * chartW}
-            y={H - 2}
-            fontSize={7}
-            fill="#52525b"
-            textAnchor="middle"
-          >
+        {[0, 25, 50, 75, 100].map((tick) => (
+          <text key={tick} x={BAR_PAD.left + (tick / maxVal) * bCW} y={VB_H - 6} fontSize={8} fill="#52525b" textAnchor="middle">
             {tick}
           </text>
         ))}
@@ -497,65 +464,34 @@ function SkillBarChart() {
 }
 
 function MonthlyGrowthChart() {
-  const W = 280;
-  const H = 120;
-  const PAD = { top: 8, right: 8, bottom: 20, left: 24 };
-  const chartW = W - PAD.left - PAD.right;
-  const chartH = H - PAD.top - PAD.bottom;
-
-  const data = [25, 32, 42, 54, 63, 72, 80];
+  // Gentle upward slope matching the Figma (starts ~65, ends ~78)
+  const data = [65, 67, 70, 71, 74, 76, 78];
   const labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"];
-  const maxVal = 100;
-
-  const toX = (i: number) => PAD.left + (i / (data.length - 1)) * chartW;
-  const toY = (v: number) => PAD.top + chartH - (v / maxVal) * chartH;
-
-  const pathD = data.map((v, i) => `${i === 0 ? "M" : "L"}${toX(i)},${toY(v)}`).join(" ");
+  const MAX = 100;
+  const n = data.length;
 
   return (
-    <div
-      className="flex flex-col p-4 rounded-xl gap-3"
-      style={{ background: CARD_BG, border: CARD_BORDER }}
-    >
-      <span className="text-xs text-white font-medium">Monthly Skill Growth Rate</span>
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+    <div className="flex flex-col gap-3 p-4 rounded-xl" style={{ background: CARD_BG, border: CARD_BORDER }}>
+      <span className="text-sm font-semibold text-white">Monthly Skill Growth Rate</span>
+      <svg width="100%" viewBox={`0 0 ${VB_W} ${VB_H}`} style={{ display: "block" }}>
         <defs>
           <linearGradient id="grad-growth" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#3689ff" stopOpacity={0.25} />
-            <stop offset="100%" stopColor="#3689ff" stopOpacity={0.04} />
+            <stop offset="0%" stopColor="#3689ff" stopOpacity={0.20} />
+            <stop offset="100%" stopColor="#3689ff" stopOpacity={0.02} />
           </linearGradient>
         </defs>
-        {[0, 25, 50, 75, 100].map((tick) => (
-          <g key={tick}>
-            <line
-              x1={PAD.left}
-              y1={toY(tick)}
-              x2={W - PAD.right}
-              y2={toY(tick)}
-              stroke="rgba(255,255,255,0.06)"
-              strokeWidth={1}
-            />
-            <text x={PAD.left - 4} y={toY(tick) + 4} fontSize={8} fill="#52525b" textAnchor="end">
-              {tick}
-            </text>
-          </g>
-        ))}
-        {labels.map((l, i) => (
-          <text key={l} x={toX(i)} y={H - 4} fontSize={8} fill="#71717b" textAnchor="middle">
-            {l}
-          </text>
-        ))}
+        <ChartGrid maxV={MAX} yTicks={[0, 25, 50, 75, 100]} xLabels={labels} />
         <path
-          d={`${pathD} L${toX(data.length - 1)},${PAD.top + chartH} L${toX(0)},${PAD.top + chartH} Z`}
+          d={`${linePath(data, MAX)} L${cx(n - 1, n).toFixed(1)},${(C_PAD.top + C_CH).toFixed(1)} L${cx(0, n).toFixed(1)},${(C_PAD.top + C_CH).toFixed(1)} Z`}
           fill="url(#grad-growth)"
         />
-        <path d={pathD} fill="none" stroke="#3689ff" strokeWidth={2} />
+        <path d={linePath(data, MAX)} fill="none" stroke="#3689ff" strokeWidth={2} />
         {data.map((v, i) => (
           <circle
             key={i}
-            cx={toX(i)}
-            cy={toY(v)}
-            r={3}
+            cx={cx(i, n)}
+            cy={cy(v, MAX)}
+            r={3.5}
             fill="#3689ff"
             stroke="#09090b"
             strokeWidth={1.5}
