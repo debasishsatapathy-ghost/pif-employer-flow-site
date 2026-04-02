@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { createJobPosting } from "@/lib/mcpBridge";
 import { HiringPage } from "./HiringPage";
 import { JobPostingTemplate } from "./JobPostingTemplate";
+import WorkforcePage from "./WorkforcePage";
 import type { JobPostingResponse } from "@/lib/employerApi";
 import type { SidebarJob } from "@/components/employer/JobPostingSidebar";
 import {
@@ -866,22 +867,7 @@ function HiringTabContent() {
 }
 
 function WorkforceTabContent() {
-  return (
-    <div className="flex-1 flex flex-col items-center justify-center gap-4 py-16">
-      <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-2"
-        style={{ background: "var(--fit-grow-surface)", border: "1px solid var(--fit-grow-border)" }}>
-        <BookOpen size={28} className="text-[var(--fit-grow)]" />
-      </div>
-      <h3 className="text-lg font-semibold text-white">Workforce Development</h3>
-      <p className="text-sm text-[var(--text-subtle)] text-center max-w-xs">
-        Track training programs, skill coverage, and employee development across your organisation.
-      </p>
-      <button className="mt-2 px-5 py-2.5 rounded-xl text-sm font-medium text-white"
-        style={{ background: "var(--fit-grow-surface-strong)", border: "1px solid var(--fit-grow-border-strong)" }}>
-        View training programs
-      </button>
-    </div>
-  );
+  return <WorkforcePage />;
 }
 
 /* ── Chat input bar ──────────────────────────────────────────────────────── */
