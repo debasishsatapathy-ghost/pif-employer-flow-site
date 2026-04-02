@@ -187,7 +187,7 @@ function PostJobWizardCard({ onClose, onFinish, initialData }: {
 
   return (
       <div
-        className="w-full max-w-xl flex flex-col gap-6 rounded-2xl"
+        className="w-full max-w-xl flex flex-col gap-6 rounded-2xl mx-auto"
         style={{ background: 'rgba(255,255,255,0.05)', padding: '32px' }}
       >
         {/* Header — title + close + progress */}
@@ -1595,11 +1595,11 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
                     className="flex-1 flex flex-col overflow-hidden">
                     {/* Scrollable: "Post a job" user bubble → wizard card */}
                     <div className="flex-1 overflow-y-auto px-5 sm:px-8 pt-5 pb-3 flex flex-col gap-5">
-                      {/* User message bubble — right-aligned, mirrors ChatView */}
+                      {/* User message bubble — right-aligned, Figma 3921:20661 */}
                       <div className="flex justify-end">
-                        <div className="rounded-2xl px-4 py-3"
-                          style={{ background: "var(--surface-muted)", border: "1px solid var(--surface-faint)" }}>
-                          <p className="text-sm text-white">Post a job</p>
+                        <div className="rounded-2xl px-4 py-4"
+                          style={{ background: 'rgba(39,39,42,0.5)' }}>
+                          <p className="text-base text-[#f4f4f5]">Post a job</p>
                         </div>
                       </div>
                       {/* Wizard card */}
@@ -1757,8 +1757,8 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
           )}
         </AnimatePresence>
 
-        {/* Floating bottom nav — Figma Bottom Nav */}
-        <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
+        {/* Floating bottom nav — fixed so it persists over wizard + chat views */}
+        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
           <div className="relative flex items-center pointer-events-auto"
             style={{
               background: '#18181b',
