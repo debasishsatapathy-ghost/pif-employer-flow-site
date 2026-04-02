@@ -3,17 +3,12 @@
 import { useState } from 'react';
 import { ArrowRight, Building2, Users, Sparkles, TrendingUp } from 'lucide-react';
 import { EmployerDashboard } from '@/components/templates/EmployerDashboard';
-import { VoiceSessionProvider } from '@/components/voice/VoiceSessionProvider';
 
 export function WelcomeLanding() {
   const [entered, setEntered] = useState(false);
 
   if (entered) {
-    return (
-      <VoiceSessionProvider>
-        <EmployerDashboard onBack={() => setEntered(false)} />
-      </VoiceSessionProvider>
-    );
+    return <EmployerDashboard onBack={() => setEntered(false)} />;
   }
 
   return (
