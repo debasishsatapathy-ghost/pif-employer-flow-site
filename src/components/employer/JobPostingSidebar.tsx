@@ -1,7 +1,7 @@
-'use client';
+import { useMemo } from "react";
+import { motion } from "framer-motion";
 
-import { useMemo } from 'react';
-import { motion } from 'motion/react';
+/* ── Types ───────────────────────────────────────────────────────────────── */
 
 export interface SidebarJob {
   id: string;
@@ -18,6 +18,8 @@ export interface JobPostingSidebarProps {
   onSelect?: (id: string, job: SidebarJob) => void;
 }
 
+/* ── Job card ────────────────────────────────────────────────────────────── */
+
 function JobCard({
   job,
   selected,
@@ -33,20 +35,28 @@ function JobCard({
     <button
       type="button"
       onClick={onClick}
-      className="w-full text-left rounded-xl p-4 transition-all duration-150"
+      className="w-full text-left rounded-xl p-5 transition-all duration-150"
       style={{
-        background: selected ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)',
-        border: selected ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(255,255,255,0.06)',
+        background: selected
+          ? "rgba(255,255,255,0.15)"
+          : "rgba(255,255,255,0.05)",
+        border: selected
+          ? "1px solid rgba(255,255,255,0.1)"
+          : "1px solid rgba(255,255,255,0.05)",
       }}
     >
       <div className="flex flex-col gap-1">
-        <p className="text-sm font-semibold text-white">{job.title}</p>
+        <p className="text-base font-semibold text-[var(--text-primary)]">
+          {job.title}
+        </p>
         {meta.length > 0 && (
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-3" style={{ fontSize: 14 }}>
             {meta.map((text, i) => (
-              <span key={i} className="flex items-center gap-2">
-                {i > 0 && <span className="w-1 h-1 rounded-full bg-white/20" />}
-                <span className="text-xs text-white/40">{text}</span>
+              <span key={i} className="flex items-center gap-3">
+                {i > 0 && (
+                  <span className="size-1 rounded-full bg-[var(--text-subtle)]" />
+                )}
+                <span className="text-[var(--text-subtle)]">{text}</span>
               </span>
             ))}
           </div>
@@ -56,11 +66,17 @@ function JobCard({
   );
 }
 
-export function JobPostingSidebar({ jobs, selectedId, onSelect }: JobPostingSidebarProps) {
+/* ── Main component ──────────────────────────────────────────────────────── */
+
+export function JobPostingSidebar({
+  jobs,
+  selectedId,
+  onSelect,
+}: JobPostingSidebarProps) {
   const activeJobs = useMemo(
     () => jobs.filter((j) => {
       const s = j.status.toLowerCase();
-      return s !== 'closed' && s !== 'completed';
+      return s !== "closed" && s !== "completed";
     }),
     [jobs],
   );
@@ -68,7 +84,7 @@ export function JobPostingSidebar({ jobs, selectedId, onSelect }: JobPostingSide
   const completedJobs = useMemo(
     () => jobs.filter((j) => {
       const s = j.status.toLowerCase();
-      return s === 'closed' || s === 'completed';
+      return s === "closed" || s === "completed";
     }),
     [jobs],
   );
@@ -79,17 +95,19 @@ export function JobPostingSidebar({ jobs, selectedId, onSelect }: JobPostingSide
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
       className="flex flex-col rounded-2xl h-full overflow-hidden"
-      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+      style={{ background: "var(--surface-elevated)" }}
     >
-      <div className="p-6 pb-0 flex-shrink-0">
-        <h2 className="text-lg font-semibold text-white">Job Postings</h2>
+      {/* Title — pinned */}
+      <div className="p-8 pb-0 flex-shrink-0">
+        <h2 className="text-2xl font-semibold text-white">Job Postings</h2>
       </div>
 
-      <div className="flex flex-col gap-4 px-4 pt-4 pb-6 flex-1 min-h-0 overflow-y-auto">
+      {/* Scrollable sections */}
+      <div className="flex flex-col gap-6 px-8 pt-6 pb-8 flex-1 min-h-0 overflow-y-auto">
         {activeJobs.length > 0 && (
-          <section className="flex flex-col gap-2">
-            <h3 className="text-xs font-semibold text-white/40 uppercase tracking-wider px-2">Active</h3>
-            <div className="flex flex-col gap-2">
+          <section className="flex flex-col gap-4">
+            <h3 className="text-xl font-semibold text-white">Active</h3>
+            <div className="flex flex-col gap-4">
               {activeJobs.map((job) => (
                 <JobCard
                   key={job.id}
@@ -103,9 +121,9 @@ export function JobPostingSidebar({ jobs, selectedId, onSelect }: JobPostingSide
         )}
 
         {completedJobs.length > 0 && (
-          <section className="flex flex-col gap-2">
-            <h3 className="text-xs font-semibold text-white/40 uppercase tracking-wider px-2">Completed</h3>
-            <div className="flex flex-col gap-2">
+          <section className="flex flex-col gap-4">
+            <h3 className="text-xl font-semibold text-white">Completed</h3>
+            <div className="flex flex-col gap-4">
               {completedJobs.map((job) => (
                 <JobCard
                   key={job.id}
