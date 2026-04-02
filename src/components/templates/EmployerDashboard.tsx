@@ -444,7 +444,7 @@ interface PromptStepOptions {
   step3: string[];
 }
 
-/* ── Mobeus 2.0 helpers ──────────────────────────────────────────────────── */
+/* ── Mobeus Platform helpers (for deployment on mobeus.ai) ────────────────── */
 
 /** Loads employer-agent-knowledge.md from the public folder at runtime. */
 async function loadEmployerPrompt(): Promise<string> {
@@ -454,80 +454,74 @@ async function loadEmployerPrompt(): Promise<string> {
 }
 
 /**
- * Connects the Mobeus 2.0 session for EMPLOYER TEXT CHAT (audio-silent).
- * 
- * Mobeus 2.0 approach:
- *  1. Create session via widget API with custom systemPrompt
- *  2. Use voice-session-store to manage connection
- *  3. Control audio/video via LiveKit Room API
- *  4. Mute all audio elements via MutationObserver
- *  5. Use LiveKit data channel for text communication
+ * Waits for the Mobeus SDK to be available on the page.
+ * When deployed on mobeus.ai, the SDK is already loaded.
+ */
+async function waitForMobeusSdk(): Promise<void> {
+  for (let i = 0; i < 50; i++) {
+    if ((window as any).MobeusSDK || (window as any).__mobeusRoom) {
+      return;
+    }
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  throw new Error("Mobeus SDK not available");
+}
+
+/**
+ * Gets the LiveKit room from the Mobeus platform.
+ * When running on mobeus.ai, the room is already connected.
+ */
+function getMobeusRoom(): any {
+  // Check for Mobeus SDK room
+  if ((window as any).__mobeusRoom) {
+    return (window as any).__mobeusRoom;
+  }
+  
+  // Check for MobeusSDK object
+  const sdk = (window as any).MobeusSDK;
+  if (sdk?.room) {
+    return sdk.room;
+  }
+  
+  // Check for voice session store (if using the store pattern)
+  const store = (window as any).__voiceSessionStore;
+  if (store?.getState?.()?.room) {
+    return store.getState().room;
+  }
+  
+  return null;
+}
+
+/**
+ * Initializes employer mode on the Mobeus platform.
+ * Uses the existing session and just configures it for text-only employer chat.
  */
 async function startChatSession(systemPrompt: string): Promise<void> {
-  const widgetHost = process.env.NEXT_PUBLIC_WIDGET_HOST || 'https://app.mobeus.ai';
-  const apiKey = process.env.NEXT_PUBLIC_WIDGET_API_KEY || '';
-
-  if (!apiKey) {
-    throw new Error('Widget API key not configured');
-  }
-
   try {
-    // Create session with custom employer prompt via widget API
-    const response = await fetch(`${widgetHost}/api/widget/session`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        apiKey,
-        systemPrompt, // Custom employer prompt
-        defaults: {
-          micMuted: true, // Start with mic muted for text-only mode
-          volumeMuted: true, // Mute avatar audio
-          avatarEnabled: false, // Disable avatar
-          avatarVisible: false,
-        }
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || 'Failed to create employer session');
+    await waitForMobeusSdk();
+    
+    const room = getMobeusRoom();
+    if (!room) {
+      console.warn('[Employer] No Mobeus room found, will work in limited mode');
+      return;
     }
 
-    const sessionData = await response.json();
-
-    // Import voice session store dynamically to avoid SSR issues
-    const { useVoiceSessionStore } = await import('@/lib/stores/voice-session-store');
-    const store = useVoiceSessionStore.getState();
-
-    // Manually set up the session using the store's internal state
-    // This bypasses the normal connect() flow to use our custom session
-    const { Room } = await import('livekit-client');
-    
-    const room = new Room({
-      adaptiveStream: true,
-      dynacast: true,
-      audioCaptureDefaults: {
-        autoGainControl: true,
-        echoCancellation: true,
-        noiseSuppression: true,
-      },
-    });
-
-    // Connect to room
-    await room.connect(sessionData.wsUrl || sessionData.livekitUrl, sessionData.token);
-
-    // Keep mic disabled for text-only mode
-    await room.localParticipant.setMicrophoneEnabled(false);
-
-    // Store the room reference for later use
+    // Store room reference for later use
     (window as any).__employerRoom = room;
-    (window as any).__employerSessionId = sessionData.sessionId;
+    
+    // Disable microphone for text-only mode
+    if (room.localParticipant) {
+      await room.localParticipant.setMicrophoneEnabled(false).catch(() => {});
+    }
 
-    console.log('[Employer] Session connected (text-only mode)');
+    console.log('[Employer] Using Mobeus platform session (text-only mode)');
+    
+    // Note: Custom prompt handling depends on Mobeus platform configuration
+    // The prompt should be set in the Mobeus admin panel for the agent
 
   } catch (err) {
-    console.error('[Employer] Failed to start session:', err);
-    throw err;
+    console.warn('[Employer] Failed to initialize with Mobeus SDK:', err);
+    // Continue anyway - the UI will work, just without voice features
   }
 }
 
@@ -564,11 +558,11 @@ function startMuteLoop(): () => void {
 }
 
 /** 
- * Sends a visible user message to the AI via LiveKit data channel.
- * Mobeus 2.0 uses LiveKit's native text messaging.
+ * Sends a visible user message to the AI.
+ * Uses the Mobeus platform's existing room connection.
  */
 async function sendChatText(text: string) {
-  const room = (window as any).__employerRoom;
+  const room = getMobeusRoom();
   if (!room?.localParticipant) {
     console.warn('[Employer] No room available for sending message');
     return;
@@ -1237,18 +1231,21 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
 
   /* Block navigateToSection — employer AI must never trigger talent templates */
   useEffect(() => {
-    // In mobeus 2.0, site functions are registered via RPC handlers
-    // We'll register a no-op handler to prevent navigation
-    const room = (window as any).__employerRoom;
+    // Register a no-op handler to prevent navigation
+    const room = (window as any).__employerRoom || (window as any).__mobeusRoom;
     if (room?.localParticipant) {
-      room.localParticipant.registerRpcMethod('navigateToSection', async () => {
-        console.warn("[EmployerDashboard] navigateToSection blocked");
-        return JSON.stringify({ disableNewResponseCreation: false });
-      });
+      try {
+        room.localParticipant.registerRpcMethod('navigateToSection', async () => {
+          console.warn("[EmployerDashboard] navigateToSection blocked");
+          return JSON.stringify({ disableNewResponseCreation: false });
+        });
+      } catch (err) {
+        console.warn("[EmployerDashboard] Could not register RPC method:", err);
+      }
     }
   }, []);
 
-  /* Cleanup on unmount - Mobeus 2.0 */
+  /* Cleanup on unmount - Mobeus Platform */
   useEffect(() => {
     return () => {
       // Clean up mute observer
@@ -1257,40 +1254,45 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
       // Clear any pending timers
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
       
-      // Disconnect the employer room
-      const room = (window as any).__employerRoom;
-      if (room) {
-        room.disconnect().catch((err: Error) => {
-          console.warn('[Employer] Error disconnecting room:', err);
-        });
-        (window as any).__employerRoom = null;
-        (window as any).__employerSessionId = null;
-      }
+      // Note: Don't disconnect the room when deployed on Mobeus platform
+      // The platform manages the room lifecycle
+      // Just clear our reference
+      (window as any).__employerRoom = null;
       
-      console.log('[Employer] Session cleaned up');
+      console.log('[Employer] Cleaned up employer mode');
     };
   }, []);
 
   /* Suppress all avatar visuals and audio whenever chat mode is active.
-     Mobeus 2.0: Use LiveKit Room API and DOM manipulation. */
+     Works with Mobeus platform's existing room. */
   useEffect(() => {
     if (!chatMode) return;
 
-    const room = (window as any).__employerRoom;
+    const room = (window as any).__employerRoom || (window as any).__mobeusRoom;
     
     // Mute all audio via LiveKit if room is available
     if (room) {
-      // Ensure mic stays disabled
-      room.localParticipant.setMicrophoneEnabled(false).catch(() => {});
-      
-      // Mute all remote audio tracks
-      room.remoteParticipants.forEach((participant: any) => {
-        participant.audioTrackPublications.forEach((pub: any) => {
-          if (pub.track) {
-            pub.track.detach();
-          }
-        });
-      });
+      try {
+        // Ensure mic stays disabled
+        if (room.localParticipant) {
+          room.localParticipant.setMicrophoneEnabled(false).catch(() => {});
+        }
+        
+        // Mute all remote audio tracks
+        if (room.remoteParticipants) {
+          room.remoteParticipants.forEach((participant: any) => {
+            if (participant.audioTrackPublications) {
+              participant.audioTrackPublications.forEach((pub: any) => {
+                if (pub.track) {
+                  pub.track.detach();
+                }
+              });
+            }
+          });
+        }
+      } catch (err) {
+        console.warn('[Employer] Failed to mute audio:', err);
+      }
     }
 
     // Hide any avatar-related UI elements
@@ -1338,7 +1340,7 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
     return () => observer.disconnect();
   }, [chatMode]);
 
-  /* Connect the AI session on mount - Mobeus 2.0 */
+  /* Connect the AI session on mount - Mobeus Platform */
   useEffect(() => {
     if (sessionStartedRef.current) return;
     sessionStartedRef.current = true;
@@ -1346,13 +1348,13 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
     loadEmployerPrompt()
       .then((prompt) => {
         promptOptionsRef.current = extractOptionsFromPrompt(prompt);
-        return startChatSession(prompt).then(() => prompt);
+        return startChatSession(prompt);
       })
       .then(() => {
         // Start the persistent mute loop to suppress any audio
         muteCleanupRef.current = startMuteLoop();
         
-        // Delay sessionReady by 3s to allow the session to fully initialize
+        // Delay sessionReady by 2s to allow the Mobeus platform session to stabilize
         // and discard any initial agent messages that aren't relevant to employer mode
         setTimeout(() => {
           // Discard any speech captured during the startup window
@@ -1363,11 +1365,13 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
           }
           setSessionReady(true);
           console.log('[Employer] Session ready for chat');
-        }, 3000);
+        }, 2000);
       })
       .catch((err) => {
         console.error('[Employer] Failed to initialize session:', err);
-        setSessionReady(true); // Allow UI to proceed even if connection failed
+        // Allow UI to proceed even if connection failed
+        muteCleanupRef.current = startMuteLoop();
+        setSessionReady(true);
       });
   }, []);
 

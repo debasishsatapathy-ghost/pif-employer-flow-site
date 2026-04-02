@@ -1,8 +1,8 @@
 /**
- * useTeleSpeech - Mobeus 2.0 compatible hook
+ * useTeleSpeech - Mobeus Platform compatible hook
  * 
  * Listens to agent speech via LiveKit transcription events.
- * This replaces the trainco-v1 data channel approach with proper LiveKit transcription.
+ * Works with the Mobeus platform's existing room connection.
  */
 
 import { useState, useEffect, useRef } from 'react';
@@ -12,15 +12,61 @@ interface TeleSpeechState {
   isTalking: boolean;
 }
 
+/**
+ * Gets the LiveKit room from the Mobeus platform.
+ */
+function getMobeusRoom(): any {
+  // Check for employer room (set by EmployerDashboard)
+  if ((window as any).__employerRoom) {
+    return (window as any).__employerRoom;
+  }
+  
+  // Check for Mobeus SDK room
+  if ((window as any).__mobeusRoom) {
+    return (window as any).__mobeusRoom;
+  }
+  
+  // Check for MobeusSDK object
+  const sdk = (window as any).MobeusSDK;
+  if (sdk?.room) {
+    return sdk.room;
+  }
+  
+  // Check for voice session store
+  const store = (window as any).__voiceSessionStore;
+  if (store?.getState?.()?.room) {
+    return store.getState().room;
+  }
+  
+  return null;
+}
+
 export function useTeleSpeech(): TeleSpeechState {
   const [speech, setSpeech] = useState<string | null>(null);
   const [isTalking, setIsTalking] = useState(false);
   const speechTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [room, setRoom] = useState<any>(null);
+
+  // Find the room on mount and when it changes
+  useEffect(() => {
+    const checkRoom = () => {
+      const foundRoom = getMobeusRoom();
+      if (foundRoom && foundRoom !== room) {
+        setRoom(foundRoom);
+      }
+    };
+
+    // Check immediately
+    checkRoom();
+
+    // Check periodically in case room connects later
+    const interval = setInterval(checkRoom, 1000);
+
+    return () => clearInterval(interval);
+  }, [room]);
 
   useEffect(() => {
-    const room = (window as any).__employerRoom;
     if (!room) {
-      console.warn('[useTeleSpeech] No employer room available');
       return;
     }
 
@@ -67,19 +113,27 @@ export function useTeleSpeech(): TeleSpeechState {
     };
 
     // Register event listeners
-    room.on('transcriptionReceived', handleTranscription);
-    room.on('participantAttributesChanged', handleParticipantAttributesChanged);
+    try {
+      room.on('transcriptionReceived', handleTranscription);
+      room.on('participantAttributesChanged', handleParticipantAttributesChanged);
+    } catch (err) {
+      console.warn('[useTeleSpeech] Failed to register event listeners:', err);
+    }
 
     // Cleanup
     return () => {
-      room.off('transcriptionReceived', handleTranscription);
-      room.off('participantAttributesChanged', handleParticipantAttributesChanged);
+      try {
+        room.off('transcriptionReceived', handleTranscription);
+        room.off('participantAttributesChanged', handleParticipantAttributesChanged);
+      } catch (err) {
+        // Ignore cleanup errors
+      }
       
       if (speechTimeoutRef.current) {
         clearTimeout(speechTimeoutRef.current);
       }
     };
-  }, []);
+  }, [room]);
 
   return { speech, isTalking };
 }
