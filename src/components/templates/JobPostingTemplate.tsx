@@ -1456,14 +1456,14 @@ export function JobPostingTemplate({
   /* ── fetch applicants ───────────────────────────────────────────────── */
   useEffect(() => {
     const fetchForPosting = async (pid: string) => {
-      const res = await fetch("/api/invoke/get_job_applicants", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ posting_id: pid, include_profile: true, limit: 100 }),
-      });
-      if (!res.ok) return [];
-      const data = await res.json();
-      return (data.items || []) as Applicant[];
+      const { getJobApplicants } = await import('@/lib/mcpBridge');
+      try {
+        const data = await getJobApplicants(pid, true, 100);
+        return (data.items || []) as Applicant[];
+      } catch (err) {
+        console.error("[JobPostingTemplate] Failed to fetch for posting:", pid, err);
+        return [];
+      }
     };
 
     const fetchApplicants = async () => {

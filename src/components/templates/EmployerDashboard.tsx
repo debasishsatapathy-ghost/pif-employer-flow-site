@@ -786,18 +786,14 @@ function HiringTabContent() {
   useEffect(() => {
     let cancelled = false;
     setJobsLoading(true);
-    fetch("/api/invoke/list_job_postings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ limit: 50, offset: 0 }),
+    
+    import('@/lib/mcpBridge').then(({ listJobPostings }) => {
+      return listJobPostings(50, 0);
     })
-      .then((r) => {
-        if (!r.ok) throw new Error(`list_job_postings failed (${r.status})`);
-        return r.json();
-      })
       .then((data) => { if (!cancelled) setApiJobs(data.items ?? []); })
       .catch((e: unknown) => console.error("[HiringTabContent] fetch jobs:", e))
       .finally(() => { if (!cancelled) setJobsLoading(false); });
+    
     return () => { cancelled = true; };
   }, []);
 

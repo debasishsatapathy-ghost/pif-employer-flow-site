@@ -797,18 +797,14 @@ export function HiringPage({ onSelectJob, apiJobs: externalJobs, apiJobsLoading:
     let cancelled = false;
     setInternalLoading(true);
     setError(null);
-    fetch("/api/invoke/list_job_postings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ limit: 5, offset: 0 }),
+    
+    import('@/lib/mcpBridge').then(({ listJobPostings }) => {
+      return listJobPostings(5, 0);
     })
-      .then((r) => {
-        if (!r.ok) throw new Error(`MCP list_job_postings failed (${r.status})`);
-        return r.json();
-      })
       .then((data) => { if (!cancelled) setInternalJobs(data.items ?? []); })
       .catch((e: unknown) => { if (!cancelled) setError(String(e)); })
       .finally(() => { if (!cancelled) setInternalLoading(false); });
+    
     return () => { cancelled = true; };
   }, [hasExternalJobs]);
 
@@ -817,18 +813,14 @@ export function HiringPage({ onSelectJob, apiJobs: externalJobs, apiJobsLoading:
     let cancelled = false;
     setPosterLoading(true);
     setPosterError(null);
-    fetch("/api/invoke/list_job_postings_by_poster", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ posted_by: DEFAULT_POSTER, limit: 100, offset: 0 }),
+    
+    import('@/lib/mcpBridge').then(({ listJobPostingsByPoster }) => {
+      return listJobPostingsByPoster(DEFAULT_POSTER, 100, 0);
     })
-      .then((r) => {
-        if (!r.ok) throw new Error(`MCP list_job_postings_by_poster failed (${r.status})`);
-        return r.json();
-      })
       .then((data) => { if (!cancelled) setPosterJobs(data.jobs ?? []); })
       .catch((e: unknown) => { if (!cancelled) setPosterError(String(e)); })
       .finally(() => { if (!cancelled) setPosterLoading(false); });
+    
     return () => { cancelled = true; };
   }, [jobSource]);
 
