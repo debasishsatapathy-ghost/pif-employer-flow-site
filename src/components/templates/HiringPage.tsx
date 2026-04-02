@@ -30,6 +30,8 @@ import {
   MessageCircle,
   Sparkles,
   Pencil,
+  Users,
+  ArrowDown,
 } from "lucide-react";
 import {
   type JobPostingResponse,
@@ -40,12 +42,12 @@ import {
 const CARD = { background: "rgba(255,255,255,0.045)", border: "1px solid rgba(255,255,255,0.09)" };
 
 /* ── pipeline ────────────────────────────────────────────────────────────── */
-const ROLES = ["Senior AI Developer", "Cloud Engineer"];
+const ROLES = ["Cloud Engineer", "Senior AI Developer"];
 const BAR = [
-  { label: "Interview",   color: "#1ed25e", pct: 35 },
-  { label: "Shortlisted", color: "#51a2ff", pct: 30 },
-  { label: "Screened",    color: "#a78bfa", pct: 25 },
-  { label: "Rejected",    color: "rgba(255,255,255,0.22)", pct: 10 },
+  { label: "Interview",   color: "#1dc558", pct: 26 },
+  { label: "Shortlisted", color: "#3689ff", pct: 46 },
+  { label: "Screened",    color: "#9e36ff", pct: 23 },
+  { label: "Rejected",    color: "#393940", pct: 5 },
 ];
 
 /* ── hiring intelligence ─────────────────────────────────────────────────── */
@@ -80,7 +82,7 @@ type Visual =
 
 interface Metric {
   num: string; label: string; visual: Visual;
-  sub?: string; subIcon?: "plus"|"check"|"warn"; subColor?: string;
+  sub?: string; subIcon?: "plus"|"check"|"warn"|"people"; subColor?: string;
 }
 
 const JOBS: {
@@ -90,15 +92,16 @@ const JOBS: {
 }[] = [
   {
     title: "Senior AI Developer", meta: "Engineering · Jeddah · 2 days ago",
-    status: "Screening", dotColor: "#1ed25e", solidDots: 4, fadedDots: 0,
+    status: "Screening", dotColor: "#1dc558", solidDots: 3, fadedDots: 1,
     left: {
-      num: "30", label: "close matches",
-      visual: { t: "grid", color: "#a78bfa", rows: 3, cols: 5 },
-      sub: "5 new suggestions", subIcon: "plus", subColor: "rgba(255,255,255,0.45)",
+      num: "8", label: "screened applicants",
+      visual: { t: "grid", color: "#a78bfa", rows: 2, cols: 4 },
+      sub: "5 shortlisted", subIcon: "people", subColor: "rgba(255,255,255,0.45)",
     },
     right: {
-      num: "2", label: "shortlisted",
-      visual: { t: "squares", color: "#51a2ff", n: 2 },
+      num: "13", label: "talent pool",
+      visual: { t: "grid", color: "#a78bfa", rows: 3, cols: 5 },
+      sub: "8 new suggestions", subIcon: "plus", subColor: "rgba(255,255,255,0.45)",
     },
   },
   {
@@ -111,7 +114,7 @@ const JOBS: {
     },
     right: {
       num: "17", label: "shortlisted",
-      visual: { t: "grid-mixed", rows: 2, cols: 5 },
+      visual: { t: "grid-mixed", rows: 2, cols: 9 },
       sub: "1 dropped out", subIcon: "warn", subColor: "#f97316",
     },
   },
@@ -208,11 +211,11 @@ function VisualBlock({ v }: { v: Visual }) {
   );
 }
 
-function SubRow({ sub, icon, color }: { sub: string; icon?: "plus"|"check"|"warn"; color?: string }) {
-  const Ic = icon === "plus" ? UserPlus : icon === "check" ? UserCheck : AlertCircle;
+function SubRow({ sub, icon, color }: { sub: string; icon?: "plus"|"check"|"warn"|"people"; color?: string }) {
+  const Ic = icon === "people" ? Users : icon === "plus" ? UserPlus : icon === "check" ? UserCheck : AlertCircle;
   return (
     <p className="text-[10px] mt-1.5 flex items-center gap-1" style={{color: color ?? "rgba(255,255,255,0.45)"}}>
-      {icon && <Ic size={9} className="flex-shrink-0" />}
+      {icon && <Ic size={10} className="flex-shrink-0" />}
       {sub}
     </p>
   );
@@ -220,13 +223,34 @@ function SubRow({ sub, icon, color }: { sub: string; icon?: "plus"|"check"|"warn
 
 function MetricCard({ m }: { m: Metric }) {
   return (
-    <div className="rounded-lg p-2.5 flex flex-col" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.07)" }}>
-      <p className="leading-none">
-        <span className="text-2xl font-bold" style={{color: "#1a3a5c"}}>{m.num}</span>
-        <span className="text-[11px] text-white/55 ml-1.5">{m.label}</span>
-      </p>
+    <div className="rounded-lg p-2.5 flex flex-col flex-1 min-w-0" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.07)" }}>
+      <p className="text-[22px] font-semibold text-white leading-none">{m.num}</p>
+      <p className="text-[11px] text-white/55 mt-0.5 leading-tight">{m.label}</p>
       <VisualBlock v={m.visual} />
       {m.sub && <SubRow sub={m.sub} icon={m.subIcon} color={m.subColor} />}
+    </div>
+  );
+}
+
+function DetailedJobCard({ job }: { job: typeof JOBS[0] }) {
+  return (
+    <div className="rounded-xl p-4 flex flex-col gap-3" style={{ background: "rgba(255,255,255,0.045)", border: "1px solid rgba(255,255,255,0.09)" }}>
+      {/* title row */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-white leading-tight">{job.title}</p>
+          <p className="text-[11px] text-white/45 mt-0.5">{job.meta}</p>
+        </div>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <Dots color={job.dotColor} solid={job.solidDots} faded={job.fadedDots} />
+          <span className="text-[11px] text-white/65 font-medium">{job.status}</span>
+        </div>
+      </div>
+      {/* two metric cards */}
+      <div className="flex gap-2">
+        <MetricCard m={job.left} />
+        <MetricCard m={job.right} />
+      </div>
     </div>
   );
 }
@@ -861,112 +885,113 @@ export function HiringPage({ onSelectJob, apiJobs: externalJobs, apiJobsLoading:
 
         {/* ── header ── */}
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-white tracking-tight">Hiring</h1>
+          <h1 className="text-[32px] font-semibold text-white leading-tight">Hiring</h1>
           <div className="flex gap-2">
-            <button type="button" className="px-4 py-2 rounded-xl text-sm font-medium text-white hover:bg-white/5 transition-colors" style={{ border: "1px solid rgba(255,255,255,0.2)" }}>
+            <button type="button" className="px-4 py-2 rounded-full text-sm font-medium text-white transition-colors" style={{ border: "1px solid rgba(255,255,255,0.2)" }}>
               Browse Talent
             </button>
-            <button type="button" className="px-4 py-2 rounded-xl text-sm font-medium" style={{ background: "var(--accent)", color: "#0d1117", fontWeight: 600 }}>
+            <button type="button" className="px-4 py-2 rounded-full text-sm font-semibold" style={{ background: "#1dc558", color: "#09090b" }}>
               Post a Job
             </button>
           </div>
         </div>
 
-        {/* ── 4-column top row ── */}
+        {/* ── main grid ── */}
         <div className="grid grid-cols-1 md:grid-cols-6 xl:grid-cols-12 gap-4">
 
-          {/* Pipeline — 4 of 12 */}
-          <Card className="md:col-span-3 xl:col-span-4">
+          {/* Pipeline — xl:col-span-4 */}
+          <Card className="md:col-span-3 xl:col-span-4 flex flex-col justify-between" style={{ minHeight: 204 }}>
             {/* header */}
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-xs font-semibold text-white/80">Pipeline</span>
-              {ROLES.map((r) => (
-                <button
-                  key={r} type="button"
-                  onClick={() => setRole(r)}
-                  className="px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors"
-                  style={{
-                    background: role === r ? "rgba(255,255,255,0.15)" : "transparent",
-                    color: role === r ? "white" : "rgba(255,255,255,0.55)",
-                    border: "1px solid rgba(255,255,255,0.12)",
-                  }}
-                >
-                  {r}
-                </button>
-              ))}
+            <div className="flex items-center gap-2">
+              <span className="text-base text-white/55 font-normal">Pipeline</span>
+              <div className="ml-auto flex gap-2">
+                {ROLES.map((r) => (
+                  <button
+                    key={r} type="button"
+                    onClick={() => setRole(r)}
+                    className="px-3 py-1 rounded-full text-[13px] font-medium transition-colors"
+                    style={{
+                      background: role === r ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.05)",
+                      color: "rgba(255,255,255,0.9)",
+                      border: role === r ? "1px solid rgba(255,255,255,0.2)" : "1px solid rgba(255,255,255,0.08)",
+                    }}
+                  >
+                    {r}
+                  </button>
+                ))}
+              </div>
             </div>
             {/* count */}
-            <p className="text-[42px] font-bold leading-none mb-0.5">
-              <span className="text-white">108</span>
-              <span className="text-base font-normal text-white/50 ml-2">applicants</span>
-            </p>
+            <div className="flex items-end gap-2">
+              <span className="text-[48px] font-semibold text-white leading-none">107</span>
+              <span className="text-base text-white/55 pb-1">applicants</span>
+            </div>
             {/* bar */}
-            <div className="h-2 rounded-full overflow-hidden flex mt-3" style={{ background: "rgba(255,255,255,0.07)" }}>
-              {BAR.map((s) => (
-                <div key={s.label} className="h-full" style={{ width: `${s.pct}%`, background: s.color }} />
-              ))}
+            <div className="flex flex-col gap-3">
+              <div className="h-3 rounded-full overflow-hidden flex gap-px">
+                {BAR.map((s) => (
+                  <div key={s.label} className="h-full" style={{ width: `${s.pct}%`, background: s.color }} />
+                ))}
+              </div>
+              {/* legend */}
+              <div className="flex flex-wrap gap-x-3 gap-y-1">
+                {BAR.map((s) => (
+                  <span key={s.label} className="flex items-center gap-1.5 text-[12px] text-white/50">
+                    <span className="w-3 h-3 rounded-[4px] flex-shrink-0" style={{ background: s.color }} />
+                    {s.label}
+                  </span>
+                ))}
+              </div>
             </div>
-            {/* legend */}
-            <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
-              {BAR.map((s) => (
-                <span key={s.label} className="flex items-center gap-1 text-[9px] text-white/45">
-                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: s.color }} />
-                  {s.label}
-                </span>
-              ))}
+          </Card>
+
+          {/* Avg. time to match — xl:col-span-2 */}
+          <Card className="md:col-span-1 xl:col-span-2 flex flex-col justify-between" style={{ minHeight: 204 }}>
+            <span className="text-base text-white/55">Avg. time to match</span>
+            <div className="flex items-end gap-2">
+              <span className="text-[48px] font-semibold leading-none" style={{ color: "#1dc558" }}>4.2</span>
+              <span className="text-base text-white/55 pb-1">days</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <ArrowDown size={16} style={{ color: "#1dc558" }} />
+              <span className="text-sm text-white">15% from last month</span>
             </div>
           </Card>
 
-          {/* Avg. time to match — 2 of 12 */}
-          <Card className="md:col-span-1.5 xl:col-span-2">
-            <p className="text-[10px] uppercase tracking-wider text-white/45 mb-2">Avg. time to match</p>
-            <p className="text-[32px] font-bold leading-none">
-              <span style={{ color: "var(--accent)" }}>4.2</span>
-              <span className="text-sm font-normal text-white/60 ml-1.5">days</span>
-            </p>
-            <p className="text-[11px] flex items-center gap-1 mt-2.5" style={{ color: "var(--accent)" }}>
-              <TrendingDown size={11} className="flex-shrink-0" />
-              15% from last month
-            </p>
+          {/* Avg. skill readiness — xl:col-span-2 */}
+          <Card className="md:col-span-1 xl:col-span-2 flex flex-col justify-between" style={{ minHeight: 204 }}>
+            <span className="text-base text-white/55">Avg. skill readiness</span>
+            <div className="flex items-end gap-2">
+              <span className="text-[48px] font-semibold leading-none" style={{ color: "#ff9040" }}>79</span>
+              <span className="text-base text-white/55 pb-1">%</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <ArrowDown size={16} style={{ color: "#ff4040" }} />
+              <span className="text-sm text-white">5% this month</span>
+            </div>
           </Card>
 
-          {/* Avg. skill readiness — 2 of 12 */}
-          <Card className="md:col-span-1.5 xl:col-span-2">
-            <p className="text-[10px] uppercase tracking-wider text-white/45 mb-2">Avg. skill readiness</p>
-            <p className="text-[32px] font-bold leading-none">
-              <span style={{ color: "#f97316" }}>79</span>
-              <span className="text-sm font-normal text-white/60 ml-0.5">%</span>
-            </p>
-            <p className="text-[11px] flex items-center gap-1 mt-2.5 text-red-400">
-              <TrendingDown size={11} className="flex-shrink-0" />
-              5% this month
-            </p>
-          </Card>
-
-          {/* Upcoming Interviews — 4 of 12, spans 2 rows */}
+          {/* Upcoming Interviews — xl:col-span-4, spans 2 rows */}
           <div className="md:col-span-3 xl:col-span-4 flex flex-col gap-3 md:row-span-2">
-            {/* heading */}
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-white">Upcoming Interviews</h2>
+              <h2 className="text-base font-semibold text-white">Upcoming Interviews</h2>
               <button type="button" className="text-white/35 hover:text-white/65">
-                <MoreHorizontal size={15} />
+                <MoreHorizontal size={16} />
               </button>
             </div>
 
-            {/* calendar */}
             <MiniCalendar />
 
             {/* toggle */}
-            <div className="flex gap-1">
+            <div className="flex gap-1 p-1 rounded-xl" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
               {(["For you","All Interviews"] as const).map((t) => (
                 <button
                   key={t} type="button"
                   onClick={() => setIvTab(t)}
-                  className="flex-1 py-1.5 rounded-lg text-[11px] font-medium transition-colors"
+                  className="flex-1 py-1.5 rounded-lg text-[12px] font-medium transition-colors"
                   style={{
-                    background: ivTab === t ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.04)",
+                    background: ivTab === t ? "rgba(255,255,255,0.12)" : "transparent",
                     color: ivTab === t ? "white" : "rgba(255,255,255,0.5)",
-                    border: "1px solid rgba(255,255,255,0.08)",
                   }}
                 >
                   {t}
@@ -976,195 +1001,135 @@ export function HiringPage({ onSelectJob, apiJobs: externalJobs, apiJobsLoading:
 
             {/* list */}
             {IVWS.map((iv, i) => (
-              <div key={i} className="flex items-center gap-3 rounded-xl p-3" style={CARD}>
+              <div key={i} className="flex items-center gap-3 rounded-xl p-4" style={CARD}>
                 <img
                   src={iv.avatar} alt={iv.name}
                   className="w-10 h-10 rounded-full flex-shrink-0 object-cover"
                   style={{ border: "1px solid rgba(255,255,255,0.1)" }}
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="text-[13px] font-semibold text-white leading-tight">{iv.name}</p>
-                  <p className="text-[10px] text-white/50 mt-0.5">{iv.role}</p>
-                  <p className="text-[10px] text-white/40 mt-0.5 flex items-center gap-1">
-                    <MapPin size={9} className="flex-shrink-0" /> {iv.type}
+                  <p className="text-sm font-semibold text-white leading-tight">{iv.name}</p>
+                  <p className="text-[11px] text-white/50 mt-0.5">{iv.role}</p>
+                  <p className="text-[11px] text-white/40 mt-0.5 flex items-center gap-1">
+                    <MapPin size={10} className="flex-shrink-0" /> {iv.type}
                   </p>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <p className="text-[11px] font-bold text-white leading-tight">{iv.time}</p>
-                  <p className="text-[10px] text-white/50">{iv.ampm}</p>
+                  <p className="text-[12px] font-semibold text-white leading-tight">{iv.time}</p>
+                  <p className="text-[11px] text-white/50">{iv.ampm}</p>
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Hiring intelligence — 4 of 12 (bottom-left) */}
-          <div className="md:col-span-3 xl:col-span-4 flex flex-col gap-3">
+          {/* Job Postings — xl:col-span-5 (bottom-LEFT, before Hiring Intel) */}
+          <div className="md:col-span-4 xl:col-span-5 flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-white">Hiring intelligence</h2>
+              <h2 className="text-base font-semibold text-white">Job Postings</h2>
+              <div className="flex gap-2">
+                {(["Active", "Completed"] as const).map((t) => (
+                  <button
+                    key={t} type="button"
+                    onClick={() => setJobTab(t)}
+                    className="px-3 py-1 rounded-full text-[13px] font-medium transition-colors"
+                    style={{
+                      background: jobTab === t ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.05)",
+                      color: "rgba(255,255,255,0.9)",
+                      border: jobTab === t ? "1px solid rgba(255,255,255,0.2)" : "1px solid rgba(255,255,255,0.08)",
+                    }}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Loading state */}
+            {jobsLoading && (
+              <div className="flex flex-col gap-3">
+                {[1, 2].map((i) => (
+                  <div key={i} className="rounded-xl p-4 animate-pulse" style={CARD}>
+                    <div className="h-3 rounded w-2/3 mb-2" style={{ background: "rgba(255,255,255,0.1)" }} />
+                    <div className="h-2 rounded w-1/2" style={{ background: "rgba(255,255,255,0.06)" }} />
+                  </div>
+                ))}
+              </div>
+            )}
+            {!jobsLoading && jobsError && (
+              <div className="rounded-xl p-4 text-[12px] text-red-400/80" style={CARD}>
+                Could not load job postings: {jobsError}
+              </div>
+            )}
+
+            {/* Show mock DetailedJobCards when no real data (Active tab) */}
+            {!jobsLoading && !jobsError && filteredJobs.length === 0 && jobTab === "Active" && (
+              <div className="flex flex-col gap-3">
+                {JOBS.map((job) => (
+                  <DetailedJobCard key={job.title} job={job} />
+                ))}
+              </div>
+            )}
+
+            {/* No completed postings placeholder */}
+            {!jobsLoading && !jobsError && filteredJobs.length === 0 && jobTab === "Completed" && (
+              <div className="rounded-xl p-6 flex flex-col items-center gap-2 text-center" style={CARD}>
+                <p className="text-[13px] font-medium text-white/60">No completed postings</p>
+                <p className="text-[11px] text-white/35">Completed postings will appear here.</p>
+              </div>
+            )}
+
+            {/* Real job postings */}
+            {!jobsLoading && !jobsError && filteredJobs.map((job) => (
+              <LiveJobCard
+                key={job.id}
+                job={job}
+                onClick={() => {
+                  const j = { id: job.id, title: job.title, department: job.department || "Engineering", location: job.location || "", status: job.status, posted_at: relativeDate(job.created_at) };
+                  setSelectedJob(j);
+                  onSelectJob?.(job.id, j);
+                }}
+              />
+            ))}
+          </div>
+
+          {/* Hiring Intelligence — xl:col-span-3 (bottom-RIGHT, after Job Postings) */}
+          <div className="md:col-span-2 xl:col-span-3 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-semibold text-white">Hiring Intelligence</h2>
               <button type="button" className="text-white/35 hover:text-white/65">
-                <MoreHorizontal size={15} />
+                <MoreHorizontal size={16} />
               </button>
             </div>
 
-            {INTEL.map((c, i) => (
-              <Card key={i}>
-                <div className="flex items-center gap-1.5 mb-1.5">
-                  <span style={{ color: c.iconColor }}>
-                    {c.icon === "down" ? <TrendingDown size={12} /> : <TrendingUp size={12} />}
-                  </span>
-                  <p className="text-[13px] font-semibold text-white">{c.title}</p>
-                </div>
-                <p className="text-[11px] text-white/55 leading-relaxed">{c.body}</p>
-                {"note" in c && c.note && (
-                  <p className="text-[11px] mt-1.5 font-medium" style={{ color: "var(--accent)" }}>{c.note}</p>
-                )}
-                <div className="mt-2.5">
-                  {"noAction" in c && c.noAction ? (
-                    <p className="text-[11px] text-white/35">{c.noAction}</p>
-                  ) : "cta" in c && c.cta ? (
-                    <button
-                      type="button"
-                      className="px-3 py-1.5 rounded-lg text-[11px] font-medium text-white transition-colors"
-                      style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)" }}
-                    >
-                      {c.cta}
-                    </button>
-                  ) : null}
-                </div>
-              </Card>
-            ))}
-          </div>
-
-          {/* Job Postings — 4 of 12 (bottom-center) */}
-          <div className="md:col-span-3 xl:col-span-4 flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-white">Job Postings</h2>
-              <div className="flex gap-1">
-                {/* Source toggle */}
-                <div className="flex rounded-lg overflow-hidden" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.09)" }}>
-                  {(["mine", "posted"] as const).map((s) => (
-                    <button
-                      key={s} type="button"
-                      onClick={() => setJobSource(s)}
-                      className="px-3 py-1.5 text-[11px] font-medium transition-colors"
-                      style={{
-                        background: jobSource === s ? "rgba(255,255,255,0.14)" : "transparent",
-                        color: jobSource === s ? "white" : "rgba(255,255,255,0.5)",
-                      }}
-                    >
-                      {s === "mine" ? "My Postings" : "On Platform"}
-                    </button>
-                  ))}
-                </div>
-                {/* Status filter — only shown for My Postings */}
-                {jobSource === "mine" && (
-                  <div className="flex rounded-lg overflow-hidden" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.09)" }}>
-                    {(["Active", "Completed"] as const).map((t) => (
-                      <button
-                        key={t} type="button"
-                        onClick={() => setJobTab(t)}
-                        className="px-3.5 py-1.5 text-[11px] font-medium transition-colors"
-                        style={{
-                          background: jobTab === t ? "rgba(255,255,255,0.14)" : "transparent",
-                          color: jobTab === t ? "white" : "rgba(255,255,255,0.5)",
-                        }}
-                      >
-                        {t}
-                      </button>
-                    ))}
+            <div className="rounded-2xl flex flex-col gap-3 p-4" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+              {INTEL.map((c, i) => (
+                <div key={i} className="rounded-xl p-4 flex flex-col gap-3" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                  <div className="flex items-center gap-2">
+                    <span style={{ color: c.iconColor }}>
+                      {c.icon === "down" ? <TrendingDown size={18} /> : <TrendingUp size={18} />}
+                    </span>
+                    <p className="text-base font-semibold text-white">{c.title}</p>
                   </div>
-                )}
-              </div>
-            </div>
-
-            {/* ── My Postings (employer DB) ── */}
-            {jobSource === "mine" && (
-              <>
-                {jobsLoading && (
-                  <div className="flex flex-col gap-3">
-                    {[1, 2].map((i) => (
-                      <div key={i} className="rounded-xl p-4 animate-pulse" style={CARD}>
-                        <div className="h-3 rounded w-2/3 mb-2" style={{ background: "rgba(255,255,255,0.1)" }} />
-                        <div className="h-2 rounded w-1/2" style={{ background: "rgba(255,255,255,0.06)" }} />
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {!jobsLoading && jobsError && (
-                  <div className="rounded-xl p-4 text-[12px] text-red-400/80" style={CARD}>
-                    Could not load job postings: {jobsError}
-                  </div>
-                )}
-                {!jobsLoading && !jobsError && filteredJobs.length === 0 && (
-                  <div className="rounded-xl p-6 flex flex-col items-center gap-2 text-center" style={CARD}>
-                    <p className="text-[13px] font-medium text-white/60">No {jobTab.toLowerCase()} postings</p>
-                    <p className="text-[11px] text-white/35">
-                      {jobTab === "Active" ? "Post a job to start building your pipeline." : "Completed postings will appear here."}
-                    </p>
-                    {jobTab === "Active" && (
+                  <p className="text-sm text-white/55 leading-relaxed">{c.body}</p>
+                  {"note" in c && c.note && (
+                    <p className="text-sm font-medium underline" style={{ color: "#1dc558" }}>{c.note}</p>
+                  )}
+                  <div>
+                    {"noAction" in c && c.noAction ? (
+                      <p className="text-sm text-white/35">{c.noAction}</p>
+                    ) : "cta" in c && c.cta ? (
                       <button
                         type="button"
-                        className="mt-2 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium text-white/80 hover:text-white transition-colors"
-                        style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)" }}
+                        className="w-full py-2 px-4 rounded-lg text-sm font-medium text-white transition-colors"
+                        style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }}
                       >
-                        <Plus size={11} /> Post a Job
+                        {c.cta}
                       </button>
-                    )}
+                    ) : null}
                   </div>
-                )}
-                {!jobsLoading && !jobsError && filteredJobs.map((job) => (
-                  <LiveJobCard
-                    key={job.id}
-                    job={job}
-                    onClick={() => {
-                      const j = { id: job.id, title: job.title, department: job.department || "Engineering", location: job.location || "", status: job.status, posted_at: relativeDate(job.created_at) };
-                      setSelectedJob(j);
-                      onSelectJob?.(job.id, j);
-                    }}
-                  />
-                ))}
-              </>
-            )}
-
-            {/* ── On Platform (job-matching service by-poster) ── */}
-            {jobSource === "posted" && (
-              <>
-                {posterLoading && (
-                  <div className="flex flex-col gap-3">
-                    {[1, 2].map((i) => (
-                      <div key={i} className="rounded-xl p-4 animate-pulse" style={CARD}>
-                        <div className="h-3 rounded w-2/3 mb-2" style={{ background: "rgba(255,255,255,0.1)" }} />
-                        <div className="h-2 rounded w-1/2" style={{ background: "rgba(255,255,255,0.06)" }} />
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {!posterLoading && posterError && (
-                  <div className="rounded-xl p-4 text-[12px] text-red-400/80" style={CARD}>
-                    Could not load platform postings: {posterError}
-                  </div>
-                )}
-                {!posterLoading && !posterError && posterJobs.length === 0 && (
-                  <div className="rounded-xl p-6 flex flex-col items-center gap-2 text-center" style={CARD}>
-                    <p className="text-[13px] font-medium text-white/60">No platform listings found</p>
-                    <p className="text-[11px] text-white/35">
-                      Jobs you post will appear here once indexed on the platform.
-                    </p>
-                  </div>
-                )}
-                {!posterLoading && !posterError && posterJobs.map((job) => (
-                  <LiveMockJobCard
-                    key={job.id}
-                    job={job}
-                    onClick={() => {
-                      const j = { id: job.id, title: job.title, department: job.category || "", location: job.location || "", status: "active" };
-                      setSelectedJob(j);
-                      onSelectJob?.(job.id, j);
-                    }}
-                  />
-                ))}
-              </>
-            )}
+                </div>
+              ))}
+            </div>
           </div>
 
         </div>{/* end 12-col grid */}

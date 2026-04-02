@@ -283,16 +283,16 @@ function TrainingProgramCard({
 /* ── Skill Insights Charts ──────────────────────────────────────────────── */
 
 function SkillLevelTrendsChart() {
-  // Multi-series area chart: AI (green), Cloud (blue), Data (purple), DevOps (teal)
-  const months = ["Feb", "Mar", "Apr", "May"];
+  // Multi-series stacked-look area chart: overlapping fills create the dark blended effect
+  const months = ["Jan", "Feb", "Mar", "Apr", "May"];
   const series = [
-    { label: "AI", color: "#1dc558", data: [20, 35, 50, 70] },
-    { label: "Cloud", color: "#3689ff", data: [15, 28, 40, 60] },
-    { label: "Data", color: "#8b5cf6", data: [10, 22, 35, 52] },
-    { label: "DevOps", color: "#ff9040", data: [8, 18, 30, 45] },
+    { label: "AI",     color: "#1dc558", data: [18, 28, 42, 58, 72] },
+    { label: "Cloud",  color: "#3689ff", data: [14, 22, 35, 50, 63] },
+    { label: "Data",   color: "#8b5cf6", data: [10, 18, 29, 42, 55] },
+    { label: "DevOps", color: "#ff9040", data: [7,  13, 22, 33, 45] },
   ];
   const W = 280;
-  const H = 120;
+  const H = 130;
   const PAD = { top: 8, right: 8, bottom: 20, left: 24 };
   const chartW = W - PAD.left - PAD.right;
   const chartH = H - PAD.top - PAD.bottom;
@@ -312,7 +312,7 @@ function SkillLevelTrendsChart() {
       className="flex flex-col p-4 rounded-xl gap-3"
       style={{ background: CARD_BG, border: CARD_BORDER }}
     >
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <span className="text-xs text-white font-medium">Skill Level Trends</span>
         <div className="flex items-center gap-2">
           {series.map((s) => (
@@ -323,59 +323,33 @@ function SkillLevelTrendsChart() {
           ))}
         </div>
       </div>
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-        {/* Y axis ticks */}
+      <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
+        <defs>
+          {series.map((s) => (
+            <linearGradient key={s.label} id={`grad-slt-${s.label}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={s.color} stopOpacity={0.75} />
+              <stop offset="100%" stopColor={s.color} stopOpacity={0.12} />
+            </linearGradient>
+          ))}
+        </defs>
+        {/* Y-axis grid lines */}
         {[0, 25, 50, 75].map((tick) => (
           <g key={tick}>
-            <line
-              x1={PAD.left}
-              y1={toY(tick)}
-              x2={W - PAD.right}
-              y2={toY(tick)}
-              stroke="rgba(255,255,255,0.06)"
-              strokeWidth={1}
-            />
-            <text
-              x={PAD.left - 4}
-              y={toY(tick) + 4}
-              fontSize={8}
-              fill="#71717b"
-              textAnchor="end"
-            >
-              {tick}
-            </text>
+            <line x1={PAD.left} y1={toY(tick)} x2={W - PAD.right} y2={toY(tick)} stroke="rgba(255,255,255,0.06)" strokeWidth={1} />
+            <text x={PAD.left - 4} y={toY(tick) + 4} fontSize={8} fill="#52525b" textAnchor="end">{tick}</text>
           </g>
         ))}
-        {/* Month labels */}
+        {/* X-axis labels */}
         {months.map((m, i) => (
-          <text
-            key={m}
-            x={toX(i)}
-            y={H - 4}
-            fontSize={8}
-            fill="#71717b"
-            textAnchor="middle"
-          >
-            {m}
-          </text>
+          <text key={m} x={toX(i)} y={H - 4} fontSize={8} fill="#52525b" textAnchor="middle">{m}</text>
         ))}
-        {/* Areas (reverse to get correct stacking) */}
-        {[...series].reverse().map((s, idx) => (
-          <g key={idx}>
-            <defs>
-              <linearGradient id={`grad-${s.label}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={s.color} stopOpacity={0.35} />
-                <stop offset="100%" stopColor={s.color} stopOpacity={0.04} />
-              </linearGradient>
-            </defs>
-            <path d={makeArea(s.data)} fill={`url(#grad-${s.label})`} />
-            <path
-              d={makePath(s.data)}
-              fill="none"
-              stroke={s.color}
-              strokeWidth={1.5}
-            />
-          </g>
+        {/* Areas drawn back-to-front: overlapping creates blended dark look */}
+        {[...series].reverse().map((s) => (
+          <path key={s.label} d={makeArea(s.data)} fill={`url(#grad-slt-${s.label})`} />
+        ))}
+        {/* Lines on top */}
+        {series.map((s) => (
+          <path key={s.label} d={makePath(s.data)} fill="none" stroke={s.color} strokeWidth={1.5} />
         ))}
       </svg>
     </div>
@@ -384,16 +358,17 @@ function SkillLevelTrendsChart() {
 
 function CurrentVsRequiredChart() {
   const W = 280;
-  const H = 120;
+  const H = 130;
   const PAD = { top: 8, right: 8, bottom: 20, left: 24 };
   const chartW = W - PAD.left - PAD.right;
   const chartH = H - PAD.top - PAD.bottom;
   const maxVal = 100;
   const pts = 5;
 
-  const required = [85, 80, 78, 70, 65];
-  const current = [60, 58, 54, 50, 46];
-  const labels = ["Feb", "Mar", "Apr", "May", "Jun"];
+  // Required stays high (flat-ish), Current grows to close the gap
+  const required = [88, 86, 83, 79, 75];
+  const current  = [55, 58, 62, 66, 70];
+  const labels = ["Jan", "Feb", "Mar", "Apr", "May"];
 
   const toX = (i: number) => PAD.left + (i / (pts - 1)) * chartW;
   const toY = (v: number) => PAD.top + chartH - (v / maxVal) * chartH;
@@ -410,41 +385,32 @@ function CurrentVsRequiredChart() {
       style={{ background: CARD_BG, border: CARD_BORDER }}
     >
       <span className="text-xs text-white font-medium">Current vs Required Skills</span>
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+      <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
         <defs>
           <linearGradient id="grad-required" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.5} />
-            <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.05} />
+            <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.75} />
+            <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.08} />
           </linearGradient>
           <linearGradient id="grad-current" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#1dc558" stopOpacity={0.4} />
-            <stop offset="100%" stopColor="#1dc558" stopOpacity={0.04} />
+            <stop offset="0%" stopColor="#6d28d9" stopOpacity={0.55} />
+            <stop offset="100%" stopColor="#6d28d9" stopOpacity={0.06} />
           </linearGradient>
         </defs>
         {[0, 25, 50, 75, 100].map((tick) => (
           <g key={tick}>
-            <line
-              x1={PAD.left}
-              y1={toY(tick)}
-              x2={W - PAD.right}
-              y2={toY(tick)}
-              stroke="rgba(255,255,255,0.06)"
-              strokeWidth={1}
-            />
-            <text x={PAD.left - 4} y={toY(tick) + 4} fontSize={8} fill="#71717b" textAnchor="end">
-              {tick}
-            </text>
+            <line x1={PAD.left} y1={toY(tick)} x2={W - PAD.right} y2={toY(tick)} stroke="rgba(255,255,255,0.06)" strokeWidth={1} />
+            <text x={PAD.left - 4} y={toY(tick) + 4} fontSize={8} fill="#52525b" textAnchor="end">{tick}</text>
           </g>
         ))}
         {labels.map((l, i) => (
-          <text key={l} x={toX(i)} y={H - 4} fontSize={8} fill="#71717b" textAnchor="middle">
-            {l}
-          </text>
+          <text key={l} x={toX(i)} y={H - 4} fontSize={8} fill="#52525b" textAnchor="middle">{l}</text>
         ))}
+        {/* Required area (outer, drawn first so current overlaps) */}
         <path d={makeArea(required)} fill="url(#grad-required)" />
         <path d={makePath(required)} fill="none" stroke="#8b5cf6" strokeWidth={1.5} />
+        {/* Current area (inner) */}
         <path d={makeArea(current)} fill="url(#grad-current)" />
-        <path d={makePath(current)} fill="none" stroke="#1dc558" strokeWidth={1.5} />
+        <path d={makePath(current)} fill="none" stroke="#a78bfa" strokeWidth={1.5} />
       </svg>
     </div>
   );
@@ -519,7 +485,7 @@ function SkillBarChart() {
             x={PAD.left + (tick / maxVal) * chartW}
             y={H - 2}
             fontSize={7}
-            fill="#71717b"
+            fill="#52525b"
             textAnchor="middle"
           >
             {tick}
@@ -537,9 +503,9 @@ function MonthlyGrowthChart() {
   const chartW = W - PAD.left - PAD.right;
   const chartH = H - PAD.top - PAD.bottom;
 
-  const data = [2, 5, 8, 12, 18, 25, 30];
+  const data = [25, 32, 42, 54, 63, 72, 80];
   const labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"];
-  const maxVal = 35;
+  const maxVal = 100;
 
   const toX = (i: number) => PAD.left + (i / (data.length - 1)) * chartW;
   const toY = (v: number) => PAD.top + chartH - (v / maxVal) * chartH;
@@ -559,7 +525,7 @@ function MonthlyGrowthChart() {
             <stop offset="100%" stopColor="#3689ff" stopOpacity={0.04} />
           </linearGradient>
         </defs>
-        {[0, 10, 20, 30].map((tick) => (
+        {[0, 25, 50, 75, 100].map((tick) => (
           <g key={tick}>
             <line
               x1={PAD.left}
@@ -569,7 +535,7 @@ function MonthlyGrowthChart() {
               stroke="rgba(255,255,255,0.06)"
               strokeWidth={1}
             />
-            <text x={PAD.left - 4} y={toY(tick) + 4} fontSize={8} fill="#71717b" textAnchor="end">
+            <text x={PAD.left - 4} y={toY(tick) + 4} fontSize={8} fill="#52525b" textAnchor="end">
               {tick}
             </text>
           </g>
