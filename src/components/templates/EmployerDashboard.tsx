@@ -1551,7 +1551,7 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
             <motion.div key="chat"
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="flex-1 flex flex-col overflow-hidden">
+              className="flex-1 min-h-0 flex flex-col overflow-hidden">
 
               <AnimatePresence mode="wait">
                 {wizardOpen ? (
@@ -1609,15 +1609,16 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
             <motion.div key="dashboard"
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="flex-1 flex flex-col overflow-hidden">
+              className="flex-1 min-h-0 flex flex-col overflow-hidden">
 
-              <div className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col">
+              <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
 
                 {activeTab === "home" && (
                   <motion.div key="home"
                     initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                    className="flex-1 flex flex-col items-center justify-center px-5 sm:px-8 pb-16 pt-6">
+                    className="flex flex-col items-center px-5 sm:px-8"
+                    style={{ paddingTop: '14vh', paddingBottom: '10vh' }}>
 
                     <div className="w-full max-w-3xl flex flex-col gap-5 sm:gap-6">
 
