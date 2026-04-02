@@ -178,9 +178,9 @@ function PostJobWizardCard({ onClose, onFinish, initialData }: {
   };
 
   const tierLabels: { key: keyof SkillSet; label: string; color: string }[] = [
-    { key: "mustHave", label: "MUST-HAVE", color: "#1ed25e" },
-    { key: "preferred", label: "PREFERRED", color: "#51a2ff" },
-    { key: "niceToHave", label: "NICE-TO-HAVE", color: "#a78bfa" },
+    { key: "mustHave", label: "MUST-HAVE", color: "#ef4444" },
+    { key: "preferred", label: "PREFERRED", color: "#f59e0b" },
+    { key: "niceToHave", label: "NICE-TO-HAVE", color: "#60a5fa" },
   ];
 
   const step1Valid = form.title.trim().length > 0;
@@ -252,60 +252,88 @@ function PostJobWizardCard({ onClose, onFinish, initialData }: {
 
             {/* ── Step 2: Job description ── */}
             {step === 2 && (
-              <motion.div key="s2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.22 }} className="flex flex-col gap-3">
-                <p className="text-sm text-white/50">I've generated a job description for you. You may edit this.</p>
-                <textarea
-                  value={form.description}
-                  onChange={e => set("description", e.target.value)}
-                  rows={8}
-                  className="w-full px-4 py-3 rounded-xl text-sm text-white/85 outline-none resize-none leading-relaxed"
-                  style={{ background: "var(--surface-dim)", border: "1px solid var(--border-soft)" }}
-                />
+              <motion.div key="s2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.22 }} className="flex flex-col gap-4">
+                {/* AI banner */}
+                <div className="flex items-stretch overflow-hidden rounded-[12px]"
+                  style={{ background: 'rgba(119,220,155,0.05)', border: '1px solid #4ad179' }}>
+                  <div className="w-2 flex-shrink-0" style={{ background: '#4ad179' }} />
+                  <div className="flex items-start gap-2 px-3 py-[10px]">
+                    <span className="text-[#4ad179] flex-shrink-0 mt-0.5 text-base">✦</span>
+                    <p className="text-base text-[#d2f3de] leading-6">
+                      trAIn has generated this job description based on the role you&apos;re hiring for and an analysis of the tone of your previous job listings. Edit or continue.
+                    </p>
+                  </div>
+                </div>
+                <p className="text-[20px] font-semibold text-[#fafafa]">Job Description</p>
+                <div className="rounded-[10px] p-[17px]"
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <textarea
+                    value={form.description}
+                    onChange={e => set("description", e.target.value)}
+                    rows={7}
+                    className="w-full bg-transparent text-base outline-none resize-none leading-6"
+                    style={{ color: '#a1a1aa', caretColor: '#1ed25e' }}
+                  />
+                </div>
               </motion.div>
             )}
 
             {/* ── Step 3: Skills ── */}
             {step === 3 && (
-              <motion.div key="s3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.22 }} className="flex flex-col gap-3">
-                <p className="text-sm text-white/50">AI has categorized skill requirements. Drag skills between tiers or edit.</p>
-                <div className="rounded-xl p-4 flex flex-col gap-4" style={{ background: "var(--surface-dim)", border: "1px solid var(--surface-hover)" }}>
+              <motion.div key="s3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.22 }} className="flex flex-col gap-4">
+                {/* AI banner */}
+                <div className="flex items-stretch overflow-hidden rounded-[12px]"
+                  style={{ background: 'rgba(119,220,155,0.05)', border: '1px solid #4ad179' }}>
+                  <div className="w-2 flex-shrink-0" style={{ background: '#4ad179' }} />
+                  <div className="flex items-start gap-2 px-3 py-[10px]">
+                    <span className="text-[#4ad179] flex-shrink-0 mt-0.5 text-base">✦</span>
+                    <p className="text-base text-[#d2f3de] leading-6">
+                      trAIn has pre-filled these skills based on the Saudi skills framework. You may add or edit.
+                    </p>
+                  </div>
+                </div>
+                <p className="text-[20px] font-semibold text-[#fafafa]">Skills</p>
+                <div className="rounded-[10px] p-4 flex flex-col gap-4"
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
                   {tierLabels.map(({ key, label, color }) => (
-                    <div key={key}>
-                      <div className="flex items-center justify-between mb-2">
+                    <div key={key} className="flex flex-col gap-2">
+                      <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5">
-                          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />
-                          <span className="text-[10px] font-semibold tracking-wider" style={{ color }}>{label}</span>
+                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
+                          <span className="text-[11px] font-semibold tracking-widest text-white/60">{label}</span>
                         </div>
                         {addingSkillTier !== key && (
                           <button onClick={() => setAddingSkillTier(key)}
-                            className="flex items-center gap-1 text-[10px] text-white/35 hover:text-white/65 transition-colors">
-                            <Plus size={10} /> Add
+                            className="flex items-center gap-1 text-[13px] text-white/40 hover:text-white/70 transition-colors">
+                            <Plus size={12} /> Add a skill
                           </button>
                         )}
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {form.skills[key].map(skill => (
-                          <div key={skill} className="group flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-white/80"
-                            style={{ background: "var(--surface-faint)", border: "1px solid var(--glass-btn-border)" }}>
+                          <div key={skill} className="group flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm text-white/75"
+                            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)' }}>
                             <span>{skill}</span>
-                            <button onClick={() => removeSkill(skill, key)} className="opacity-0 group-hover:opacity-100 transition-opacity text-white/40 hover:text-red-400">
-                              <X size={10} />
+                            <button onClick={() => removeSkill(skill, key)}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity text-white/35 hover:text-red-400">
+                              <X size={11} />
                             </button>
                           </div>
                         ))}
-                        {addingSkillTier === key ? (
+                        {addingSkillTier === key && (
                           <div className="flex items-center gap-1.5">
                             <input autoFocus value={newSkill} onChange={e => setNewSkill(e.target.value)}
                               onKeyDown={e => { if (e.key === "Enter") addSkill(key); if (e.key === "Escape") { setAddingSkillTier(null); setNewSkill(""); } }}
-                              className="px-3 py-1.5 rounded-full text-xs text-white outline-none w-28"
-                              style={{ background: "var(--surface-hover)", border: `1px solid ${color}60` }}
+                              className="px-3 py-1.5 rounded-full text-sm text-white outline-none w-32"
+                              style={{ background: 'rgba(255,255,255,0.08)', border: `1px solid ${color}60`, caretColor: '#1ed25e' }}
                               placeholder="Skill name" />
-                            <button onClick={() => addSkill(key)} className="text-[10px] px-2 py-1 rounded-full font-medium" style={{ background: color, color: "var(--accent-contrast)" }}>Add</button>
-                            <button onClick={() => { setAddingSkillTier(null); setNewSkill(""); }} className="text-white/30 hover:text-white/60 transition-colors">
-                              <X size={12} />
-                            </button>
+                            <button onClick={() => addSkill(key)}
+                              className="text-xs px-2.5 py-1.5 rounded-full font-semibold"
+                              style={{ background: color, color: '#18181b' }}>Add</button>
+                            <button onClick={() => { setAddingSkillTier(null); setNewSkill(""); }}
+                              className="text-white/30 hover:text-white/60 transition-colors"><X size={13} /></button>
                           </div>
-                        ) : null}
+                        )}
                       </div>
                     </div>
                   ))}
@@ -315,67 +343,69 @@ function PostJobWizardCard({ onClose, onFinish, initialData }: {
 
             {/* ── Step 4: Salary ── */}
             {step === 4 && (
-              <motion.div key="s4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.22 }} className="flex flex-col gap-3">
-                <p className="text-sm text-white/50">Set the salary range. I'll check it against market data.</p>
-                <div className="rounded-xl p-4 flex flex-col gap-4" style={{ background: "var(--surface-dim)", border: "1px solid var(--surface-hover)" }}>
-                  <div className="grid grid-cols-2 gap-3">
+              <motion.div key="s4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.22 }} className="flex flex-col gap-4">
+                {/* AI banner */}
+                <div className="flex items-stretch overflow-hidden rounded-[12px]"
+                  style={{ background: 'rgba(119,220,155,0.05)', border: '1px solid #4ad179' }}>
+                  <div className="w-2 flex-shrink-0" style={{ background: '#4ad179' }} />
+                  <div className="flex items-start gap-2 px-3 py-[10px]">
+                    <span className="text-[#4ad179] flex-shrink-0 mt-0.5 text-base">✦</span>
+                    <p className="text-base text-[#d2f3de] leading-6">
+                      Enter your salary range. trAIn will give you feedback based on market insights.
+                    </p>
+                  </div>
+                </div>
+                <p className="text-[20px] font-semibold text-[#fafafa]">Salary Range</p>
+                <div className="rounded-[10px] p-4 flex flex-col gap-4"
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <div className="grid grid-cols-2 gap-4">
                     {[
-                      { label: "Lower Boundary", key: "salaryMin" as const, placeholder: "SAR 1,000" },
+                      { label: "Lower Boundary", key: "salaryMin" as const, placeholder: "SAR 5,000" },
                       { label: "Upper Boundary", key: "salaryMax" as const, placeholder: "SAR 5,000" },
                     ].map(({ label, key, placeholder }) => (
-                      <div key={key}>
-                        <label className="block text-xs text-white/45 mb-1.5">{label}</label>
+                      <div key={key} className="flex flex-col gap-2">
+                        <label className="text-[14px] text-[#d4d4d8]">{label}</label>
                         <input value={form[key]} onChange={e => set(key, e.target.value)} placeholder={placeholder}
-                          className="w-full px-3 py-2.5 rounded-xl text-sm text-white placeholder-white/20 outline-none"
-                          style={{ background: "var(--surface-subtle)", border: "1px solid var(--border-soft)" }} />
+                          className="h-[54px] w-full px-3 rounded-[10px] text-base text-white outline-none"
+                          style={{ background: 'rgba(255,255,255,0.05)', caretColor: '#1ed25e' }} />
                       </div>
                     ))}
                   </div>
                   {belowMarket && (
-                    <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl" style={{ background: "var(--error-surface-subtle)", border: "1px solid var(--error-border-subtle)" }}>
+                    <div className="flex items-start gap-2 px-3 py-2.5 rounded-[10px]"
+                      style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)' }}>
                       <AlertTriangle size={14} className="text-red-400 flex-shrink-0 mt-0.5" />
-                      <p className="text-xs text-red-300 leading-relaxed">
+                      <p className="text-sm text-red-300 leading-relaxed">
                         Below market: {form.title || "this role"} median is {market.label}. This may reduce your candidate pool by ~40%.
                       </p>
                     </div>
                   )}
                   {!belowMarket && (form.salaryMin || form.salaryMax) && (
-                    <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl" style={{ background: "var(--accent-surface-subtle)", border: "1px solid var(--accent-border-subtle)" }}>
-                      <span className="text-xs" style={{ color: "var(--accent)" }}>✓</span>
-                      <p className="text-xs leading-relaxed" style={{ color: "var(--accent)" }}>Competitive range. Market benchmark: {market.label}.</p>
+                    <div className="flex items-start gap-2 px-3 py-2.5 rounded-[10px]"
+                      style={{ background: 'rgba(29,197,88,0.08)', border: '1px solid rgba(29,197,88,0.25)' }}>
+                      <span className="text-[#1ed25e] flex-shrink-0">✓</span>
+                      <p className="text-sm text-[#d2f3de] leading-relaxed">Competitive range. Market benchmark: {market.label}.</p>
                     </div>
                   )}
-                  <p className="text-[11px] text-white/30">Market benchmark for {form.title || "this role"}: {market.label}</p>
                 </div>
               </motion.div>
             )}
 
-            {/* ── Step 5: Preview ── */}
+            {/* ── Step 5: Summary ── */}
             {step === 5 && (
-              <motion.div key="s5" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.22 }} className="flex flex-col gap-3">
-                <p className="text-sm text-white/50">Here's the full description people will see.</p>
-                <div className="rounded-xl p-4 flex flex-col gap-2" style={{ background: "var(--surface-dim)", border: "1px solid var(--surface-hover)" }}>
-                  <p className="text-sm font-semibold text-white">{form.title || "Untitled role"}</p>
-                  <p className="text-xs text-white/40">
-                    {[form.department, form.location, form.salaryMin && form.salaryMax ? `SAR ${form.salaryMin} – ${form.salaryMax}` : market.label].filter(Boolean).join(" · ")}
+              <motion.div key="s5" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.22 }} className="flex flex-col gap-4">
+                <p className="text-[20px] font-semibold text-[#fafafa]">Summary</p>
+                <div className="rounded-[10px] p-4 flex flex-col gap-3 min-h-[180px]"
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <p className="text-base font-semibold text-white">{form.title || "Untitled role"}</p>
+                  <p className="text-sm text-white/45">
+                    {[form.department, form.location,
+                      form.salaryMin && form.salaryMax
+                        ? `SAR ${form.salaryMin} – ${form.salaryMax}`
+                        : market.label
+                    ].filter(Boolean).join(" · ")}
                   </p>
-                  <p className="text-sm text-white/70 leading-relaxed mt-1">{form.description}</p>
-                  {tierLabels.map(({ key, label, color }) =>
-                    form.skills[key].length > 0 ? (
-                      <div key={key} className="mt-2">
-                        <div className="flex items-center gap-1.5 mb-1.5">
-                          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />
-                          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color }}>{label}</p>
-                        </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {form.skills[key].map(s => (
-                            <span key={s} className="px-2.5 py-1 rounded-full text-xs text-white/70"
-                              style={{ background: "var(--surface-faint)", border: "1px solid var(--border-soft)" }}>{s}</span>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null
-                  )}
+                  <p className="text-base text-[#a1a1aa] leading-6">{form.description}</p>
                 </div>
               </motion.div>
             )}
@@ -1558,13 +1588,21 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
 
               <AnimatePresence mode="wait">
                 {wizardOpen ? (
-                  /* Wizard inline — sits between header (with tabs) and input */
+                  /* Wizard inline — user message bubble + wizard card stacked, chat input pinned below */
                   <motion.div key="wizard-inline"
                     initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }}
                     transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
                     className="flex-1 flex flex-col overflow-hidden">
-                    {/* Centered wizard card */}
-                    <div className="flex-1 flex items-center justify-center overflow-y-auto px-4 py-6">
+                    {/* Scrollable: "Post a job" user bubble → wizard card */}
+                    <div className="flex-1 overflow-y-auto px-5 sm:px-8 pt-5 pb-3 flex flex-col gap-5">
+                      {/* User message bubble — right-aligned, mirrors ChatView */}
+                      <div className="flex justify-end">
+                        <div className="rounded-2xl px-4 py-3"
+                          style={{ background: "var(--surface-muted)", border: "1px solid var(--surface-faint)" }}>
+                          <p className="text-sm text-white">Post a job</p>
+                        </div>
+                      </div>
+                      {/* Wizard card */}
                       <PostJobWizardCard
                         initialData={wizardInitialData}
                         onClose={() => { setWizardOpen(false); setWizardInitialData({}); }}
