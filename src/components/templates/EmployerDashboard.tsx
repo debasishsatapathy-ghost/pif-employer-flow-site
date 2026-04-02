@@ -187,62 +187,62 @@ function PostJobWizardCard({ onClose, onFinish, initialData }: {
 
   return (
       <div
-        className="w-full max-w-lg rounded-2xl flex flex-col overflow-hidden"
-        style={{ background: "var(--surface-modal)", border: "1px solid var(--border-soft)", maxHeight: "calc(100vh - 180px)" }}
+        className="w-full max-w-xl flex flex-col gap-6 rounded-2xl"
+        style={{ background: 'rgba(255,255,255,0.05)', padding: '32px' }}
       >
-        {/* Title row */}
-        <div className="px-6 pt-6 pb-4 flex-shrink-0">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-base font-semibold text-white">Post a job</span>
-            <button onClick={onClose} className="text-white/30 hover:text-white/60 transition-colors"><X size={16} /></button>
+        {/* Header — title + close + progress */}
+        <div className="flex flex-col gap-4 flex-shrink-0">
+          <div className="flex items-center justify-between">
+            <span className="text-[24px] font-semibold leading-7 tracking-tight text-[#fafafa]">Post a job</span>
+            <button onClick={onClose} className="text-white/25 hover:text-white/55 transition-colors ml-4 flex-shrink-0"><X size={15} /></button>
           </div>
-          {/* Progress bar */}
-          <div className="flex gap-1.5">
+          {/* Progress bar — 8px tall, green for completed steps */}
+          <div className="flex gap-1">
             {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
-              <div key={i} className="flex-1 h-1 rounded-full transition-all duration-400"
-                style={{ background: i < step ? "var(--accent)" : "var(--border-soft)" }} />
+              <div key={i} className="flex-1 h-2 rounded-full transition-all duration-300"
+                style={{ background: i < step ? '#1ed25e' : 'rgba(255,255,255,0.05)' }} />
             ))}
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 pb-6 flex flex-col gap-5">
+        <div className="overflow-y-auto flex flex-col gap-5" style={{ maxHeight: 'calc(100dvh - 320px)' }}>
           <AnimatePresence mode="wait">
             {/* ── Step 1: Role details ── */}
             {step === 1 && (
               <motion.div key="s1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.22 }} className="flex flex-col gap-5">
-                <p className="text-sm text-white/50">Let's start with the basics. What role are you hiring for?</p>
-                <div>
-                  <p className="text-sm font-semibold text-white mb-3">Role details</p>
-                  <div className="grid grid-cols-2 gap-3">
+                <p className="text-base text-[#d4d4d8]">Let's start with the basics. What role are you hiring for?</p>
+                <div className="flex flex-col gap-4">
+                  <p className="text-[20px] font-semibold text-[#fafafa]">Role details</p>
+                  <div className="grid grid-cols-2 gap-4">
                     {[
                       { label: "Title", key: "title" as const, placeholder: "Eg. Senior Engineer" },
                       { label: "Department", key: "department" as const, placeholder: "Eg. Engineering" },
                       { label: "Location", key: "location" as const, placeholder: "Eg. Riyadh" },
                     ].map(({ label, key, placeholder }) => (
-                      <div key={key} className={key === "title" ? "col-span-2 sm:col-span-1" : ""}>
-                        <label className="block text-xs text-white/45 mb-1.5">{label}</label>
+                      <div key={key} className="flex flex-col gap-2">
+                        <label className="text-[14px] text-[#d4d4d8]">{label}</label>
                         <input
                           value={form[key] as string}
                           onChange={e => set(key, e.target.value)}
                           placeholder={placeholder}
-                          className="w-full px-3 py-2.5 rounded-xl text-sm text-white placeholder-white/20 outline-none focus:border-white/25 transition-colors"
-                          style={{ background: "var(--surface-elevated)", border: "1px solid var(--border-soft)" }}
+                          className="h-[54px] w-full px-3 rounded-[10px] text-base text-white outline-none transition-colors"
+                          style={{ background: 'rgba(255,255,255,0.05)', caretColor: '#1ed25e' }}
                         />
                       </div>
                     ))}
-                    <div>
-                      <label className="block text-xs text-white/45 mb-1.5">Employment Type</label>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-[14px] text-[#d4d4d8]">Employment Type</label>
                       <div className="relative">
                         <select
                           value={form.employmentType}
                           onChange={e => set("employmentType", e.target.value)}
-                          className="w-full px-3 py-2.5 rounded-xl text-sm text-white outline-none appearance-none transition-colors"
-                          style={{ background: "var(--surface-elevated)", border: "1px solid var(--border-soft)", color: form.employmentType ? "white" : "var(--text-placeholder)" }}
+                          className="h-[54px] w-full px-3 rounded-[10px] text-base outline-none appearance-none transition-colors"
+                          style={{ background: 'rgba(255,255,255,0.05)', color: form.employmentType ? '#fff' : '#71717b' }}
                         >
                           <option value="" disabled>Eg. Full Time</option>
-                          {EMPLOYMENT_TYPES.map(t => <option key={t} value={t} style={{ background: "var(--surface-card)" }}>{t}</option>)}
+                          {EMPLOYMENT_TYPES.map(t => <option key={t} value={t} style={{ background: 'var(--surface-card)' }}>{t}</option>)}
                         </select>
-                        <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none" />
+                        <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none" />
                       </div>
                     </div>
                   </div>
@@ -391,7 +391,7 @@ function PostJobWizardCard({ onClose, onFinish, initialData }: {
           )}
 
           {/* Navigation buttons */}
-          <div className="flex items-center justify-between mt-auto pt-2 flex-shrink-0">
+          <div className="flex items-center justify-between pt-2 flex-shrink-0">
             {step > 1 ? (
               <button onClick={goBack} disabled={saving}
                 className="flex items-center gap-1.5 text-sm text-white/40 hover:text-white/70 transition-colors disabled:opacity-40">
@@ -401,11 +401,15 @@ function PostJobWizardCard({ onClose, onFinish, initialData }: {
             <button
               onClick={step === TOTAL_STEPS ? handleFinish : goNext}
               disabled={(step === 1 && !step1Valid) || saving}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-black transition-all"
-              style={{ background: ((step === 1 && !step1Valid) || saving) ? "var(--border-accent-soft)" : "var(--accent)" }}>
+              className="flex items-center gap-2 h-[52px] px-4 rounded-[10px] text-base font-semibold transition-all"
+              style={{
+                background: '#1dc558',
+                color: '#18181b',
+                opacity: ((step === 1 && !step1Valid) || saving) ? 0.5 : 1,
+              }}>
               {step === TOTAL_STEPS
-                ? saving ? <><Loader2 size={14} className="animate-spin" /> Saving…</> : "Finish"
-                : <>"Continue" <ArrowRight size={14} /></>}
+                ? saving ? <><Loader2 size={16} className="animate-spin" /> Saving…</> : "Finish"
+                : <>Continue <ArrowRight size={16} /></>}
             </button>
           </div>
         </div>
@@ -1582,7 +1586,7 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
                     </div>
                     {/* Pinned input always visible at bottom */}
                     <div className="px-5 sm:px-12 pb-6 pt-3 flex-shrink-0">
-                      <ChatInputBar onSend={handleSend} waiting placeholder="Ask anything" />
+                      <ChatInputBar onSend={handleSend} waiting={!sessionReady} placeholder="Ask anything" />
                     </div>
                   </motion.div>
                 ) : (
@@ -1641,7 +1645,9 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
                           onClick={() => {
                             setMessages(prev => [...prev, { id: `u-${Date.now()}`, role: "user", text: "Post a job" }]);
                             setChatMode(true);
-                            setWizardOpen(true);
+                            // Brief pause so step 1-a (user bubble on blank canvas) is visible
+                            // before the wizard card animates in
+                            setTimeout(() => setWizardOpen(true), 200);
                           }}>
                           <div className="flex items-center gap-2">
                             <Building2 size={20} style={{ color: '#1ed25e' }} />
