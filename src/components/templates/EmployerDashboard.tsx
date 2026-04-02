@@ -1260,11 +1260,10 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
     };
   }, []);
 
-  /* Suppress all avatar visuals and audio whenever chat mode is active.
-     Works with Mobeus platform's existing room. */
+  /* Suppress all Mobeus platform avatar/scene visuals on every render.
+     Must run on mount (chatMode=false) — platform injects overlay elements
+     before the user enters chat, which covers main content at z-0. */
   useEffect(() => {
-    if (!chatMode) return;
-
     const room = (window as any).__employerRoom || (window as any).__mobeusRoom;
     
     // Mute all audio via LiveKit if room is available
@@ -1444,7 +1443,7 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
       </motion.aside>
 
       {/* Main */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="relative z-10 flex-1 flex flex-col overflow-hidden">
 
         {/* Header — Figma Employer Header */}
         <motion.header
