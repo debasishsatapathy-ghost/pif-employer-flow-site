@@ -731,16 +731,13 @@ function ActionCard({ icon, label, color, onClick }: {
   );
 }
 
-/* ── Suggestion chip ─────────────────────────────────────────────────────── */
+/* ── Suggestion chip — Figma style ───────────────────────────────────────── */
 function SuggestionChip({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="px-3.5 py-1.5 rounded-full text-xs font-medium text-white/60 hover:text-white/90 transition-all duration-200 flex-shrink-0"
-      style={{
-        background: "var(--surface-elevated)",
-        border: "1px solid var(--border-soft)",
-      }}
+      className="flex items-center justify-center h-10 px-4 rounded-full text-base font-normal text-[#f4f4f5] whitespace-nowrap hover:bg-white/10 transition-all duration-200 flex-shrink-0"
+      style={{ background: 'rgba(255,255,255,0.05)' }}
     >
       {label}
     </button>
@@ -873,51 +870,55 @@ function ChatInputBar({
   };
 
   return (
-    <div className="rounded-2xl overflow-hidden w-full"
+    <div className="w-full overflow-hidden flex flex-col justify-between p-6 cursor-text"
       style={{
-        background: "var(--surface-dim)",
-        border: "1px solid var(--surface-hover)",
-        backdropFilter: "blur(12px)",
+        background: 'rgba(255,255,255,0.05)',
+        borderRadius: 16,
+        minHeight: 96,
       }}
+      onClick={() => document.getElementById('employer-chat-input')?.focus()}
     >
-      <div className="px-4 pt-3 pb-1">
-        <input
-          type="text"
-          value={value}
-          disabled={waiting}
-          onChange={(e) => setValue(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && submit()}
-          placeholder={placeholder}
-          className="w-full bg-transparent text-sm text-white placeholder-white/25 outline-none disabled:cursor-wait"
-        />
-      </div>
-      <div className="flex items-center justify-between px-3 pb-3 pt-1">
-        <button className="w-7 h-7 rounded-full flex items-center justify-center text-white/40 hover:text-white/70 transition-colors"
-          style={{ border: "1px solid var(--glass-btn-border)" }}>
-          <Plus size={14} />
+      <input
+        id="employer-chat-input"
+        type="text"
+        value={value}
+        disabled={waiting}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && submit()}
+        placeholder={placeholder}
+        className="w-full bg-transparent text-base text-white outline-none disabled:cursor-wait"
+        style={{ color: value ? '#fff' : undefined, caretColor: '#1ed25e' }}
+      />
+      <style>{`#employer-chat-input::placeholder { color: rgba(113,113,123,1); }`}</style>
+      <div className="flex items-center justify-between mt-4">
+        <button
+          type="button"
+          className="w-6 h-6 flex items-center justify-center text-white/40 hover:text-white/70 transition-colors"
+          onClick={(e) => { e.stopPropagation(); }}>
+          <Plus size={20} />
         </button>
         <AnimatePresence mode="wait">
           {waiting ? (
             <motion.div key="spin" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}>
-              <Loader2 size={15} className="animate-spin text-[var(--accent)]" />
+              <Loader2 size={16} className="animate-spin" style={{ color: '#1ed25e' }} />
             </motion.div>
           ) : value.trim() ? (
             <motion.button key="send"
               initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}
-              onClick={submit}
-              className="w-7 h-7 rounded-full flex items-center justify-center text-white"
-              style={{ background: "var(--accent)" }}>
-              <ArrowUp size={14} />
+              onClick={(e) => { e.stopPropagation(); submit(); }}
+              className="w-7 h-7 rounded-full flex items-center justify-center text-black transition-colors"
+              style={{ background: '#1ed25e' }}>
+              <ArrowUp size={15} />
             </motion.button>
           ) : (
             <motion.div key="wave" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="w-7 h-7 flex items-center justify-center text-white/35">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                <rect x="2" y="9" width="2.5" height="6" rx="1.25" opacity="0.45" />
-                <rect x="6" y="6" width="2.5" height="12" rx="1.25" opacity="0.65" />
+              className="flex items-center justify-center text-white/35">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                <rect x="2" y="9" width="2.5" height="6" rx="1.25" opacity="0.4" />
+                <rect x="6" y="6" width="2.5" height="12" rx="1.25" opacity="0.6" />
                 <rect x="10" y="3" width="2.5" height="18" rx="1.25" />
-                <rect x="14" y="6" width="2.5" height="12" rx="1.25" opacity="0.65" />
-                <rect x="18" y="9" width="2.5" height="6" rx="1.25" opacity="0.45" />
+                <rect x="14" y="6" width="2.5" height="12" rx="1.25" opacity="0.6" />
+                <rect x="18" y="9" width="2.5" height="6" rx="1.25" opacity="0.4" />
               </svg>
             </motion.div>
           )}
@@ -1406,42 +1407,64 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
   return (
     <div className="relative w-screen h-screen overflow-hidden flex" style={{ background: "var(--bg)", zIndex: 100, position: "relative" }}>
 
-      {/* Background glows */}
-      <div className="absolute inset-0 pointer-events-none" style={{
-        background: "radial-gradient(ellipse 80% 60% at 75% 10%, var(--accent-surface-subtle) 0%, transparent 65%)",
-      }} />
+      {/* Background — matches Figma Widescreen background */}
+      <div className="absolute inset-0 pointer-events-none" style={{ background: '#09090b' }} />
+      {/* Large blurred green glow — top-right */}
       <div className="absolute pointer-events-none" style={{
-        width: 500, height: 500, top: "-15%", right: "-5%",
-        background: "radial-gradient(ellipse at center, var(--accent-glow) 0%, transparent 70%)",
-        filter: "blur(60px)",
+        width: 712, height: 712, top: -60, right: -80,
+        background: 'radial-gradient(ellipse at center, rgba(29,197,88,0.30) 0%, rgba(0,110,55,0.16) 40%, transparent 70%)',
+        filter: 'blur(90px)',
+      }} />
+      {/* Subtle bottom-left ambient tint */}
+      <div className="absolute pointer-events-none" style={{
+        width: 900, height: 900, bottom: '-30%', left: '-20%',
+        background: 'radial-gradient(ellipse at center, rgba(0,60,35,0.18) 0%, transparent 60%)',
+        filter: 'blur(90px)',
       }} />
 
-      {/* Left sidebar */}
+      {/* Left sidebar — Figma pill container */}
       <motion.aside
         initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.45 }}
-        className="hidden md:flex relative z-20 flex-col items-center gap-5 py-8 px-3"
-        style={{ width: 60, background: "var(--surface-sidebar)", borderRight: "1px solid var(--surface-subtle)" }}>
-        {sidebarIcons.map(({ icon: Icon, label }) => (
-          <button key={label} aria-label={label}
-            className="w-9 h-9 rounded-xl flex items-center justify-center text-white/35 hover:text-white/70 transition-colors">
-            <Icon size={17} />
-          </button>
-        ))}
+        className="hidden md:flex relative z-20 flex-col items-center justify-center"
+        style={{ width: 68, flexShrink: 0 }}>
+        <div className="flex flex-col items-center gap-2 p-2 rounded-[100px]"
+          style={{ background: 'rgba(255,255,255,0.05)' }}>
+          {sidebarIcons.map(({ icon: Icon, label }, i) => (
+            <button key={label} aria-label={label}
+              className="w-10 h-10 rounded-full flex items-center justify-center transition-colors"
+              style={i === 1
+                ? { background: 'rgba(30,210,94,0.15)', color: '#1ed25e' }
+                : { color: 'rgba(255,255,255,0.35)' }}
+              onMouseEnter={(e) => { if (i !== 1) (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.7)'; }}
+              onMouseLeave={(e) => { if (i !== 1) (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.35)'; }}>
+              <Icon size={20} />
+            </button>
+          ))}
+        </div>
       </motion.aside>
 
       {/* Main */}
       <div className="flex-1 flex flex-col overflow-hidden">
 
-        {/* Header */}
+        {/* Header — Figma Employer Header */}
         <motion.header
           initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, delay: 0.05 }}
-          className="relative z-20 flex items-center justify-between px-5 sm:px-8 pt-5 pb-3 flex-shrink-0">
-          <span className="text-xl font-bold text-white tracking-tight">
-            tr<span style={{ color: "var(--accent)" }}>AI</span>n
-          </span>
+          className="relative z-20 flex items-center justify-between px-6 sm:px-8 pt-4 pb-3 flex-shrink-0">
 
-          <div className="hidden sm:flex items-center rounded-full p-1 gap-0.5"
-            style={{ background: "var(--surface-subtle)", border: "1px solid var(--border-soft)" }}>
+          {/* Logo — trAIn with green AI */}
+          <div className="flex items-center min-w-0" style={{ flex: '1 0 0' }}>
+            <span className="font-bold tracking-tight text-white select-none"
+              style={{ fontSize: 32, lineHeight: 1, letterSpacing: '-0.02em' }}>
+              tr<span style={{ color: '#1dc558' }}>AI</span>n
+            </span>
+          </div>
+
+          {/* Center nav pill — Figma Top Nav */}
+          <div className="hidden sm:flex items-center p-2 gap-2 rounded-[100px] flex-shrink-0"
+            style={{
+              background: 'rgba(255,255,255,0.05)',
+              boxShadow: '0px 0px 48px 48px rgba(9,9,11,0.25)',
+            }}>
             {(["home", "hiring", "workforce"] as NavTab[]).map((tab) => (
               <button key={tab}
                 onClick={() => {
@@ -1450,18 +1473,22 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
                   setChatMode(false);
                 }}
                 className={cn(
-                  "px-4 py-1.5 rounded-full text-xs font-medium capitalize transition-all duration-200",
-                  activeTab === tab && !chatMode ? "text-white" : "text-white/45 hover:text-white/70",
+                  "flex items-center justify-center h-10 rounded-[100px] font-semibold text-base transition-all duration-200 whitespace-nowrap",
+                  "w-[110px] sm:w-[132px]",
+                  activeTab === tab && !chatMode
+                    ? "text-[#f4f4f5]"
+                    : "text-[#f4f4f5]/50 hover:text-[#f4f4f5]/75",
                 )}
                 style={activeTab === tab && !chatMode
-                  ? { background: "var(--glass-btn-border)", border: "1px solid var(--border-medium)" }
+                  ? { background: 'rgba(255,255,255,0.10)' }
                   : {}}>
                 {tab === "home" ? "Home" : tab === "hiring" ? "Hiring" : "Workforce"}
               </button>
             ))}
           </div>
 
-          <div className="flex items-center gap-2.5">
+          {/* Right controls */}
+          <div className="flex items-center gap-3" style={{ flex: '1 0 0', justifyContent: 'flex-end' }}>
             {chatMode && (
               <button onClick={() => setChatMode(false)}
                 className="text-xs text-white/40 hover:text-white/70 transition-colors mr-1">
@@ -1470,23 +1497,30 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
             )}
             {!chatMode && onBack && (
               <button onClick={onBack}
-                className="hidden sm:block text-xs text-white/30 hover:text-white/60 transition-colors mr-1">
+                className="hidden sm:flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 transition-colors"
+                style={{ background: 'rgba(255,255,255,0.05)', padding: '6px 12px', borderRadius: 100, border: '1px solid rgba(255,255,255,0.08)' }}>
                 ← Switch role
               </button>
             )}
-            <button className="relative w-8 h-8 flex items-center justify-center text-white/50 hover:text-white/80 transition-colors">
-              <Bell size={17} />
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full" style={{ background: "var(--accent)" }} />
-            </button>
-            <button className="flex items-center gap-2 rounded-full pl-1 pr-2.5 py-1 hover:bg-white/5 transition-colors"
-              style={{ border: "1px solid var(--border-soft)" }}>
-              <div className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold text-white"
-                style={{ background: "var(--avatar-gradient)" }}>O</div>
-              <div className="hidden sm:flex flex-col items-start leading-none">
-                <span className="text-xs font-medium text-white/85">Omar S.</span>
-                <span className="text-[10px] text-white/40 mt-0.5">Hiring Manager</span>
+            {/* Notification bell */}
+            <div className="relative flex items-center justify-center w-10 h-10 rounded-full cursor-pointer"
+              style={{ background: 'rgba(255,255,255,0.05)' }}>
+              <Bell size={18} className="text-white/70" />
+              <span className="absolute top-0 right-0 w-3 h-3 rounded-full border-2 border-[#09090b]"
+                style={{ background: '#ff4040' }} />
+            </div>
+            {/* User profile */}
+            <button className="flex items-center gap-3 rounded-[100px] pl-2 pr-3 py-1.5 hover:bg-white/5 transition-colors"
+              style={{ background: 'rgba(255,255,255,0.05)' }}>
+              <div className="w-7 h-7 rounded-full overflow-hidden flex items-center justify-center text-[11px] font-bold"
+                style={{ background: 'linear-gradient(135deg, #d2f3de, #a0e8b8)' }}>
+                <span style={{ color: '#09090b' }}>O</span>
               </div>
-              <ChevronDown size={11} className="text-white/35 hidden sm:block" />
+              <div className="hidden sm:flex flex-col items-start leading-none gap-0.5">
+                <span className="text-[14px] font-bold text-[#fafafa] leading-5">Omar S.</span>
+                <span className="text-[12px] text-[#fafafa]/50 leading-4">Hiring Manager</span>
+              </div>
+              <ChevronDown size={14} className="text-white/40 hidden sm:block" />
             </button>
           </div>
         </motion.header>
@@ -1577,47 +1611,81 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
               transition={{ duration: 0.2 }}
               className="flex-1 flex flex-col overflow-hidden">
 
-              <div className="flex-1 overflow-y-auto overflow-x-hidden">
+              <div className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col">
 
                 {activeTab === "home" && (
                   <motion.div key="home"
                     initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                    className="flex flex-col px-5 sm:px-8 pb-8 pt-4 sm:pt-6 gap-4 sm:gap-6">
+                    className="flex-1 flex flex-col items-center justify-center px-5 sm:px-8 pb-16 pt-6">
 
-                    <div>
-                      <div className="flex items-center gap-1.5 mb-2" style={{ color: "var(--accent)" }}>
-                        <SparkleIcon size={14} />
-                        <span className="text-sm font-medium">Hello Omar</span>
+                    <div className="w-full max-w-3xl flex flex-col gap-5 sm:gap-6">
+
+                      {/* Greeting + Heading */}
+                      <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-2" style={{ color: '#1ed25e' }}>
+                          <SparkleIcon size={14} />
+                          <span className="text-[20px] font-normal leading-6 text-white">Hello Omar</span>
+                        </div>
+                        <h1 className="text-[32px] sm:text-[36px] font-normal text-white leading-[1.25]">
+                          Where should we begin?
+                        </h1>
                       </div>
-                      <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold text-white leading-tight">
-                        Where should we begin?
-                      </h1>
-                    </div>
 
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <ActionCard icon={<Building2 size={16} />} label="Post a job" color="#1ed25e"
-                        onClick={() => {
-                          setMessages(prev => [...prev, { id: `u-${Date.now()}`, role: "user", text: "Post a job" }]);
-                          setChatMode(true);
-                          setWizardOpen(true);
-                        }} />
-                      <ActionCard icon={<Users size={16} />} label="Hiring dashboard" color="#51a2ff"
-                        onClick={() => { setActiveTab("hiring"); setChatMode(false); }} />
-                      <ActionCard icon={<BookOpen size={16} />} label="Track Development" color="#a78bfa"
-                        onClick={() => handleSend("How is my training program?")} />
-                    </div>
+                      {/* Action cards — Figma compact pill row */}
+                      <div className="flex flex-col sm:flex-row gap-5 sm:gap-6 w-full">
+                        {/* Post a job */}
+                        <button
+                          className="flex flex-1 h-[52px] items-center justify-between px-4 rounded-2xl transition-all duration-200 hover:bg-white/10 active:scale-[0.98]"
+                          style={{ background: 'rgba(255,255,255,0.05)', minWidth: 0 }}
+                          onClick={() => {
+                            setMessages(prev => [...prev, { id: `u-${Date.now()}`, role: "user", text: "Post a job" }]);
+                            setChatMode(true);
+                            setWizardOpen(true);
+                          }}>
+                          <div className="flex items-center gap-2">
+                            <Building2 size={20} style={{ color: '#1ed25e' }} />
+                            <span className="text-base font-normal text-[#fafafa]">Post a job</span>
+                          </div>
+                          <ArrowRight size={20} className="text-white/40" />
+                        </button>
+                        {/* Review applicants */}
+                        <button
+                          className="flex flex-1 h-[52px] items-center justify-between px-4 rounded-2xl transition-all duration-200 hover:bg-white/10 active:scale-[0.98]"
+                          style={{ background: 'rgba(255,255,255,0.05)', minWidth: 0 }}
+                          onClick={() => handleSend("Review applicants")}>
+                          <div className="flex items-center gap-2">
+                            <Users size={20} style={{ color: '#51a2ff' }} />
+                            <span className="text-base font-normal text-[#fafafa]">Review applicants</span>
+                          </div>
+                          <ArrowRight size={20} className="text-white/40" />
+                        </button>
+                        {/* Track Development */}
+                        <button
+                          className="flex flex-1 h-[52px] items-center justify-between px-4 rounded-2xl transition-all duration-200 hover:bg-white/10 active:scale-[0.98]"
+                          style={{ background: 'rgba(255,255,255,0.05)', minWidth: 0 }}
+                          onClick={() => handleSend("How is my training program?")}>
+                          <div className="flex items-center gap-2">
+                            <BookOpen size={20} style={{ color: '#a78bfa' }} />
+                            <span className="text-base font-normal text-[#fafafa]">Track Development</span>
+                          </div>
+                          <ArrowRight size={20} className="text-white/40" />
+                        </button>
+                      </div>
 
-                    <ChatInputBar onSend={handleSend} waiting={!sessionReady} placeholder={sessionReady ? "Or ask anything" : "Connecting to AI…"} />
+                      {/* Chat input */}
+                      <ChatInputBar onSend={handleSend} waiting={!sessionReady} placeholder={sessionReady ? "Or ask anything" : "Connecting to AI…"} />
 
-                    <div className="flex flex-wrap gap-2">
-                      {[
-                        "Where are our biggest gaps?",
-                        "What needs my attention today?",
-                        "How is our hiring?",
-                      ].map((chip) => (
-                        <SuggestionChip key={chip} label={chip} onClick={() => handleSend(chip)} />
-                      ))}
+                      {/* Suggestion chips */}
+                      <div className="flex flex-wrap gap-3">
+                        {[
+                          "Where are our biggest gaps?",
+                          "What needs my attention today?",
+                          "How is our hiring?",
+                        ].map((chip) => (
+                          <SuggestionChip key={chip} label={chip} onClick={() => handleSend(chip)} />
+                        ))}
+                      </div>
                     </div>
                   </motion.div>
                 )}
@@ -1645,32 +1713,43 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
           )}
         </AnimatePresence>
 
-        {/* Floating bottom pill */}
+        {/* Floating bottom nav — Figma Bottom Nav */}
         <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
-          <div className="flex items-center gap-1 px-2 py-1.5 rounded-full pointer-events-auto"
+          <div className="relative flex items-center pointer-events-auto"
             style={{
-              background: "var(--surface-pill)",
-              border: "1px solid var(--border-soft)",
-              backdropFilter: "blur(20px)",
-              boxShadow: "0 8px 32px var(--shadow-overlay)",
+              background: '#18181b',
+              border: '1px solid #27272a',
+              borderRadius: 100,
+              padding: '8px 16px',
+              gap: 8,
+              boxShadow: '0px 4px 4px 0px rgba(0,0,0,0.25), 0px 0px 8px 0px rgba(255,255,255,0.08)',
             }}>
-            <button className="w-8 h-8 rounded-full flex items-center justify-center text-white/50 hover:text-white/80 transition-colors">
-              <SparkleIcon size={15} />
-            </button>
-            <button className="w-8 h-8 rounded-full flex items-center justify-center text-white/50 hover:text-white/80 transition-colors">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
-                <rect x="2" y="9" width="2.5" height="6" rx="1.25" opacity="0.45" />
-                <rect x="6" y="6" width="2.5" height="12" rx="1.25" opacity="0.65" />
-                <rect x="10" y="3" width="2.5" height="18" rx="1.25" />
-                <rect x="14" y="6" width="2.5" height="12" rx="1.25" opacity="0.65" />
-                <rect x="18" y="9" width="2.5" height="6" rx="1.25" opacity="0.45" />
+            {/* Sparkle / expand */}
+            <button
+              className="w-6 h-6 flex items-center justify-center text-white/50 hover:text-white/80 transition-colors"
+              style={{ transform: 'rotate(-90deg)' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M9 18l6-6-6-6" />
               </svg>
             </button>
+            {/* Soundwave */}
+            <button className="w-6 h-6 flex items-center justify-center text-white/40 hover:text-white/70 transition-colors">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <rect x="2" y="9" width="2" height="6" rx="1" opacity="0.4" />
+                <rect x="6" y="6" width="2" height="12" rx="1" opacity="0.6" />
+                <rect x="10" y="3" width="2" height="18" rx="1" />
+                <rect x="14" y="6" width="2" height="12" rx="1" opacity="0.6" />
+                <rect x="18" y="9" width="2" height="6" rx="1" opacity="0.4" />
+              </svg>
+            </button>
+            {/* Chat toggle — active with green glow */}
             <button
               onClick={() => chatMode ? setChatMode(false) : setChatMode(true)}
-              className="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
-              style={{ background: "var(--accent)" }}>
-              <MessageCircle size={15} className="text-black" />
+              className="w-14 h-8 rounded-full flex items-center justify-center transition-all"
+              style={chatMode
+                ? { background: '#1c1c1e', border: '1px solid #1ed25e', boxShadow: '0px 0px 8px 0px #1ed25e' }
+                : { background: '#1c1c1e', border: '1px solid rgba(255,255,255,0.15)' }}>
+              <MessageCircle size={16} style={{ color: chatMode ? '#1ed25e' : 'rgba(255,255,255,0.5)' }} />
             </button>
           </div>
         </div>
