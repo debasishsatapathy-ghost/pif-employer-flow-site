@@ -16,6 +16,7 @@ import {
   getCachedJobApplicants,
 } from '@/lib/employer/employerApplicantsCache';
 import type { ApplicationWithProfileListResponse, ApplicationWithProfileResponse } from '@/lib/employer/employerApi';
+import { useVoiceSessionStore } from '@/lib/stores/voice-session-store';
 
 /* ── Post-a-Job wizard types ─────────────────────────────────────────────── */
 interface SkillSet { mustHave: string[]; preferred: string[]; niceToHave: string[] }
@@ -369,95 +370,11 @@ interface ChatMessage {
 
 interface PromptStepOptions { step1: string[]; step2: string[]; step3: string[] }
 
-/* ── Mobeus helpers ──────────────────────────────────────────────────────── */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const fw = () => (window as any).UIFramework as Record<string, unknown> | undefined;
-
+/* ── Employer prompt loader ──────────────────────────────────────────────── */
 async function loadEmployerPrompt(): Promise<string> {
   const res = await fetch('/prompts/speak-llm-system-prompt.md');
   if (!res.ok) throw new Error('Failed to load speak-llm-system-prompt.md');
   return await res.text();
-}
-
-async function startChatSession(systemPrompt: string): Promise<void> {
-  for (let i = 0; i < 50; i++) {
-    if ((window as unknown as Record<string, unknown>).UIFramework) break;
-    await new Promise((r) => setTimeout(r, 100));
-  }
-  const framework = fw();
-  if (!framework) throw new Error('UIFramework not available');
-
-  if (typeof framework.updateVoicePrompt === 'function')
-    (framework.updateVoicePrompt as (p: string) => void)(systemPrompt);
-
-  if (typeof framework.setAvatarVolume === 'function')
-    (framework.setAvatarVolume as (v: number) => void)(0);
-  if (typeof framework.setAvatarVideoMuted === 'function')
-    (framework.setAvatarVideoMuted as (v: boolean) => void)(true);
-  if (typeof framework.setVoiceChatVisibility === 'function')
-    (framework.setVoiceChatVisibility as (v: boolean) => void)(false);
-  if (typeof framework.updateConfig === 'function')
-    (framework.updateConfig as (c: object) => void)({ muteByDefault: true, voiceUIVisible: false });
-
-  document.querySelectorAll('audio, video').forEach((el) => {
-    (el as HTMLMediaElement).muted = true;
-    (el as HTMLMediaElement).volume = 0;
-  });
-
-  if (typeof framework.connectAll === 'function')
-    await (framework.connectAll as () => Promise<void>)();
-  else if (typeof framework.connectOpenAI === 'function')
-    await (framework.connectOpenAI as () => Promise<void>)();
-
-  document.querySelectorAll('audio, video').forEach((el) => {
-    (el as HTMLMediaElement).muted = true;
-    (el as HTMLMediaElement).volume = 0;
-  });
-
-  if (typeof framework.hideBgLayer === 'function')
-    (framework.hideBgLayer as () => void)();
-  if (typeof framework.deactivateVisualInversion === 'function')
-    (framework.deactivateVisualInversion as () => void)();
-
-  for (let i = 0; i < 50; i++) {
-    if (typeof fw()?.teleAcknowledge === 'function') break;
-    await new Promise((r) => setTimeout(r, 200));
-  }
-}
-
-function startMuteLoop(): () => void {
-  const framework = fw();
-  if (framework) {
-    if (typeof framework.setAvatarVolume === 'function')
-      (framework.setAvatarVolume as (v: number) => void)(0);
-    if (typeof framework.setAvatarVideoMuted === 'function')
-      (framework.setAvatarVideoMuted as (v: boolean) => void)(true);
-    if (typeof framework.updateConfig === 'function')
-      (framework.updateConfig as (c: object) => void)({ muteByDefault: true });
-  }
-  document.querySelectorAll('audio, video').forEach((el) => {
-    (el as HTMLMediaElement).muted = true;
-    (el as HTMLMediaElement).volume = 0;
-  });
-  const obs = new MutationObserver((mutations) => {
-    for (const mutation of mutations) {
-      mutation.addedNodes.forEach((node) => {
-        if (node instanceof HTMLMediaElement) { node.muted = true; node.volume = 0; }
-        else if (node instanceof HTMLElement) {
-          node.querySelectorAll('audio, video').forEach((el) => { (el as HTMLMediaElement).muted = true; (el as HTMLMediaElement).volume = 0; });
-        }
-      });
-    }
-  });
-  obs.observe(document.body, { subtree: true, childList: true });
-  return () => { obs.disconnect(); };
-}
-
-function sendChatText(text: string) {
-  const framework = fw();
-  if (!framework) return;
-  if (typeof framework.TellTele === 'function')
-    (framework.TellTele as (t: string) => void)(text);
 }
 
 /* ── Parsing helpers ─────────────────────────────────────────────────────── */
@@ -899,22 +816,23 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
   const [promptOptions, setPromptOptions] = useState<PromptStepOptions>({ step1: [], step2: [], step3: [] });
   const [lastPostingId, setLastPostingId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const muteCleanupRef = useRef<(() => void) | null>(null);
+  const promptSentRef = useRef(false);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const useTeleSpeech = (window as any).useTeleSpeech;
+  // LiveKit store bindings
+  const sessionState = useVoiceSessionStore((s) => s.sessionState);
+  const transcripts = useVoiceSessionStore((s) => s.transcripts);
+  const connect = useVoiceSessionStore((s) => s.connect);
+  const sendTextMessage = useVoiceSessionStore((s) => s.sendTextMessage);
+  const informAgent = useVoiceSessionStore((s) => s.informAgent);
 
-  const latestAiText = useTeleSpeech?.() ?? '';
-
+  // Load prompt + options on mount, then connect
   useEffect(() => {
     (window as unknown as Record<string, unknown>).__employerMode = true;
     const init = async () => {
       try {
         const prompt = await loadEmployerPrompt();
         setPromptOptions(extractOptionsFromPrompt(prompt));
-        await startChatSession(prompt);
-        muteCleanupRef.current = startMuteLoop();
-        setSessionReady(true);
+        await connect();
       } catch (e) {
         console.error('[EmployerDashboard] session init failed:', e);
         setSessionError('Could not connect to AI assistant. Please refresh.');
@@ -923,9 +841,26 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
     init();
     return () => {
       (window as unknown as Record<string, unknown>).__employerMode = false;
-      muteCleanupRef.current?.();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Once connected, inject the employer system prompt via informAgent (once only)
+  useEffect(() => {
+    if (sessionState !== 'connected' || promptSentRef.current) return;
+    promptSentRef.current = true;
+    setSessionReady(true);
+    loadEmployerPrompt()
+      .then((prompt) => informAgent(`[SYSTEM CONTEXT — EMPLOYER MODE]\n${prompt}`))
+      .catch((e) => console.warn('[EmployerDashboard] prompt inject failed:', e));
+  }, [sessionState, informAgent]);
+
+  // Surface session errors from the store
+  useEffect(() => {
+    if (sessionState === 'error') {
+      setSessionError('Could not connect to AI assistant. Please refresh.');
+    }
+  }, [sessionState]);
 
   // Register cacheJobApplicants site function
   useEffect(() => {
@@ -937,74 +872,98 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
     return () => { delete w.cacheJobApplicants; };
   }, []);
 
-  // Capture AI text from useTeleSpeech
-  const lastAiTextRef = useRef('');
+  // Convert final agent transcripts into chat messages
+  const processedTranscriptIdsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
-    if (!latestAiText || latestAiText === lastAiTextRef.current) return;
-    lastAiTextRef.current = latestAiText;
+    const agentEntries = transcripts.filter(
+      (t) => t.isAgent && t.isFinal && !processedTranscriptIdsRef.current.has(t.id),
+    );
+    if (agentEntries.length === 0) return;
 
-    const { displayText: afterViewApplicants, jobTitle: vaJobTitle, postingId: vaPostingId } = parseViewApplicants(latestAiText);
-    const { displayText: afterCandidateDetail, candidateName: cdName, postingId: cdPostingId } = parseCandidateDetail(latestAiText);
-    const { displayText: afterJobData, jobCard } = parseJobData(latestAiText);
-    const { displayText: cleanText, options } = parseInlineOptions(afterJobData);
+    for (const entry of agentEntries) {
+      processedTranscriptIdsRef.current.add(entry.id);
+      const rawText = entry.text;
 
-    let type: ChatMessage['type'] = 'text';
-    let applicantsView: ApplicantsViewData | undefined;
-    let candidateDetail: CandidateDetailData | undefined;
+      const { displayText: afterViewApplicants, jobTitle: vaJobTitle, postingId: vaPostingId } = parseViewApplicants(rawText);
+      const { displayText: afterCandidateDetail, candidateName: cdName, postingId: cdPostingId } = parseCandidateDetail(rawText);
+      const { displayText: afterJobData, jobCard } = parseJobData(rawText);
+      const { displayText: cleanText, options } = parseInlineOptions(afterJobData);
 
-    if (vaJobTitle && vaPostingId) {
-      type = 'applicants-view';
-      const cached = getCachedJobApplicants(vaPostingId);
-      if (cached) {
-        applicantsView = buildApplicantsViewData(vaPostingId, vaJobTitle, `${cached.total} applicants`, cached);
-      }
-      setLastPostingId(vaPostingId);
-    } else if (cdName) {
-      type = 'candidate-detail';
-      const postingId = cdPostingId || lastPostingId;
-      const cached = postingId ? getCachedJobApplicants(postingId) : null;
-      if (cached) {
-        const found = cached.items.find((item) => item.candidate_name?.toLowerCase().includes(cdName.toLowerCase()));
-        if (found) {
-          const p = found.candidate_profile as Record<string, unknown> | null | undefined;
-          const skills: string[] = [];
-          if (p && Array.isArray(p.skills)) {
-            for (const s of p.skills as { name?: string }[]) { if (s?.name) skills.push(s.name); }
+      let type: ChatMessage['type'] = 'text';
+      let applicantsView: ApplicantsViewData | undefined;
+      let candidateDetail: CandidateDetailData | undefined;
+
+      if (vaJobTitle && vaPostingId) {
+        type = 'applicants-view';
+        const cached = getCachedJobApplicants(vaPostingId);
+        if (cached) {
+          applicantsView = buildApplicantsViewData(vaPostingId, vaJobTitle, `${cached.total} applicants`, cached);
+        }
+        setLastPostingId(vaPostingId);
+      } else if (cdName) {
+        type = 'candidate-detail';
+        const postingId = cdPostingId || lastPostingId;
+        const cached = postingId ? getCachedJobApplicants(postingId) : null;
+        if (cached) {
+          const found = cached.items.find((item) => item.candidate_name?.toLowerCase().includes(cdName.toLowerCase()));
+          if (found) {
+            const p = found.candidate_profile as Record<string, unknown> | null | undefined;
+            const skills: string[] = [];
+            if (p && Array.isArray(p.skills)) {
+              for (const s of p.skills as { name?: string }[]) { if (s?.name) skills.push(s.name); }
+            }
+            let title = vaJobTitle || 'Candidate';
+            if (p && Array.isArray(p.experience) && p.experience.length > 0) {
+              const ex0 = p.experience[0] as { title?: string };
+              if (ex0?.title) title = ex0.title;
+            }
+            candidateDetail = {
+              id: found.candidate_id, name: found.candidate_name ?? cdName, title,
+              location: (p?.city as string) || (p?.location as string) || '—',
+              experienceYears: (p?.experience_years as number) || 3,
+              matchScore: statusToMatchScore(found.status), skills: skills.slice(0, 8), jobTitle: vaJobTitle || '',
+            };
           }
-          let title = vaJobTitle || 'Candidate';
-          if (p && Array.isArray(p.experience) && p.experience.length > 0) {
-            const ex0 = p.experience[0] as { title?: string };
-            if (ex0?.title) title = ex0.title;
-          }
-          candidateDetail = {
-            id: found.candidate_id, name: found.candidate_name ?? cdName, title,
-            location: (p?.city as string) || (p?.location as string) || '—',
-            experienceYears: (p?.experience_years as number) || 3,
-            matchScore: statusToMatchScore(found.status), skills: skills.slice(0, 8), jobTitle: vaJobTitle || '',
-          };
+        }
+        if (!candidateDetail) {
+          candidateDetail = { id: cdName, name: cdName, title: 'Candidate', location: '—', experienceYears: 3, matchScore: 80, skills: [], jobTitle: vaJobTitle || '' };
         }
       }
-      if (!candidateDetail) {
-        candidateDetail = { id: cdName, name: cdName, title: 'Candidate', location: '—', experienceYears: 3, matchScore: 80, skills: [], jobTitle: vaJobTitle || '' };
-      }
+
+      const fallbackOpts = resolveFallbackOptions(cleanText, promptOptions);
+      const finalOptions = options.length > 0 ? options : (type === 'applicants-view' ? REVIEW_APPLICANTS_FOLLOW_UP_OPTIONS : fallbackOpts);
+
+      const msg: ChatMessage = {
+        id: entry.id,
+        role: 'assistant',
+        text: cleanText || afterViewApplicants || afterCandidateDetail,
+        type,
+        options: finalOptions.length > 0 ? finalOptions : undefined,
+        jobCard: jobCard || undefined,
+        applicantsView,
+        candidateDetail,
+      };
+      setMessages((prev) => [...prev, msg]);
+      setWaiting(false);
     }
+  }, [transcripts, promptOptions, lastPostingId]);
 
-    const fallbackOpts = resolveFallbackOptions(cleanText, promptOptions);
-    const finalOptions = options.length > 0 ? options : (type === 'applicants-view' ? REVIEW_APPLICANTS_FOLLOW_UP_OPTIONS : fallbackOpts);
-
-    const msg: ChatMessage = {
-      id: Date.now().toString(),
-      role: 'assistant',
-      text: cleanText || afterViewApplicants || afterCandidateDetail,
-      type,
-      options: finalOptions.length > 0 ? finalOptions : undefined,
-      jobCard: jobCard || undefined,
-      applicantsView,
-      candidateDetail,
-    };
-    setMessages((prev) => [...prev, msg]);
-    setWaiting(false);
-  }, [latestAiText, promptOptions, lastPostingId]);
+  // Also track user transcripts to show them in chat
+  const processedUserTranscriptIdsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const userEntries = transcripts.filter(
+      (t) => !t.isAgent && t.isFinal && t.participant === 'user' && !processedUserTranscriptIdsRef.current.has(t.id),
+    );
+    if (userEntries.length === 0) return;
+    for (const entry of userEntries) {
+      processedUserTranscriptIdsRef.current.add(entry.id);
+      setMessages((prev) => {
+        // Avoid duplicates (handleSend already adds user messages optimistically)
+        if (prev.some((m) => m.id === entry.id || (m.role === 'user' && m.text === entry.text))) return prev;
+        return [...prev, { id: entry.id, role: 'user', text: entry.text }];
+      });
+    }
+  }, [transcripts]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -1014,8 +973,8 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
     const userMsg: ChatMessage = { id: Date.now().toString(), role: 'user', text };
     setMessages((prev) => [...prev, userMsg]);
     setWaiting(true);
-    sendChatText(text);
-  }, []);
+    sendTextMessage(text);
+  }, [sendTextMessage]);
 
   const handleOptionClick = useCallback((option: string) => {
     handleSend(option);
@@ -1048,9 +1007,9 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
       formData.salaryMax && `salary_max: ${formData.salaryMax}`,
       'posted_by: Omar S.',
     ].filter(Boolean).join('\n');
-    sendChatText(`Create job posting with the following details:\n${details}`);
+    sendTextMessage(`Create job posting with the following details:\n${details}`);
     setWaiting(true);
-  }, []);
+  }, [sendTextMessage]);
 
   const SUGGESTIONS = ['Post a job', 'Review applicants', 'Hiring insights', 'Workforce training'];
 
