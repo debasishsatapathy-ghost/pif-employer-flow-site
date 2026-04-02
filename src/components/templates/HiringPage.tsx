@@ -30,6 +30,9 @@ import {
   MessageCircle,
   Sparkles,
   Pencil,
+  Users,
+  Clock,
+  LogOut,
 } from "lucide-react";
 import {
   type JobPostingResponse,
@@ -73,46 +76,53 @@ const INTEL = [
 
 /* ── job postings ────────────────────────────────────────────────────────── */
 type Visual =
-  | { t: "grid";    color: string; rows: number; cols: number }
-  | { t: "squares"; color: string; n: number }
-  | { t: "avatars"; n: number }
+  | { t: "grid";      color: string; rows: number; cols: number }
+  | { t: "grid-seq";  rows: string[][] }   /* explicit rows of hex colors */
+  | { t: "squares";   color: string; n: number }
+  | { t: "avatars";   n: number }
   | { t: "grid-mixed"; rows: number; cols: number };  /* blue + 1 orange */
 
 interface Metric {
   num: string; label: string; visual: Visual;
-  sub?: string; subIcon?: "plus"|"check"|"warn"; subColor?: string;
+  sub?: string; subIcon?: "plus"|"check"|"warn"|"people"|"clock"|"logout"; subColor?: string;
 }
 
 const JOBS: {
   title: string; meta: string; status: string;
-  solidDots: number; fadedDots: number; dotColor: string;
+  dotColors: string[];
   left: Metric; right: Metric;
 }[] = [
   {
     title: "Senior AI Developer", meta: "Engineering · Jeddah · 2 days ago",
-    status: "Screening", dotColor: "#1ed25e", solidDots: 4, fadedDots: 0,
+    status: "Screening",
+    dotColors: ["#1dc558", "#71717b", "#71717b", "#71717b"],
     left: {
-      num: "30", label: "close matches",
-      visual: { t: "grid", color: "#a78bfa", rows: 3, cols: 5 },
-      sub: "5 new suggestions", subIcon: "plus", subColor: "rgba(255,255,255,0.45)",
+      num: "8", label: "screened applicants",
+      visual: { t: "grid-seq", rows: [["#3689ff","#3689ff","#3689ff","#3689ff","#3689ff","#9e36ff","#9e36ff","#9e36ff"]] },
+      sub: "5 shortlisted", subIcon: "people", subColor: "rgba(255,255,255,0.9)",
     },
     right: {
-      num: "2", label: "shortlisted",
-      visual: { t: "squares", color: "#51a2ff", n: 2 },
+      num: "13", label: "talent pool",
+      visual: { t: "grid-seq", rows: [Array(8).fill("#9e36ff"), Array(5).fill("#9e36ff")] },
+      sub: "8 new suggestions", subIcon: "people", subColor: "rgba(255,255,255,0.9)",
     },
   },
   {
     title: "Cloud Engineer", meta: "Engineering · Remote · 4 days ago",
-    status: "Interviewing", dotColor: "#f97316", solidDots: 3, fadedDots: 1,
+    status: "Interviewing",
+    dotColors: ["#a5e8bc", "#a5e8bc", "#1dc558", "#71717b"],
     left: {
       num: "6", label: "interviews booked",
       visual: { t: "avatars", n: 6 },
-      sub: "2 recently accepted", subIcon: "check", subColor: "#4ade80",
+      sub: "2 recently accepted", subIcon: "clock", subColor: "#4ade80",
     },
     right: {
       num: "17", label: "shortlisted",
-      visual: { t: "grid-mixed", rows: 2, cols: 5 },
-      sub: "1 dropped out", subIcon: "warn", subColor: "#f97316",
+      visual: { t: "grid-seq", rows: [
+        ["#1dc558","#1dc558","#1dc558","#1dc558","#1dc558","#1dc558","#3689ff","#3689ff","#3689ff"],
+        ["#3689ff","#3689ff","#3689ff","#3689ff","#3689ff","#3689ff","#3689ff","#ff6b00"],
+      ]},
+      sub: "1 dropped out", subIcon: "logout", subColor: "#f97316",
     },
   },
 ];
@@ -163,6 +173,19 @@ function Dots({ color, solid, faded }: { color: string; solid: number; faded: nu
 }
 
 function VisualBlock({ v }: { v: Visual }) {
+  if (v.t === "grid-seq") {
+    return (
+      <div className="flex flex-col gap-1 mt-1">
+        {v.rows.map((row, ri) => (
+          <div key={ri} className="flex gap-1">
+            {row.map((color, ci) => (
+              <span key={ci} className="rounded-sm flex-shrink-0" style={{ background: color, width: 12, height: 12 }} />
+            ))}
+          </div>
+        ))}
+      </div>
+    );
+  }
   if (v.t === "grid") {
     return (
       <div className="mt-2" style={{ display: "grid", gridTemplateColumns: `repeat(${v.cols}, 1fr)`, gap: 3 }}>
@@ -182,14 +205,15 @@ function VisualBlock({ v }: { v: Visual }) {
     );
   }
   if (v.t === "avatars") {
+    const AVATAR_BG = ["#a5e5e8","#ffbfbf","#a5e8bc","#d7a5e8","#afd0ff","#ffdabf"];
     const inits = ["SK","RT","AK","NM","JD","AB"];
     return (
       <div className="flex mt-2" style={{gap: 0}}>
         {Array.from({length: v.n}).map((_, i) => (
           <div
             key={i}
-            className="w-6 h-6 rounded-full flex items-center justify-center text-[7px] font-bold text-white flex-shrink-0"
-            style={{ background: "#4b6f8c", border: "2px solid rgba(15,20,28,0.9)", marginLeft: i === 0 ? 0 : -6, zIndex: v.n - i }}
+            className="w-10 h-10 rounded-full flex items-center justify-center text-[9px] font-bold text-[#09090b] flex-shrink-0"
+            style={{ background: AVATAR_BG[i % AVATAR_BG.length], border: "2px solid rgba(9,9,11,0.8)", marginLeft: i === 0 ? 0 : -10, zIndex: v.n - i }}
           >
             {inits[i]}
           </div>
@@ -208,11 +232,19 @@ function VisualBlock({ v }: { v: Visual }) {
   );
 }
 
-function SubRow({ sub, icon, color }: { sub: string; icon?: "plus"|"check"|"warn"; color?: string }) {
-  const Ic = icon === "plus" ? UserPlus : icon === "check" ? UserCheck : AlertCircle;
+function SubRow({ sub, icon, color }: { sub: string; icon?: string; color?: string }) {
+  const getIc = () => {
+    if (icon === "plus")   return <UserPlus size={14} className="flex-shrink-0" />;
+    if (icon === "check")  return <UserCheck size={14} className="flex-shrink-0" />;
+    if (icon === "warn")   return <AlertCircle size={14} className="flex-shrink-0" />;
+    if (icon === "people") return <Users size={14} className="flex-shrink-0" />;
+    if (icon === "clock")  return <Clock size={14} className="flex-shrink-0" />;
+    if (icon === "logout") return <LogOut size={14} className="flex-shrink-0" />;
+    return null;
+  };
   return (
-    <p className="text-[10px] mt-1.5 flex items-center gap-1" style={{color: color ?? "rgba(255,255,255,0.45)"}}>
-      {icon && <Ic size={9} className="flex-shrink-0" />}
+    <p className="text-sm flex items-center gap-1.5" style={{color: color ?? "rgba(255,255,255,0.7)"}}>
+      {icon && getIc()}
       {sub}
     </p>
   );
@@ -220,12 +252,14 @@ function SubRow({ sub, icon, color }: { sub: string; icon?: "plus"|"check"|"warn
 
 function MetricCard({ m }: { m: Metric }) {
   return (
-    <div className="rounded-lg p-2.5 flex flex-col" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.07)" }}>
-      <p className="leading-none">
-        <span className="text-2xl font-bold" style={{color: "#1a3a5c"}}>{m.num}</span>
-        <span className="text-[11px] text-white/55 ml-1.5">{m.label}</span>
-      </p>
-      <VisualBlock v={m.visual} />
+    <div className="rounded-xl p-4 flex flex-col justify-between flex-1 gap-3" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.07)" }}>
+      <div className="flex flex-col gap-3">
+        <div className="flex items-end gap-2 leading-none">
+          <span className="text-[40px] font-semibold leading-none text-white">{m.num}</span>
+          <span className="text-base text-[#d4d4d8] pb-1">{m.label}</span>
+        </div>
+        <VisualBlock v={m.visual} />
+      </div>
       {m.sub && <SubRow sub={m.sub} icon={m.subIcon} color={m.subColor} />}
     </div>
   );
@@ -429,6 +463,53 @@ function LiveMockJobCard({ job, onClick }: { job: MockJobResponse; onClick?: () 
           )}
         </div>
       )}
+    </button>
+  );
+}
+
+/* ── detailed static job card (matches Figma design) ────────────────────── */
+function DetailedJobCard({ job, onClick }: {
+  job: typeof JOBS[number];
+  onClick?: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="rounded-xl w-full text-left transition-all hover:scale-[1.005] active:scale-[0.995] flex flex-col gap-4 p-5"
+      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.05)" }}
+    >
+      {/* job header */}
+      <div className="flex flex-col gap-1 w-full">
+        <div className="flex items-start justify-between w-full">
+          <p className="text-base font-semibold text-white">{job.title}</p>
+          {/* progress dots + status label */}
+          <div className="flex flex-col items-end gap-1 flex-shrink-0 ml-3">
+            <div className="flex items-center gap-1">
+              {job.dotColors.map((color, i) => (
+                <span key={i} className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: color }} />
+              ))}
+            </div>
+            <span className="text-sm text-[#d4d4d8]">{job.status}</span>
+          </div>
+        </div>
+        {/* meta — Department • Location • Age */}
+        <div className="flex items-center gap-2">
+          {job.meta.split(" · ").map((part, i, arr) => (
+            <span key={i} className="flex items-center gap-2">
+              <span className="text-sm text-[#d4d4d8]">{part}</span>
+              {i < arr.length - 1 && (
+                <span className="w-1 h-1 rounded-full flex-shrink-0" style={{ background: "#d4d4d8" }} />
+              )}
+            </span>
+          ))}
+        </div>
+      </div>
+      {/* two metric sub-cards */}
+      <div className="flex gap-4 w-full">
+        <MetricCard m={job.left} />
+        <MetricCard m={job.right} />
+      </div>
     </button>
   );
 }
@@ -866,7 +947,7 @@ export function HiringPage({ onSelectJob, apiJobs: externalJobs, apiJobsLoading:
             <button type="button" className="px-4 py-2 rounded-xl text-sm font-medium text-white hover:bg-white/5 transition-colors" style={{ border: "1px solid rgba(255,255,255,0.2)" }}>
               Browse Talent
             </button>
-            <button type="button" className="px-4 py-2 rounded-xl text-sm font-medium" style={{ background: "var(--accent)", color: "#0d1117", fontWeight: 600 }}>
+            <button type="button" className="px-4 py-2 rounded-xl text-sm font-semibold transition-colors hover:opacity-90" style={{ background: "#1dc558", color: "#09090b" }}>
               Post a Job
             </button>
           </div>
@@ -876,80 +957,83 @@ export function HiringPage({ onSelectJob, apiJobs: externalJobs, apiJobsLoading:
         <div className="grid grid-cols-1 md:grid-cols-6 xl:grid-cols-12 gap-4">
 
           {/* Pipeline — 4 of 12 */}
-          <Card className="md:col-span-3 xl:col-span-4">
-            {/* header */}
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-xs font-semibold text-white/80">Pipeline</span>
-              {ROLES.map((r) => (
-                <button
-                  key={r} type="button"
-                  onClick={() => setRole(r)}
-                  className="px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors"
-                  style={{
-                    background: role === r ? "rgba(255,255,255,0.15)" : "transparent",
-                    color: role === r ? "white" : "rgba(255,255,255,0.55)",
-                    border: "1px solid rgba(255,255,255,0.12)",
-                  }}
-                >
-                  {r}
-                </button>
-              ))}
+          <div className="md:col-span-3 xl:col-span-4 rounded-2xl flex flex-col justify-between p-5 gap-4" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)" }}>
+            {/* header row */}
+            <div className="flex items-start justify-between">
+              <p className="text-base text-[#d4d4d8]">Pipeline</p>
+              <div className="flex items-center gap-2">
+                {ROLES.map((r) => (
+                  <button
+                    key={r} type="button"
+                    onClick={() => setRole(r)}
+                    className="px-3 py-1 rounded-full text-sm transition-colors whitespace-nowrap"
+                    style={{
+                      background: role === r ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.05)",
+                      border: role === r ? "1px solid rgba(255,255,255,0.1)" : "1px solid transparent",
+                      color: role === r ? "#f4f4f5" : "rgba(244,244,245,0.6)",
+                    }}
+                  >
+                    {r}
+                  </button>
+                ))}
+              </div>
             </div>
             {/* count */}
-            <p className="text-[42px] font-bold leading-none mb-0.5">
-              <span className="text-white">108</span>
-              <span className="text-base font-normal text-white/50 ml-2">applicants</span>
-            </p>
-            {/* bar */}
-            <div className="h-2 rounded-full overflow-hidden flex mt-3" style={{ background: "rgba(255,255,255,0.07)" }}>
-              {BAR.map((s) => (
-                <div key={s.label} className="h-full" style={{ width: `${s.pct}%`, background: s.color }} />
-              ))}
+            <div className="flex items-end gap-2">
+              <span className="text-[48px] font-semibold leading-none text-white">107</span>
+              <span className="text-base text-[#d4d4d8] pb-2">applicants</span>
             </div>
-            {/* legend */}
-            <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
-              {BAR.map((s) => (
-                <span key={s.label} className="flex items-center gap-1 text-[9px] text-white/45">
-                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: s.color }} />
-                  {s.label}
-                </span>
-              ))}
+            {/* bar + legend */}
+            <div className="flex flex-col gap-3">
+              <div className="h-3 rounded-full overflow-hidden flex" style={{ background: "rgba(255,255,255,0.07)" }}>
+                {BAR.map((s) => (
+                  <div key={s.label} className="h-full" style={{ width: `${s.pct}%`, background: s.color }} />
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-x-4 gap-y-1">
+                {BAR.map((s) => (
+                  <span key={s.label} className="flex items-center gap-1.5 text-xs text-[#d4d4d8]">
+                    <span className="w-3 h-3 rounded-[4px] flex-shrink-0" style={{ background: s.color }} />
+                    {s.label}
+                  </span>
+                ))}
+              </div>
             </div>
-          </Card>
+          </div>
 
           {/* Avg. time to match — 2 of 12 */}
-          <Card className="md:col-span-1.5 xl:col-span-2">
-            <p className="text-[10px] uppercase tracking-wider text-white/45 mb-2">Avg. time to match</p>
-            <p className="text-[32px] font-bold leading-none">
-              <span style={{ color: "var(--accent)" }}>4.2</span>
-              <span className="text-sm font-normal text-white/60 ml-1.5">days</span>
-            </p>
-            <p className="text-[11px] flex items-center gap-1 mt-2.5" style={{ color: "var(--accent)" }}>
-              <TrendingDown size={11} className="flex-shrink-0" />
-              15% from last month
-            </p>
-          </Card>
+          <div className="md:col-span-1.5 xl:col-span-2 rounded-2xl flex flex-col justify-between p-5 gap-3" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)" }}>
+            <p className="text-base text-[#d4d4d8]">Avg. time to match</p>
+            <div className="flex items-end gap-2">
+              <span className="text-[48px] font-semibold leading-none" style={{ color: "#1dc558" }}>4.2</span>
+              <span className="text-base text-[#d4d4d8] pb-2">days</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <TrendingDown size={16} style={{ color: "#1dc558" }} className="flex-shrink-0" />
+              <span className="text-sm text-white">15% from last month</span>
+            </div>
+          </div>
 
           {/* Avg. skill readiness — 2 of 12 */}
-          <Card className="md:col-span-1.5 xl:col-span-2">
-            <p className="text-[10px] uppercase tracking-wider text-white/45 mb-2">Avg. skill readiness</p>
-            <p className="text-[32px] font-bold leading-none">
-              <span style={{ color: "#f97316" }}>79</span>
-              <span className="text-sm font-normal text-white/60 ml-0.5">%</span>
-            </p>
-            <p className="text-[11px] flex items-center gap-1 mt-2.5 text-red-400">
-              <TrendingDown size={11} className="flex-shrink-0" />
-              5% this month
-            </p>
-          </Card>
+          <div className="md:col-span-1.5 xl:col-span-2 rounded-2xl flex flex-col justify-between p-5 gap-3" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)" }}>
+            <p className="text-base text-[#d4d4d8]">Avg. skill readiness</p>
+            <div className="flex items-end gap-2">
+              <span className="text-[48px] font-semibold leading-none" style={{ color: "#ff9040" }}>79</span>
+              <span className="text-base text-[#d4d4d8] pb-2">%</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <TrendingDown size={16} className="text-white flex-shrink-0" />
+              <span className="text-sm text-white">5% this month</span>
+            </div>
+          </div>
 
           {/* Upcoming Interviews — 4 of 12, spans 2 rows */}
-          <div className="md:col-span-3 xl:col-span-4 flex flex-col gap-3 md:row-span-2">
+          <div className="md:col-span-3 xl:col-span-4 flex flex-col gap-4 md:row-span-2">
             {/* heading */}
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-white">Upcoming Interviews</h2>
-              <button type="button" className="text-white/35 hover:text-white/65">
-                <MoreHorizontal size={15} />
+              <p className="text-base text-[#d4d4d8]">Upcoming Interviews</p>
+              <button type="button" className="text-white/35 hover:text-white/65 transition-colors">
+                <MoreHorizontal size={20} />
               </button>
             </div>
 
@@ -957,16 +1041,15 @@ export function HiringPage({ onSelectJob, apiJobs: externalJobs, apiJobsLoading:
             <MiniCalendar />
 
             {/* toggle */}
-            <div className="flex gap-1">
+            <div className="flex gap-1 p-1 rounded-xl" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
               {(["For you","All Interviews"] as const).map((t) => (
                 <button
                   key={t} type="button"
                   onClick={() => setIvTab(t)}
-                  className="flex-1 py-1.5 rounded-lg text-[11px] font-medium transition-colors"
+                  className="flex-1 py-2 rounded-lg text-sm font-medium transition-colors"
                   style={{
-                    background: ivTab === t ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.04)",
+                    background: ivTab === t ? "rgba(255,255,255,0.12)" : "transparent",
                     color: ivTab === t ? "white" : "rgba(255,255,255,0.5)",
-                    border: "1px solid rgba(255,255,255,0.08)",
                   }}
                 >
                   {t}
@@ -976,143 +1059,120 @@ export function HiringPage({ onSelectJob, apiJobs: externalJobs, apiJobsLoading:
 
             {/* list */}
             {IVWS.map((iv, i) => (
-              <div key={i} className="flex items-center gap-3 rounded-xl p-3" style={CARD}>
+              <div key={i} className="flex items-center gap-3 rounded-xl p-4" style={CARD}>
                 <img
                   src={iv.avatar} alt={iv.name}
                   className="w-10 h-10 rounded-full flex-shrink-0 object-cover"
                   style={{ border: "1px solid rgba(255,255,255,0.1)" }}
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="text-[13px] font-semibold text-white leading-tight">{iv.name}</p>
-                  <p className="text-[10px] text-white/50 mt-0.5">{iv.role}</p>
-                  <p className="text-[10px] text-white/40 mt-0.5 flex items-center gap-1">
-                    <MapPin size={9} className="flex-shrink-0" /> {iv.type}
+                  <p className="text-sm font-semibold text-white leading-tight">{iv.name}</p>
+                  <p className="text-xs text-white/50 mt-0.5">{iv.role}</p>
+                  <p className="text-xs text-white/40 mt-1 flex items-center gap-1">
+                    <MapPin size={10} className="flex-shrink-0" /> {iv.type}
                   </p>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <p className="text-[11px] font-bold text-white leading-tight">{iv.time}</p>
-                  <p className="text-[10px] text-white/50">{iv.ampm}</p>
+                  <p className="text-sm font-bold text-white leading-tight">{iv.time}</p>
+                  <p className="text-xs text-white/50 mt-0.5">{iv.ampm}</p>
                 </div>
               </div>
             ))}
           </div>
 
           {/* Hiring intelligence — 4 of 12 (bottom-left) */}
-          <div className="md:col-span-3 xl:col-span-4 flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-white">Hiring intelligence</h2>
-              <button type="button" className="text-white/35 hover:text-white/65">
-                <MoreHorizontal size={15} />
-              </button>
+          <div className="md:col-span-3 xl:col-span-4">
+            <div className="rounded-2xl flex flex-col gap-6 h-full p-5" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)" }}>
+              <div className="flex items-center justify-between flex-shrink-0">
+                <p className="text-base text-[#d4d4d8]">Hiring intelligence</p>
+                <button type="button" className="text-white/35 hover:text-white/65 transition-colors">
+                  <MoreHorizontal size={20} />
+                </button>
+              </div>
+              <div className="flex flex-col gap-4">
+                {INTEL.map((c, i) => (
+                  <div key={i} className="rounded-xl p-4 flex flex-col gap-3" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span style={{ color: c.iconColor }} className="flex-shrink-0">
+                          {c.icon === "down" ? <TrendingDown size={20} /> : <TrendingUp size={20} />}
+                        </span>
+                        <p className="text-base text-white">{c.title}</p>
+                      </div>
+                      <p className="text-sm text-[#d4d4d8] leading-relaxed">{c.body}</p>
+                    </div>
+                    {"note" in c && c.note && (
+                      <p className="text-sm">
+                        <span className="underline" style={{ color: "#1dc558" }}>2 listings</span>
+                        {" have fallen below the range."}
+                      </p>
+                    )}
+                    <div>
+                      {"noAction" in c && c.noAction ? (
+                        <p className="text-sm text-center py-2" style={{ color: "rgba(255,255,255,0.4)" }}>{c.noAction}</p>
+                      ) : "cta" in c && c.cta ? (
+                        <button
+                          type="button"
+                          className="w-full py-2 px-4 rounded-lg text-sm text-white text-center transition-colors hover:bg-white/10"
+                          style={{ background: "rgba(255,255,255,0.05)" }}
+                        >
+                          {c.cta}
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-
-            {INTEL.map((c, i) => (
-              <Card key={i}>
-                <div className="flex items-center gap-1.5 mb-1.5">
-                  <span style={{ color: c.iconColor }}>
-                    {c.icon === "down" ? <TrendingDown size={12} /> : <TrendingUp size={12} />}
-                  </span>
-                  <p className="text-[13px] font-semibold text-white">{c.title}</p>
-                </div>
-                <p className="text-[11px] text-white/55 leading-relaxed">{c.body}</p>
-                {"note" in c && c.note && (
-                  <p className="text-[11px] mt-1.5 font-medium" style={{ color: "var(--accent)" }}>{c.note}</p>
-                )}
-                <div className="mt-2.5">
-                  {"noAction" in c && c.noAction ? (
-                    <p className="text-[11px] text-white/35">{c.noAction}</p>
-                  ) : "cta" in c && c.cta ? (
-                    <button
-                      type="button"
-                      className="px-3 py-1.5 rounded-lg text-[11px] font-medium text-white transition-colors"
-                      style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)" }}
-                    >
-                      {c.cta}
-                    </button>
-                  ) : null}
-                </div>
-              </Card>
-            ))}
           </div>
 
           {/* Job Postings — 4 of 12 (bottom-center) */}
-          <div className="md:col-span-3 xl:col-span-4 flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-white">Job Postings</h2>
-              <div className="flex gap-1">
-                {/* Source toggle */}
-                <div className="flex rounded-lg overflow-hidden" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.09)" }}>
-                  {(["mine", "posted"] as const).map((s) => (
+          <div className="md:col-span-3 xl:col-span-4">
+            <div className="rounded-2xl flex flex-col gap-6 h-full p-5" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)" }}>
+              {/* header */}
+              <div className="flex items-center justify-between flex-shrink-0">
+                <p className="text-base text-[#d4d4d8]">Job Postings</p>
+                <div className="flex items-center gap-2">
+                  {(["Active", "Completed"] as const).map((t) => (
                     <button
-                      key={s} type="button"
-                      onClick={() => setJobSource(s)}
-                      className="px-3 py-1.5 text-[11px] font-medium transition-colors"
+                      key={t} type="button"
+                      onClick={() => setJobTab(t)}
+                      className="px-3 py-1 rounded-full text-sm transition-colors whitespace-nowrap"
                       style={{
-                        background: jobSource === s ? "rgba(255,255,255,0.14)" : "transparent",
-                        color: jobSource === s ? "white" : "rgba(255,255,255,0.5)",
+                        background: jobTab === t ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.05)",
+                        border: jobTab === t ? "1px solid rgba(255,255,255,0.1)" : "1px solid transparent",
+                        color: jobTab === t ? "#f4f4f5" : "rgba(244,244,245,0.6)",
                       }}
                     >
-                      {s === "mine" ? "My Postings" : "On Platform"}
+                      {t}
                     </button>
                   ))}
                 </div>
-                {/* Status filter — only shown for My Postings */}
-                {jobSource === "mine" && (
-                  <div className="flex rounded-lg overflow-hidden" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.09)" }}>
-                    {(["Active", "Completed"] as const).map((t) => (
-                      <button
-                        key={t} type="button"
-                        onClick={() => setJobTab(t)}
-                        className="px-3.5 py-1.5 text-[11px] font-medium transition-colors"
-                        style={{
-                          background: jobTab === t ? "rgba(255,255,255,0.14)" : "transparent",
-                          color: jobTab === t ? "white" : "rgba(255,255,255,0.5)",
-                        }}
-                      >
-                        {t}
-                      </button>
-                    ))}
-                  </div>
-                )}
               </div>
-            </div>
 
-            {/* ── My Postings (employer DB) ── */}
-            {jobSource === "mine" && (
-              <>
+              {/* job list */}
+              <div className="flex flex-col gap-4">
                 {jobsLoading && (
-                  <div className="flex flex-col gap-3">
+                  <>
                     {[1, 2].map((i) => (
-                      <div key={i} className="rounded-xl p-4 animate-pulse" style={CARD}>
-                        <div className="h-3 rounded w-2/3 mb-2" style={{ background: "rgba(255,255,255,0.1)" }} />
-                        <div className="h-2 rounded w-1/2" style={{ background: "rgba(255,255,255,0.06)" }} />
+                      <div key={i} className="rounded-xl p-5 animate-pulse" style={CARD}>
+                        <div className="h-4 rounded w-2/3 mb-3" style={{ background: "rgba(255,255,255,0.1)" }} />
+                        <div className="h-3 rounded w-1/2 mb-4" style={{ background: "rgba(255,255,255,0.06)" }} />
+                        <div className="flex gap-4">
+                          <div className="flex-1 h-24 rounded-xl" style={{ background: "rgba(255,255,255,0.05)" }} />
+                          <div className="flex-1 h-24 rounded-xl" style={{ background: "rgba(255,255,255,0.05)" }} />
+                        </div>
                       </div>
                     ))}
-                  </div>
+                  </>
                 )}
                 {!jobsLoading && jobsError && (
-                  <div className="rounded-xl p-4 text-[12px] text-red-400/80" style={CARD}>
+                  <div className="rounded-xl p-4 text-sm text-red-400/80" style={CARD}>
                     Could not load job postings: {jobsError}
                   </div>
                 )}
-                {!jobsLoading && !jobsError && filteredJobs.length === 0 && (
-                  <div className="rounded-xl p-6 flex flex-col items-center gap-2 text-center" style={CARD}>
-                    <p className="text-[13px] font-medium text-white/60">No {jobTab.toLowerCase()} postings</p>
-                    <p className="text-[11px] text-white/35">
-                      {jobTab === "Active" ? "Post a job to start building your pipeline." : "Completed postings will appear here."}
-                    </p>
-                    {jobTab === "Active" && (
-                      <button
-                        type="button"
-                        className="mt-2 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium text-white/80 hover:text-white transition-colors"
-                        style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)" }}
-                      >
-                        <Plus size={11} /> Post a Job
-                      </button>
-                    )}
-                  </div>
-                )}
-                {!jobsLoading && !jobsError && filteredJobs.map((job) => (
+                {/* Live API jobs when available */}
+                {!jobsLoading && !jobsError && filteredJobs.length > 0 && filteredJobs.map((job) => (
                   <LiveJobCard
                     key={job.id}
                     job={job}
@@ -1123,48 +1183,56 @@ export function HiringPage({ onSelectJob, apiJobs: externalJobs, apiJobsLoading:
                     }}
                   />
                 ))}
-              </>
-            )}
-
-            {/* ── On Platform (job-matching service by-poster) ── */}
-            {jobSource === "posted" && (
-              <>
-                {posterLoading && (
-                  <div className="flex flex-col gap-3">
-                    {[1, 2].map((i) => (
-                      <div key={i} className="rounded-xl p-4 animate-pulse" style={CARD}>
-                        <div className="h-3 rounded w-2/3 mb-2" style={{ background: "rgba(255,255,255,0.1)" }} />
-                        <div className="h-2 rounded w-1/2" style={{ background: "rgba(255,255,255,0.06)" }} />
-                      </div>
+                {/* Static detailed job cards — shown when no API jobs loaded yet */}
+                {!jobsLoading && !jobsError && filteredJobs.length === 0 && jobTab === "Active" && (
+                  <>
+                    {JOBS.map((job) => (
+                      <DetailedJobCard
+                        key={job.title}
+                        job={job}
+                        onClick={() => {
+                          const j = { id: job.title.toLowerCase().replace(/\s+/g, "-"), title: job.title, department: "Engineering", location: job.meta.split(" · ")[1] ?? "", status: job.status.toLowerCase() };
+                          setSelectedJob(j);
+                        }}
+                      />
                     ))}
-                  </div>
+                  </>
                 )}
-                {!posterLoading && posterError && (
-                  <div className="rounded-xl p-4 text-[12px] text-red-400/80" style={CARD}>
-                    Could not load platform postings: {posterError}
-                  </div>
-                )}
-                {!posterLoading && !posterError && posterJobs.length === 0 && (
+                {!jobsLoading && !jobsError && filteredJobs.length === 0 && jobTab === "Completed" && (
                   <div className="rounded-xl p-6 flex flex-col items-center gap-2 text-center" style={CARD}>
-                    <p className="text-[13px] font-medium text-white/60">No platform listings found</p>
-                    <p className="text-[11px] text-white/35">
-                      Jobs you post will appear here once indexed on the platform.
-                    </p>
+                    <p className="text-sm font-medium text-white/60">No completed postings</p>
+                    <p className="text-xs text-white/35">Completed postings will appear here.</p>
                   </div>
                 )}
-                {!posterLoading && !posterError && posterJobs.map((job) => (
-                  <LiveMockJobCard
-                    key={job.id}
-                    job={job}
-                    onClick={() => {
-                      const j = { id: job.id, title: job.title, department: job.category || "", location: job.location || "", status: "active" };
-                      setSelectedJob(j);
-                      onSelectJob?.(job.id, j);
-                    }}
-                  />
-                ))}
-              </>
-            )}
+              </div>
+
+              {/* On Platform — accessible via source toggle kept in state */}
+              {jobSource === "posted" && (
+                <div className="flex flex-col gap-3">
+                  {posterLoading && (
+                    <div className="flex flex-col gap-3">
+                      {[1, 2].map((i) => (
+                        <div key={i} className="rounded-xl p-4 animate-pulse" style={CARD}>
+                          <div className="h-3 rounded w-2/3 mb-2" style={{ background: "rgba(255,255,255,0.1)" }} />
+                          <div className="h-2 rounded w-1/2" style={{ background: "rgba(255,255,255,0.06)" }} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {!posterLoading && !posterError && posterJobs.map((job) => (
+                    <LiveMockJobCard
+                      key={job.id}
+                      job={job}
+                      onClick={() => {
+                        const j = { id: job.id, title: job.title, department: job.category || "", location: job.location || "", status: "active" };
+                        setSelectedJob(j);
+                        onSelectJob?.(job.id, j);
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
         </div>{/* end 12-col grid */}
