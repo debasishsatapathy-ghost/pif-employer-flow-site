@@ -789,13 +789,15 @@ const DEFAULT_POSTER = "default";
 
 interface HiringPageProps {
   onSelectJob?: (jobId: string, job: { title: string; department: string; location: string; status: string; posted_at?: string }) => void;
+  /** Called when the user clicks "Post a Job" — parent opens the wizard. */
+  onPostJob?: () => void;
   /** Pre-fetched job postings from parent — when provided, skips internal fetch. */
   apiJobs?: JobPostingResponse[];
   /** Loading state for pre-fetched jobs. */
   apiJobsLoading?: boolean;
 }
 
-export function HiringPage({ onSelectJob, apiJobs: externalJobs, apiJobsLoading: externalLoading }: HiringPageProps = {}) {
+export function HiringPage({ onSelectJob, onPostJob, apiJobs: externalJobs, apiJobsLoading: externalLoading }: HiringPageProps = {}) {
   const [role, setRole] = useState(ROLES[0]);
   const [jobTab, setJobTab]     = useState<"Active" | "Completed">("Active");
   const [jobSource, setJobSource] = useState<"mine" | "posted">("mine");
@@ -890,7 +892,7 @@ export function HiringPage({ onSelectJob, apiJobs: externalJobs, apiJobsLoading:
             <button type="button" className="px-4 py-2 rounded-full text-sm font-medium text-white transition-colors" style={{ border: "1px solid rgba(255,255,255,0.2)" }}>
               Browse Talent
             </button>
-            <button type="button" className="px-4 py-2 rounded-full text-sm font-semibold" style={{ background: "#1dc558", color: "#09090b" }}>
+            <button type="button" onClick={() => onPostJob?.()} className="px-4 py-2 rounded-full text-sm font-semibold transition-opacity hover:opacity-90 active:scale-[0.97]" style={{ background: "#1dc558", color: "#09090b" }}>
               Post a Job
             </button>
           </div>

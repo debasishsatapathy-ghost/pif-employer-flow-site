@@ -738,7 +738,7 @@ function toSidebarJobs(apiJobs: JobPostingResponse[]): SidebarJob[] {
   }));
 }
 
-function HiringTabContent() {
+function HiringTabContent({ onPostJob }: { onPostJob?: () => void }) {
   const [selectedJob, setSelectedJob] = useState<SelectedJob | null>(null);
   const [apiJobs, setApiJobs] = useState<JobPostingResponse[]>([]);
   const [jobsLoading, setJobsLoading] = useState(true);
@@ -791,7 +791,7 @@ function HiringTabContent() {
     );
   }
 
-  return <HiringPage onSelectJob={handleSelectJob} apiJobs={apiJobs} apiJobsLoading={jobsLoading} />;
+  return <HiringPage onSelectJob={handleSelectJob} apiJobs={apiJobs} apiJobsLoading={jobsLoading} onPostJob={onPostJob} />;
 }
 
 function WorkforceTabContent() {
@@ -1651,7 +1651,18 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
                     initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
                     className="flex-1 flex flex-col min-h-0 overflow-hidden">
-                    <HiringTabContent key={hiringKey} />
+                    <HiringTabContent
+                      key={hiringKey}
+                      onPostJob={() => {
+                        // Mirror the Home screen "Post a job" button behavior:
+                        // switch to the home tab, add the user bubble, enter chat
+                        // mode, then open the wizard after a brief animation pause.
+                        setActiveTab("home");
+                        setMessages(prev => [...prev, { id: `u-${Date.now()}`, role: "user", text: "Post a job" }]);
+                        setChatMode(true);
+                        setTimeout(() => setWizardOpen(true), 200);
+                      }}
+                    />
                   </motion.div>
                 )}
 

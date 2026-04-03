@@ -7,6 +7,8 @@
  * 3. Remember which approach works to avoid retrying
  */
 
+import { useVoiceSessionStore } from '@/lib/stores/voice-session-store';
+
 export interface JobPostingData {
   title: string;
   department?: string;
@@ -29,18 +31,23 @@ const skippedInvokeTools = new Set<string>();
 /**
  * Waits for the Mobeus platform room to be available.
  * Polls every 100ms for up to 10 seconds.
+ *
+ * Checks the Zustand store first (standalone / local-dev mode), then falls
+ * back to legacy window globals used by the Mobeus platform deployment.
  */
 async function waitForMobeusRoom(timeoutMs = 10000): Promise<any> {
   const startTime = Date.now();
   
   while (Date.now() - startTime < timeoutMs) {
+    // Standalone / local-dev: room is managed by the Zustand store
+    const storeRoom = useVoiceSessionStore.getState().room;
+    if (storeRoom?.localParticipant) return storeRoom;
+
+    // Mobeus platform deployment: room is on window globals
     const room = (window as any).__employerRoom 
         || (window as any).__mobeusRoom 
         || (window as any).MobeusSDK?.room;
-    
-    if (room?.localParticipant) {
-      return room;
-    }
+    if (room?.localParticipant) return room;
     
     // Wait 100ms before checking again
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -51,9 +58,11 @@ async function waitForMobeusRoom(timeoutMs = 10000): Promise<any> {
 
 /**
  * Gets the Mobeus platform room (synchronous).
+ * Checks the Zustand store first, then falls back to legacy window globals.
  */
 function getMobeusRoom(): any {
-  return (window as any).__employerRoom 
+  return useVoiceSessionStore.getState().room
+      || (window as any).__employerRoom 
       || (window as any).__mobeusRoom 
       || (window as any).MobeusSDK?.room;
 }
