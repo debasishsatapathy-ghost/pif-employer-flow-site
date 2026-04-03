@@ -1661,10 +1661,14 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
           initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, delay: 0.05 }}
           className="relative z-20 flex items-center justify-between px-6 sm:px-8 pt-4 pb-3 flex-shrink-0">
 
-          {/* Logo — trAIn */}
+          {/* Logo — trAIn (Outfit geometric sans-serif) */}
           <div className="flex items-center min-w-0" style={{ flex: '1 0 0' }}>
             <span className="select-none"
-              style={{ fontSize: 28, fontWeight: 500, lineHeight: 1, letterSpacing: '-0.01em', color: '#e4e4e7' }}>
+              style={{
+                fontFamily: "'Outfit', ui-sans-serif, sans-serif",
+                fontSize: 28, fontWeight: 500, lineHeight: 1,
+                letterSpacing: '-0.01em', color: '#ffffff',
+              }}>
               tr<span style={{ color: '#1dc558', fontWeight: 600 }}>AI</span>n
             </span>
           </div>
