@@ -1211,7 +1211,7 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
   const [activeTab, setActiveTab] = useState<NavTab>("home");
   const [hiringKey, setHiringKey] = useState(0);
   const [chatMode, setChatMode] = useState(false);
-  const [avatarMode, setAvatarMode] = useState(false); // text home is the default landing screen
+  const [avatarMode, setAvatarMode] = useState(true); // default home view shows avatar
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -1676,18 +1676,17 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
           initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, delay: 0.05 }}
           className="relative z-20 flex items-center justify-between px-6 sm:px-8 pt-4 pb-3 flex-shrink-0">
 
-          {/* Logo — PNG asset rendered with mix-blend-mode:screen so dark bg disappears */}
+          {/* Logo — transparent PNG (background stripped at build time) */}
           <div className="flex items-center min-w-0" style={{ flex: '1 0 0' }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/logo-train.png"
+              src="/logo-train-transparent.png"
               alt="trAIn"
               draggable={false}
               style={{
                 height: 36,
                 width: 'auto',
                 display: 'block',
-                mixBlendMode: 'screen',
                 userSelect: 'none',
               }}
             />
@@ -1863,17 +1862,12 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
                   >
 
                     {avatarMode ? (
-                      /* ══ AVATAR MODE — Figma 3764:30878 + 3764:31106 + 3764:31064 ══
-                         Use absolute positioning so each layer is independently placed:
-                         speech bubble at top, avatar below it (head clear of bubble),
-                         action cards pinned to bottom. */
-                      <div className="flex-1 relative overflow-hidden">
+                      /* ══ AVATAR MODE — Figma 3764:30878 + 3764:31106 + 3764:31064 ══ */
+                      <div className="flex-1 flex flex-col items-center justify-between overflow-hidden"
+                        style={{ paddingBottom: '88px' /* leave room for fixed bottom nav */ }}>
 
-                        {/* Speech bubble — floats at top center, z-index above avatar */}
-                        <div style={{
-                          position: 'absolute', top: '6vh', left: 0, right: 0,
-                          display: 'flex', justifyContent: 'center', zIndex: 10,
-                        }}>
+                        {/* Speech bubble — Figma 3764:31106 */}
+                        <div style={{ marginTop: '6vh', zIndex: 2, flexShrink: 0 }}>
                           <div style={{
                             background: 'rgba(39,39,42,0.5)',
                             borderRadius: 100,
@@ -1885,22 +1879,14 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
                           </div>
                         </div>
 
-                        {/* Avatar image — starts below speech bubble, anchored to bottom */}
-                        <div style={{
-                          position: 'absolute',
-                          top: '18vh',   /* enough clearance below the speech bubble */
-                          bottom: '80px', /* leave space for action cards */
-                          left: 0, right: 0,
-                          display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-                          overflow: 'hidden',
-                        }}>
+                        {/* Avatar image — Figma 3764:30878 */}
+                        <div className="flex-1 flex items-end justify-center w-full" style={{ overflow: 'hidden' }}>
                           <img
                             src="/avatar/avatar-full.png"
                             alt="AI Assistant"
                             style={{
-                              height: '100%',
-                              maxHeight: 600,
-                              width: 'auto',
+                              height: '65vh',
+                              maxHeight: 620,
                               objectFit: 'contain',
                               objectPosition: 'bottom',
                               pointerEvents: 'none',
@@ -1909,14 +1895,12 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
                           />
                         </div>
 
-                        {/* Action cards — pinned to bottom above the fixed nav */}
-                        <div style={{
-                          position: 'absolute', bottom: 0, left: 0, right: 0,
-                          padding: '0 20px 16px',
-                        }}>
+                        {/* Action cards — Figma 3764:31064 */}
+                        <div className="w-full px-5 sm:px-8 flex-shrink-0" style={{ marginTop: 12 }}>
                           <div className="flex gap-4 sm:gap-6 max-w-3xl mx-auto">
+                            {/* Post a job */}
                             <button
-                              className="flex flex-1 h-[52px] items-center justify-between px-4 rounded-2xl transition-all duration-200 hover:bg-white/10 active:scale-[0.98]"
+                              className="flex flex-1 h-[52px] items-center justify-between px-4 rounded-2xl transition-all duration-200 hover:bg-white/10 active:scale-[0.98] border-0"
                               style={{ background: 'rgba(255,255,255,0.05)', border: 'none', minWidth: 0 }}
                               onClick={() => {
                                 setAvatarMode(false);
@@ -1930,8 +1914,9 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
                               </div>
                               <ChevronRight size={18} className="text-white/40" />
                             </button>
+                            {/* Review applicants */}
                             <button
-                              className="flex flex-1 h-[52px] items-center justify-between px-4 rounded-2xl transition-all duration-200 hover:bg-white/10 active:scale-[0.98]"
+                              className="flex flex-1 h-[52px] items-center justify-between px-4 rounded-2xl transition-all duration-200 hover:bg-white/10 active:scale-[0.98] border-0"
                               style={{ background: 'rgba(255,255,255,0.05)', border: 'none', minWidth: 0 }}
                               onClick={() => { setAvatarMode(false); handleSend("Review applicants"); }}>
                               <div className="flex items-center gap-2">
@@ -1940,8 +1925,9 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
                               </div>
                               <ChevronRight size={18} className="text-white/40" />
                             </button>
+                            {/* Track Development */}
                             <button
-                              className="flex flex-1 h-[52px] items-center justify-between px-4 rounded-2xl transition-all duration-200 hover:bg-white/10 active:scale-[0.98]"
+                              className="flex flex-1 h-[52px] items-center justify-between px-4 rounded-2xl transition-all duration-200 hover:bg-white/10 active:scale-[0.98] border-0"
                               style={{ background: 'rgba(255,255,255,0.05)', border: 'none', minWidth: 0 }}
                               onClick={() => { setAvatarMode(false); handleSend("How is my training program?"); }}>
                               <div className="flex items-center gap-2">
@@ -2073,7 +2059,7 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
               boxShadow: '0px 0px 8px 0px rgba(255,255,255,0.25)',
             }}>
 
-            {/* ① Sparkle/avatar button — selected when avatarMode (Image 2) */}
+            {/* ① Avatar button — selected when avatarMode on home tab (Figma: SelectedToggleItem) */}
             <button
               onClick={() => {
                 setAvatarMode(true);
@@ -2083,14 +2069,14 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
               className="flex items-center justify-center transition-all duration-200"
               style={{
                 width: 56, height: 32, borderRadius: 100, outline: 'none', cursor: 'pointer',
-                ...(avatarMode
+                ...(avatarMode && !chatMode && activeTab === "home"
                   ? { background: '#1c1c1e', border: '1px solid #1ed25e', boxShadow: '0px 0px 8px 0px #1ed25e' }
                   : { background: 'transparent', border: '1px solid transparent' }),
               }}>
               <Sparkles
                 size={18}
                 style={{
-                  color: avatarMode ? '#1ed25e' : 'rgba(255,255,255,0.45)',
+                  color: avatarMode && !chatMode && activeTab === "home" ? '#1ed25e' : 'rgba(255,255,255,0.45)',
                   transform: 'rotate(-90deg)',
                   transition: 'color 0.2s',
                 }}
@@ -2099,7 +2085,6 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
 
             {/* ② Soundwave — center icon */}
             <button
-              onClick={() => { setAvatarMode(false); setChatMode(false); setActiveTab("home"); }}
               className="flex items-center justify-center transition-colors"
               style={{ width: 24, height: 24, background: 'transparent', border: 'none', outline: 'none', cursor: 'pointer' }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="rgba(255,255,255,0.4)">
@@ -2111,24 +2096,28 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
               </svg>
             </button>
 
-            {/* ③ Chat button — selected when NOT in avatar mode (Image 1 = default landing) */}
+            {/* ③ Chat button — selected when chatMode */}
             <button
               onClick={() => {
-                setAvatarMode(false);
-                setChatMode(false);
-                setActiveTab("home");
+                if (chatMode) {
+                  setChatMode(false);
+                  setAvatarMode(true);
+                } else {
+                  setChatMode(true);
+                  setAvatarMode(false);
+                }
               }}
               className="flex items-center justify-center transition-all duration-200"
               style={{
                 width: 56, height: 32, borderRadius: 100, outline: 'none', cursor: 'pointer',
-                ...(!avatarMode
+                ...(chatMode
                   ? { background: '#1c1c1e', border: '1px solid #1ed25e', boxShadow: '0px 0px 8px 0px #1ed25e' }
                   : { background: 'transparent', border: '1px solid transparent' }),
               }}>
               <MessageCircle
                 size={17}
                 style={{
-                  color: !avatarMode ? '#1ed25e' : 'rgba(255,255,255,0.45)',
+                  color: chatMode ? '#1ed25e' : 'rgba(255,255,255,0.45)',
                   transition: 'color 0.2s',
                 }}
               />
