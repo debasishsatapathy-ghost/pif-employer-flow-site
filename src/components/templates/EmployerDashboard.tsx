@@ -1863,12 +1863,17 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
                   >
 
                     {avatarMode ? (
-                      /* ══ AVATAR MODE — Figma 3764:30878 + 3764:31106 + 3764:31064 ══ */
-                      <div className="flex-1 flex flex-col items-center justify-between overflow-hidden"
-                        style={{ paddingBottom: '88px' /* leave room for fixed bottom nav */ }}>
+                      /* ══ AVATAR MODE — Figma 3764:30878 + 3764:31106 + 3764:31064 ══
+                         Use absolute positioning so each layer is independently placed:
+                         speech bubble at top, avatar below it (head clear of bubble),
+                         action cards pinned to bottom. */
+                      <div className="flex-1 relative overflow-hidden">
 
-                        {/* Speech bubble — Figma 3764:31106 */}
-                        <div style={{ marginTop: '6vh', zIndex: 2, flexShrink: 0 }}>
+                        {/* Speech bubble — floats at top center, z-index above avatar */}
+                        <div style={{
+                          position: 'absolute', top: '6vh', left: 0, right: 0,
+                          display: 'flex', justifyContent: 'center', zIndex: 10,
+                        }}>
                           <div style={{
                             background: 'rgba(39,39,42,0.5)',
                             borderRadius: 100,
@@ -1880,14 +1885,22 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
                           </div>
                         </div>
 
-                        {/* Avatar image — Figma 3764:30878 */}
-                        <div className="flex-1 flex items-end justify-center w-full" style={{ overflow: 'hidden' }}>
+                        {/* Avatar image — starts below speech bubble, anchored to bottom */}
+                        <div style={{
+                          position: 'absolute',
+                          top: '18vh',   /* enough clearance below the speech bubble */
+                          bottom: '80px', /* leave space for action cards */
+                          left: 0, right: 0,
+                          display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+                          overflow: 'hidden',
+                        }}>
                           <img
                             src="/avatar/avatar-full.png"
                             alt="AI Assistant"
                             style={{
-                              height: '65vh',
-                              maxHeight: 620,
+                              height: '100%',
+                              maxHeight: 600,
+                              width: 'auto',
                               objectFit: 'contain',
                               objectPosition: 'bottom',
                               pointerEvents: 'none',
@@ -1896,12 +1909,14 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
                           />
                         </div>
 
-                        {/* Action cards — Figma 3764:31064 */}
-                        <div className="w-full px-5 sm:px-8 flex-shrink-0" style={{ marginTop: 12 }}>
+                        {/* Action cards — pinned to bottom above the fixed nav */}
+                        <div style={{
+                          position: 'absolute', bottom: 0, left: 0, right: 0,
+                          padding: '0 20px 16px',
+                        }}>
                           <div className="flex gap-4 sm:gap-6 max-w-3xl mx-auto">
-                            {/* Post a job */}
                             <button
-                              className="flex flex-1 h-[52px] items-center justify-between px-4 rounded-2xl transition-all duration-200 hover:bg-white/10 active:scale-[0.98] border-0"
+                              className="flex flex-1 h-[52px] items-center justify-between px-4 rounded-2xl transition-all duration-200 hover:bg-white/10 active:scale-[0.98]"
                               style={{ background: 'rgba(255,255,255,0.05)', border: 'none', minWidth: 0 }}
                               onClick={() => {
                                 setAvatarMode(false);
@@ -1915,9 +1930,8 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
                               </div>
                               <ChevronRight size={18} className="text-white/40" />
                             </button>
-                            {/* Review applicants */}
                             <button
-                              className="flex flex-1 h-[52px] items-center justify-between px-4 rounded-2xl transition-all duration-200 hover:bg-white/10 active:scale-[0.98] border-0"
+                              className="flex flex-1 h-[52px] items-center justify-between px-4 rounded-2xl transition-all duration-200 hover:bg-white/10 active:scale-[0.98]"
                               style={{ background: 'rgba(255,255,255,0.05)', border: 'none', minWidth: 0 }}
                               onClick={() => { setAvatarMode(false); handleSend("Review applicants"); }}>
                               <div className="flex items-center gap-2">
@@ -1926,9 +1940,8 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
                               </div>
                               <ChevronRight size={18} className="text-white/40" />
                             </button>
-                            {/* Track Development */}
                             <button
-                              className="flex flex-1 h-[52px] items-center justify-between px-4 rounded-2xl transition-all duration-200 hover:bg-white/10 active:scale-[0.98] border-0"
+                              className="flex flex-1 h-[52px] items-center justify-between px-4 rounded-2xl transition-all duration-200 hover:bg-white/10 active:scale-[0.98]"
                               style={{ background: 'rgba(255,255,255,0.05)', border: 'none', minWidth: 0 }}
                               onClick={() => { setAvatarMode(false); handleSend("How is my training program?"); }}>
                               <div className="flex items-center gap-2">
