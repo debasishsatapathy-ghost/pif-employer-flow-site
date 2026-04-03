@@ -21,7 +21,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="antialiased" style={{ background: '#0a0e16', color: 'white' }}>
+      <body className="antialiased" style={{ background: '#09090b', color: 'white' }}>
         {children}
       </body>
     </html>

@@ -12,7 +12,7 @@ export function WelcomeLanding() {
   }
 
   return (
-    <div className="min-h-dvh lg:h-dvh lg:overflow-hidden grid grid-rows-[auto_1fr_auto] p-3 md:p-6 lg:p-8" style={{ background: '#0a0e16' }}>
+    <div className="min-h-dvh lg:h-dvh lg:overflow-hidden grid grid-rows-[auto_1fr_auto] p-3 md:p-6 lg:p-8" style={{ background: '#09090b' }}>
       {/* Header */}
       <header className="flex items-center justify-between">
         <div className="flex items-center gap-2.5">

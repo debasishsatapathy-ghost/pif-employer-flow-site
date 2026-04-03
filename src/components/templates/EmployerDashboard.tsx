@@ -1619,19 +1619,13 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
   return (
     <div className="relative w-screen h-screen overflow-hidden flex" style={{ background: "var(--bg)", zIndex: 100, position: "relative" }}>
 
-      {/* Background — matches Figma Widescreen background */}
+      {/* ── Background — pure #09090b base with a single muted dark-green glow
+               anchored to the bottom-right, matching Figma widescreen design ── */}
       <div className="absolute inset-0 pointer-events-none" style={{ background: '#09090b' }} />
-      {/* Large blurred green glow — top-right */}
       <div className="absolute pointer-events-none" style={{
-        width: 712, height: 712, top: -60, right: -80,
-        background: 'radial-gradient(ellipse at center, rgba(29,197,88,0.30) 0%, rgba(0,110,55,0.16) 40%, transparent 70%)',
-        filter: 'blur(90px)',
-      }} />
-      {/* Subtle bottom-left ambient tint */}
-      <div className="absolute pointer-events-none" style={{
-        width: 900, height: 900, bottom: '-30%', left: '-20%',
-        background: 'radial-gradient(ellipse at center, rgba(0,60,35,0.18) 0%, transparent 60%)',
-        filter: 'blur(90px)',
+        width: 900, height: 900, bottom: -220, right: -120,
+        background: 'radial-gradient(ellipse at center, rgba(0,90,45,0.42) 0%, rgba(0,55,28,0.18) 45%, transparent 70%)',
+        filter: 'blur(130px)',
       }} />
 
       {/* Left sidebar — Figma pill container */}
@@ -1663,10 +1657,11 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
           initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, delay: 0.05 }}
           className="relative z-20 flex items-center justify-between px-6 sm:px-8 pt-4 pb-3 flex-shrink-0">
 
-          {/* Logo — trAIn with green AI */}
+          {/* Logo — trAIn (40 px semibold, matches Figma node 3487:43757) */}
           <div className="flex items-center min-w-0" style={{ flex: '1 0 0' }}>
-            <span className="font-bold tracking-tight text-white select-none"
-              style={{ fontSize: 32, lineHeight: 1, letterSpacing: '-0.02em' }}>
+            <span className="select-none"
+              style={{ fontSize: 40, fontWeight: 700, lineHeight: 1, color: '#ffffff',
+                       textShadow: '0px 4px 4px rgba(0,0,0,0.25)' }}>
               tr<span style={{ color: '#1dc558' }}>AI</span>n
             </span>
           </div>
