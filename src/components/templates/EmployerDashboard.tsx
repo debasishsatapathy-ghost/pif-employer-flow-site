@@ -1025,7 +1025,7 @@ function ChatView({
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Message list */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 sm:px-12 pt-6 pb-4 space-y-5">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 sm:px-12 pt-6 pb-4 flex flex-col gap-10">
         <AnimatePresence initial={false}>
           {messages.map((msg) => (
             <motion.div
@@ -1035,10 +1035,13 @@ function ChatView({
               transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
             >
               {msg.role === "user" ? (
+                /* ── User bubble — right-aligned, dark semi-transparent, no border ── */
                 <div className="flex justify-end">
-                  <div className="max-w-[380px] rounded-2xl px-4 py-3"
-                    style={{ background: "var(--surface-muted)", border: "1px solid var(--surface-faint)" }}>
-                    <p className="text-sm text-white leading-relaxed">{msg.text}</p>
+                  <div
+                    className="max-w-[510px] rounded-[16px] p-4"
+                    style={{ background: "rgba(39,39,42,0.5)" }}
+                  >
+                    <p className="text-base text-[#f4f4f5] leading-[24px] whitespace-pre-wrap">{msg.text}</p>
                   </div>
                 </div>
               ) : msg.type === "job-posted" && msg.job ? (
@@ -1082,19 +1085,24 @@ function ChatView({
                   )}
                 </div>
               ) : (
-                <div className="flex justify-start flex-col gap-3 max-w-[520px]">
-                  <p className="text-sm text-white/80 leading-relaxed">
+                /* ── AI message — left-aligned, plain text + pill option bubbles ── */
+                <div className="flex flex-col gap-5 max-w-[620px]">
+                  <p
+                    className={`text-base leading-[24px] text-[#f4f4f5] ${
+                      msg.options && msg.options.length > 0 ? "font-semibold" : "font-normal"
+                    }`}
+                  >
                     {msg.text}
                   </p>
-                  {/* Option chips */}
+                  {/* Option bubbles — pill-shaped, 40px tall, Figma: rounded-[100px] */}
                   {msg.options && msg.options.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-4">
                       {msg.options.map((chip) => (
                         <button
                           key={chip}
                           onClick={() => onChipClick(chip)}
-                          className="px-3.5 py-1.5 rounded-full text-xs font-medium text-white/70 hover:text-white/95 hover:border-white/25 transition-all duration-150"
-                          style={{ background: "var(--surface-elevated)", border: "1px solid var(--glass-btn-border)" }}
+                          className="h-10 px-4 rounded-full text-base text-[#f4f4f5] hover:brightness-125 active:scale-[0.97] transition-all duration-150"
+                          style={{ background: "rgba(255,255,255,0.05)" }}
                         >
                           {chip}
                         </button>
