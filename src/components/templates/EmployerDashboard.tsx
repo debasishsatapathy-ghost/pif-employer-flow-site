@@ -1211,7 +1211,7 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
   const [activeTab, setActiveTab] = useState<NavTab>("home");
   const [hiringKey, setHiringKey] = useState(0);
   const [chatMode, setChatMode] = useState(false);
-  const [avatarMode, setAvatarMode] = useState(true); // default home view shows avatar
+  const [avatarMode, setAvatarMode] = useState(false); // default: text home (image 2); avatar (image 1) on explicit click
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -2096,12 +2096,12 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
               </svg>
             </button>
 
-            {/* ③ Chat button — selected when chatMode */}
+            {/* ③ Chat button — selected when chatMode; returns to text home (image 2) when toggled off */}
             <button
               onClick={() => {
                 if (chatMode) {
                   setChatMode(false);
-                  setAvatarMode(true);
+                  setAvatarMode(false); // return to text home (image 2), not avatar
                 } else {
                   setChatMode(true);
                   setAvatarMode(false);
