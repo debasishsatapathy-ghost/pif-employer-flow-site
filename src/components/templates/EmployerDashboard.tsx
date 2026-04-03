@@ -579,17 +579,18 @@ function resolveFallbackOptions(text: string, opts: PromptStepOptions): string[]
   // Matches: "what role are you hiring for", "what role are you looking to hire",
   //          "what role are you looking for", "which role are you hiring", etc.
   if (/what role|which role|role are you (hiring|looking)|role.*hire for/i.test(text)) return opts.step1;
-  if (/experience level are you looking|what experience level|experience level.*looking/i.test(text)) return opts.step2;
-  // Matches: "Where is this role based?", "Where is this Senior Backend Developer role based?"
-  if (/where is this .* role based|where is this role based|role based\?/i.test(text)) return opts.step3;
+  if (/experience level|what level of experience|seniority level|junior.*senior|grade.*role/i.test(text)) return opts.step2;
+  // Matches: "Where is this role based?", "which location", "where would this role be",
+  //          "where are you hiring", "what location", "role.*location", etc.
+  if (/where is this .* role|where.*role.*based|which location|where.*hiring|what location|location.*role|role.*location/i.test(text)) return opts.step3;
   return [];
 }
 
 /** Returns which job field the AI is currently asking for. */
 function resolveCurrentStep(text: string): "role" | "experience" | "location" | null {
   if (/what role|which role|role are you (hiring|looking)|role.*hire for/i.test(text)) return "role";
-  if (/experience level are you looking|what experience level|experience level.*looking/i.test(text)) return "experience";
-  if (/where is this .* role based|where is this role based|role based\?/i.test(text)) return "location";
+  if (/experience level|what level of experience|seniority level|junior.*senior|grade.*role/i.test(text)) return "experience";
+  if (/where is this .* role|where.*role.*based|which location|where.*hiring|what location|location.*role|role.*location/i.test(text)) return "location";
   return null;
 }
 
@@ -1591,13 +1592,7 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
                         <button
                           className="flex flex-1 h-[52px] items-center justify-between px-4 rounded-2xl transition-all duration-200 hover:bg-white/10 active:scale-[0.98]"
                           style={{ background: 'rgba(255,255,255,0.05)', minWidth: 0 }}
-                          onClick={() => {
-                            setMessages(prev => [...prev, { id: `u-${Date.now()}`, role: "user", text: "Post a job" }]);
-                            setChatMode(true);
-                            // Brief pause so step 1-a (user bubble on blank canvas) is visible
-                            // before the wizard card animates in
-                            setTimeout(() => setWizardOpen(true), 200);
-                          }}>
+                          onClick={() => handleSend("Post a job")}>
                           <div className="flex items-center gap-2">
                             <Building2 size={20} style={{ color: '#1ed25e' }} />
                             <span className="text-base font-normal text-[#fafafa]">Post a job</span>
