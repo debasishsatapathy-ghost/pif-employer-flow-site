@@ -893,10 +893,12 @@ function ChatView({
   isTyping: boolean;
   onSend: (text: string) => void;
   onChipClick: (chip: string) => void;
-  onCreateJobPosting: (jobCard: NonNullable<ChatMessage["jobCard"]>) => void;
+  onCreateJobPosting: (jobCard: NonNullable<ChatMessage["jobCard"]>) => Promise<void>;
   sessionReady?: boolean;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  // Tracks which job card message is currently being posted to show loading state.
+  const [postingMsgId, setPostingMsgId] = useState<string | null>(null);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -961,34 +963,62 @@ function ChatView({
                       ))}
                     </div>
                   )}
-                  {/* Inline job card */}
+                  {/* Inline job card — styled per Figma node 3509-48092 */}
                   {msg.jobCard && (
-                    <div className="rounded-2xl overflow-hidden w-full max-w-[320px]"
-                      style={{ background: "var(--surface-dim)", border: "1px solid var(--border-soft)" }}>
-                      <div className="px-4 pt-3.5 pb-3 flex flex-col gap-2">
-                        <div>
-                          <p className="text-sm font-semibold text-white">{msg.jobCard.title}</p>
-                          <p className="text-xs text-white/40 mt-0.5 flex items-center gap-1">
-                            <MapPin size={10} /> {msg.jobCard.location}
-                          </p>
+                    <div
+                      className="flex flex-col gap-4 p-4 rounded-[12px] shrink-0"
+                      style={{ background: "rgba(255,255,255,0.05)" }}
+                    >
+                      {/* Title + Location */}
+                      <div className="flex flex-col gap-1">
+                        <p className="text-base font-semibold leading-6 text-[#fafafa]">
+                          {msg.jobCard.title}
+                        </p>
+                        <div className="flex items-center gap-1">
+                          <MapPin size={12} className="shrink-0" style={{ color: "#d4d4d8" }} />
+                          <span className="text-sm leading-5 text-[#d4d4d8]">
+                            {msg.jobCard.location}
+                          </span>
                         </div>
-                        {msg.jobCard.skills.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5">
-                            {msg.jobCard.skills.slice(0, 3).map(s => (
-                              <span key={s} className="px-2.5 py-1 rounded-full text-[11px] text-white/55"
-                                style={{ background: "var(--surface-subtle)", border: "1px solid var(--border-faint)" }}>
-                                {s}
-                              </span>
-                            ))}
-                          </div>
-                        )}
                       </div>
+
+                      {/* Skill chips */}
+                      {msg.jobCard.skills.length > 0 && (
+                        <div className="flex flex-wrap gap-2 items-center">
+                          {msg.jobCard.skills.slice(0, 3).map((s) => (
+                            <span
+                              key={s}
+                              className="px-[11px] py-1 rounded-[8px] text-[13px] leading-[19.5px] text-[#d4d4d8] whitespace-nowrap"
+                              style={{
+                                background: "rgba(255,255,255,0.06)",
+                                border: "1px solid rgba(255,255,255,0.08)",
+                              }}
+                            >
+                              {s}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* CTA button — semi-transparent green, rounded-full */}
                       <button
-                        onClick={() => onCreateJobPosting(msg.jobCard!)}
-                        className="w-full py-2.5 text-sm font-semibold text-black transition-colors"
-                        style={{ background: "var(--accent)" }}
+                        onClick={async () => {
+                          if (postingMsgId) return;
+                          setPostingMsgId(msg.id);
+                          try {
+                            await onCreateJobPosting(msg.jobCard!);
+                          } finally {
+                            setPostingMsgId(null);
+                          }
+                        }}
+                        disabled={!!postingMsgId}
+                        className="h-10 w-full rounded-full text-base font-semibold text-[#f4f4f5] transition-opacity hover:opacity-90 active:scale-[0.98] disabled:opacity-60 flex items-center justify-center gap-2"
+                        style={{ background: "rgba(29,197,88,0.5)" }}
                       >
-                        Create Job Posting
+                        {postingMsgId === msg.id && (
+                          <Loader2 size={14} className="animate-spin" />
+                        )}
+                        {postingMsgId === msg.id ? "Posting…" : "Create Job Posting"}
                       </button>
                     </div>
                   )}
@@ -1355,14 +1385,38 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
     handleSend(chip);
   }, [handleSend]);
 
-  const handleCreateJobPosting = useCallback((jobCard: NonNullable<ChatMessage["jobCard"]>) => {
-    setWizardInitialData({
-      title: jobCard.title,
-      location: jobCard.location !== "Remote" ? jobCard.location : "",
-      description: jobCard.description,
-      skills: { mustHave: jobCard.mustHave, preferred: jobCard.preferred, niceToHave: jobCard.niceToHave },
-    });
-    setWizardOpen(true);
+  const handleCreateJobPosting = useCallback(async (jobCard: NonNullable<ChatMessage["jobCard"]>) => {
+    // Send the same structured message the wizard's Finish button sends.
+    // The Mobeus agent's system prompt parses "Create job posting with the
+    // following details:" and calls create_job_posting via MCP function-calling.
+    const lines: string[] = ["Create job posting with the following details:"];
+    if (jobCard.title)                  lines.push(`title: ${jobCard.title}`);
+    if (jobCard.location)               lines.push(`location: ${jobCard.location}`);
+    if (jobCard.description)            lines.push(`description: ${jobCard.description}`);
+    if (jobCard.mustHave?.length)       lines.push(`must_have: ${jobCard.mustHave.join(", ")}`);
+    if (jobCard.preferred?.length)      lines.push(`preferred: ${jobCard.preferred.join(", ")}`);
+    if (jobCard.niceToHave?.length)     lines.push(`nice_to_have: ${jobCard.niceToHave.join(", ")}`);
+    lines.push("posted_by: Omar S.");
+
+    await useVoiceSessionStore.getState().sendTextMessage(lines.join("\n"));
+
+    // Optimistic UI: show a job-posted card immediately; the AI's textual
+    // confirmation will follow in a subsequent chat message.
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `posted-${Date.now()}`,
+        role: "assistant" as const,
+        type: "job-posted" as const,
+        text: "",
+        job: {
+          title: jobCard.title,
+          department: "",
+          location: jobCard.location,
+          postedAt: new Date(),
+        },
+      },
+    ]);
   }, []);
 
 
