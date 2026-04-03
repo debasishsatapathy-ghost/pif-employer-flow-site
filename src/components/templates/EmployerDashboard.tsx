@@ -997,6 +997,11 @@ function ChatView({
   onChipClick,
   onCreateJobPosting,
   sessionReady = true,
+  wizardOpen = false,
+  wizardInitialData,
+  wizardPreFilled = false,
+  onWizardClose,
+  onWizardFinish,
 }: {
   messages: ChatMessage[];
   isTyping: boolean;
@@ -1004,6 +1009,11 @@ function ChatView({
   onChipClick: (chip: string) => void;
   onCreateJobPosting: (jobCard: NonNullable<ChatMessage["jobCard"]>) => void;
   sessionReady?: boolean;
+  wizardOpen?: boolean;
+  wizardInitialData?: Partial<JobFormData>;
+  wizardPreFilled?: boolean;
+  onWizardClose?: () => void;
+  onWizardFinish?: (job: PostedJob) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -1011,7 +1021,7 @@ function ChatView({
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, isTyping]);
+  }, [messages, isTyping, wizardOpen]);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -1155,6 +1165,20 @@ function ChatView({
                     style={{ animationDelay: `${i * 150}ms` }} />
                 ))}
               </div>
+            </motion.div>
+          )}
+
+          {/* Post-a-Job wizard — inline below conversation history */}
+          {wizardOpen && onWizardClose && onWizardFinish && (
+            <motion.div key="wizard-inline"
+              initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}>
+              <PostJobWizardCard
+                initialData={wizardInitialData}
+                isPreFilled={wizardPreFilled}
+                onClose={onWizardClose}
+                onFinish={onWizardFinish}
+              />
             </motion.div>
           )}
         </AnimatePresence>
@@ -1741,94 +1765,63 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
               className="flex-1 min-h-0 flex flex-col overflow-hidden">
-
-              <AnimatePresence mode="wait">
-                {wizardOpen ? (
-                  /* Wizard inline — user message bubble + wizard card stacked, chat input pinned below */
-                  <motion.div key="wizard-inline"
-                    initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }}
-                    transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-                    className="flex-1 flex flex-col overflow-hidden">
-                    {/* Scrollable: "Post a job" user bubble → wizard card */}
-                    <div className="flex-1 overflow-y-auto px-5 sm:px-8 pt-5 pb-3 flex flex-col gap-5">
-                      {/* User message bubble — right-aligned, Figma 3921:20661 */}
-                      <div className="flex justify-end">
-                        <div className="rounded-2xl px-4 py-4"
-                          style={{ background: 'rgba(39,39,42,0.5)' }}>
-                          <p className="text-base text-[#f4f4f5]">Post a job</p>
-                        </div>
-                      </div>
-                      {/* Wizard card */}
-                      <PostJobWizardCard
-                        initialData={wizardInitialData}
-                        isPreFilled={wizardPreFilled}
-                        onClose={() => {
-                          setWizardOpen(false);
-                          setWizardInitialData({});
-                          setWizardPreFilled(false);
-                        }}
-                        onFinish={(job) => {
-                          setWizardOpen(false);
-                          setWizardInitialData({});
-                          setWizardPreFilled(false);
-                          // Add to session jobs so the Hiring tab shows it immediately.
-                          setSessionCreatedJobs((prev) => {
-                            const alreadyExists = prev.some(
-                              (j) => j.title === job.title && j.location === (job.location || null)
-                            );
-                            if (alreadyExists) return prev;
-                            return [...prev, {
-                              id: `session-${Date.now()}`,
-                              title: job.title,
-                              location: job.location || null,
-                              status: 'active',
-                              department: job.department || null,
-                              employment_type: null,
-                              description: null,
-                              skills: null,
-                              salary_min: null,
-                              salary_max: null,
-                              posted_by: 'Omar S.',
-                              created_at: new Date().toISOString(),
-                              updated_at: new Date().toISOString(),
-                            }];
-                          });
-                          const candidates = getJobCandidates(job.title);
-                          setMessages(prev => [
-                            ...prev,
-                            {
-                              id: `job-${Date.now()}`,
-                              role: "assistant" as const,
-                              text: "",
-                              type: "job-posted" as const,
-                              job,
-                              candidates,
-                            },
-                          ]);
-                        }}
-                      />
-                    </div>
-                    {/* Pinned input always visible at bottom */}
-                    <div className="px-5 sm:px-12 pb-6 pt-3 flex-shrink-0">
-                      <ChatInputBar onSend={handleSend} waiting={!sessionReady} placeholder="Ask anything" />
-                    </div>
-                  </motion.div>
-                ) : (
-                  <motion.div key="chat-messages"
-                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                    transition={{ duration: 0.18 }}
-                    className="flex-1 flex flex-col overflow-hidden">
-                    <ChatView
-                      messages={messages}
-                      isTyping={isTyping}
-                      onSend={handleSend}
-                      onChipClick={handleChipClick}
-                      onCreateJobPosting={handleCreateJobPosting}
-                      sessionReady={sessionReady}
-                    />
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              {/* ChatView always shows full conversation history.
+                  The PostJobWizardCard renders inline below the messages when wizardOpen. */}
+              <ChatView
+                messages={messages}
+                isTyping={isTyping}
+                onSend={handleSend}
+                onChipClick={handleChipClick}
+                onCreateJobPosting={handleCreateJobPosting}
+                sessionReady={sessionReady}
+                wizardOpen={wizardOpen}
+                wizardInitialData={wizardInitialData}
+                wizardPreFilled={wizardPreFilled}
+                onWizardClose={() => {
+                  setWizardOpen(false);
+                  setWizardInitialData({});
+                  setWizardPreFilled(false);
+                }}
+                onWizardFinish={(job) => {
+                  setWizardOpen(false);
+                  setWizardInitialData({});
+                  setWizardPreFilled(false);
+                  // Add to session jobs so the Hiring tab shows it immediately.
+                  setSessionCreatedJobs((prev) => {
+                    const alreadyExists = prev.some(
+                      (j) => j.title === job.title && j.location === (job.location || null)
+                    );
+                    if (alreadyExists) return prev;
+                    return [...prev, {
+                      id: `session-${Date.now()}`,
+                      title: job.title,
+                      location: job.location || null,
+                      status: 'active',
+                      department: job.department || null,
+                      employment_type: null,
+                      description: null,
+                      skills: null,
+                      salary_min: null,
+                      salary_max: null,
+                      posted_by: 'Omar S.',
+                      created_at: new Date().toISOString(),
+                      updated_at: new Date().toISOString(),
+                    }];
+                  });
+                  const candidates = getJobCandidates(job.title);
+                  setMessages(prev => [
+                    ...prev,
+                    {
+                      id: `job-${Date.now()}`,
+                      role: "assistant" as const,
+                      text: "",
+                      type: "job-posted" as const,
+                      job,
+                      candidates,
+                    },
+                  ]);
+                }}
+              />
             </motion.div>
           )}
 
