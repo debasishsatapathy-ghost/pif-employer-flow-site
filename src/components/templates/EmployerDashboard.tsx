@@ -1661,12 +1661,11 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
           initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, delay: 0.05 }}
           className="relative z-20 flex items-center justify-between px-6 sm:px-8 pt-4 pb-3 flex-shrink-0">
 
-          {/* Logo — trAIn (40 px semibold, matches Figma node 3487:43757) */}
+          {/* Logo — trAIn */}
           <div className="flex items-center min-w-0" style={{ flex: '1 0 0' }}>
             <span className="select-none"
-              style={{ fontSize: 40, fontWeight: 700, lineHeight: 1, color: '#ffffff',
-                       textShadow: '0px 4px 4px rgba(0,0,0,0.25)' }}>
-              tr<span style={{ color: '#1dc558' }}>AI</span>n
+              style={{ fontSize: 28, fontWeight: 500, lineHeight: 1, letterSpacing: '-0.01em', color: '#e4e4e7' }}>
+              tr<span style={{ color: '#1dc558', fontWeight: 600 }}>AI</span>n
             </span>
           </div>
 
