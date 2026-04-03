@@ -118,10 +118,18 @@ async function callViaAgentRpc(tool: string, args: any): Promise<any> {
   // Wait for room to be available
   const room = await waitForMobeusRoom();
 
-  // Find agent participant
-  const agentParticipant = Array.from(room.remoteParticipants.values()).find(
-    (p: any) => p.kind === 'agent'
-  );
+  // Find agent participant.
+  // Prefer the Zustand store's already-tracked reference (set via the correct
+  // ParticipantKind.AGENT numeric enum comparison in voice-session-store.ts).
+  // Fall back to scanning remoteParticipants for Mobeus platform deployment,
+  // using the numeric value 4 (ParticipantKind.AGENT per @livekit/protocol).
+  // NOTE: p.kind is a number, NOT the string 'agent' — that was the prior bug.
+  let agentParticipant: any = useVoiceSessionStore.getState().agentParticipant;
+  if (!agentParticipant) {
+    agentParticipant = Array.from(room.remoteParticipants.values()).find(
+      (p: any) => p.kind === 4  // ParticipantKind.AGENT = 4
+    );
+  }
 
   if (!agentParticipant) {
     throw new Error('No agent participant found in the room. Please ensure the agent is connected.');
