@@ -3,7 +3,8 @@ import { useTeleSpeech } from "@/hooks/useTeleSpeech";
 import { useVoiceSessionStore } from "@/lib/stores/voice-session-store";
 import { registerSiteFunctions } from "@/site-functions/register";
 import { motion, AnimatePresence } from "framer-motion";
-import { createJobPosting } from "@/lib/mcpBridge";
+// createJobPosting via direct RPC is not supported by the Mobeus agent.
+// The wizard sends a structured lk.chat message instead (see handleFinish).
 import { HiringPage } from "./HiringPage";
 import { JobPostingTemplate } from "./JobPostingTemplate";
 import WorkforcePage from "./WorkforcePage";
@@ -158,24 +159,27 @@ function PostJobWizardCard({ onClose, onFinish, initialData }: {
     setSaving(true);
     setSaveError(null);
     try {
-      await createJobPosting({
-        title: form.title,
-        department: form.department || undefined,
-        location: form.location || undefined,
-        employment_type: form.employmentType || undefined,
-        description: form.description || undefined,
-        skills: {
-          mustHave: form.skills.mustHave,
-          preferred: form.skills.preferred,
-          niceToHave: form.skills.niceToHave,
-        },
-        salary_min: form.salaryMin || undefined,
-        salary_max: form.salaryMax || undefined,
-        posted_by: "Omar S.",
-      });
+      // The Mobeus agent does not expose a callMcpTool RPC endpoint.
+      // Instead, send a structured lk.chat message that the agent's system
+      // prompt is already instructed to handle: it parses the key-value lines
+      // and calls create_job_posting via its own MCP function-calling pipeline.
+      const lines: string[] = ["Create job posting with the following details:"];
+      if (form.title)                    lines.push(`title: ${form.title}`);
+      if (form.department)               lines.push(`department: ${form.department}`);
+      if (form.location)                 lines.push(`location: ${form.location}`);
+      if (form.employmentType)           lines.push(`employment_type: ${form.employmentType}`);
+      if (form.description)              lines.push(`description: ${form.description}`);
+      if (form.skills.mustHave.length)   lines.push(`must_have: ${form.skills.mustHave.join(", ")}`);
+      if (form.skills.preferred.length)  lines.push(`preferred: ${form.skills.preferred.join(", ")}`);
+      if (form.skills.niceToHave.length) lines.push(`nice_to_have: ${form.skills.niceToHave.join(", ")}`);
+      if (form.salaryMin)                lines.push(`salary_min: ${form.salaryMin}`);
+      if (form.salaryMax)                lines.push(`salary_max: ${form.salaryMax}`);
+      lines.push("posted_by: Omar S.");
+
+      await useVoiceSessionStore.getState().sendTextMessage(lines.join("\n"));
       onFinish({ title: form.title, department: form.department, location: form.location, postedAt: new Date() });
     } catch (err) {
-      setSaveError((err as Error).message ?? "Failed to save job posting. Please try again.");
+      setSaveError((err as Error).message ?? "Failed to post job. Please try again.");
       setSaving(false);
     }
   };
