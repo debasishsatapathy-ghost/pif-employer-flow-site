@@ -99,10 +99,12 @@ function getMarketSalary(title: string): { label: string; min: number; max: numb
 const TOTAL_STEPS = 5;
 
 /* ── Post-a-Job Wizard ───────────────────────────────────────────────────── */
-function PostJobWizardCard({ onClose, onFinish, initialData }: {
+function PostJobWizardCard({ onClose, onFinish, initialData, isPreFilled = false }: {
   onClose: () => void;
   onFinish: (job: PostedJob) => void;
   initialData?: Partial<JobFormData>;
+  /** When true, show the AI "pre-filled" banner on step 1 instead of the intro text */
+  isPreFilled?: boolean;
 }) {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<JobFormData>({
@@ -217,7 +219,21 @@ function PostJobWizardCard({ onClose, onFinish, initialData }: {
             {/* ── Step 1: Role details ── */}
             {step === 1 && (
               <motion.div key="s1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.22 }} className="flex flex-col gap-5">
-                <p className="text-base text-[#d4d4d8]">Let's start with the basics. What role are you hiring for?</p>
+                {/* AI banner (shown when form is pre-filled from chat card) */}
+                {isPreFilled ? (
+                  <div className="flex items-stretch overflow-hidden rounded-[12px]"
+                    style={{ background: 'rgba(119,220,155,0.05)', border: '1px solid #4ad179' }}>
+                    <div className="w-2 flex-shrink-0" style={{ background: '#4ad179' }} />
+                    <div className="flex items-start gap-2 px-3 py-[10px]">
+                      <SparkleIcon size={20} />
+                      <p className="text-base text-[#d2f3de] leading-6">
+                        trAIn has pre-filled this information based on your requirements.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-base text-[#d4d4d8]">Let&apos;s start with the basics. What role are you hiring for?</p>
+                )}
                 <div className="flex flex-col gap-4">
                   <p className="text-[20px] font-semibold text-[#fafafa]">Role details</p>
                   <div className="grid grid-cols-2 gap-4">
@@ -460,6 +476,30 @@ interface EmployerDashboardProps {
 
 type NavTab = "home" | "hiring" | "workforce";
 
+interface CandidateData {
+  id: string;
+  name: string;
+  role: string;
+  matchScore: number;
+  location: string;
+  experience: string;
+  skills: string[];
+  avatarColor: string;
+  initials: string;
+}
+
+// Top-3 mock candidates shown after posting a Senior AI Developer role
+const MOCK_SENIOR_AI_CANDIDATES: CandidateData[] = [
+  { id: "c1", name: "Sara Khalid",       role: "AI Developer", matchScore: 93, location: "Jeddah", experience: "5 yrs", skills: ["Gen AI", "SQL", "Prompt Eng"], avatarColor: "#2a4a6e", initials: "SK" },
+  { id: "c2", name: "Noura Al-Dosari",   role: "AI Developer", matchScore: 90, location: "Jeddah", experience: "4 yrs", skills: ["Gen AI", "Python", "SQL"],       avatarColor: "#afd0ff", initials: "NA" },
+  { id: "c3", name: "Faisal Al-Zahrani", role: "AI Developer", matchScore: 88, location: "Riyadh", experience: "4 yrs", skills: ["Gen AI", "Python", "SQL"],       avatarColor: "#d7a5e8", initials: "FA" },
+];
+
+function getJobCandidates(_title: string): CandidateData[] {
+  // For this prototype all postings return the same top-3 matched candidates
+  return MOCK_SENIOR_AI_CANDIDATES;
+}
+
 interface ChatMessage {
   id: string;
   role: "user" | "assistant";
@@ -467,6 +507,7 @@ interface ChatMessage {
   type?: "text" | "job-posted";
   job?: PostedJob;
   options?: string[];
+  candidates?: CandidateData[];
   jobCard?: {
     title: string;
     location: string;
@@ -476,6 +517,68 @@ interface ChatMessage {
     preferred: string[];
     niceToHave: string[];
   };
+}
+
+/* ── Candidate card — matches Figma node 8678:31468 ─────────────────────── */
+function CandidateCard({ candidate }: { candidate: CandidateData }) {
+  return (
+    <div style={{
+      background: "rgba(255,255,255,0.05)",
+      borderRadius: 12,
+      padding: 16,
+      display: "flex",
+      flexDirection: "column",
+      gap: 12,
+      minWidth: 220,
+      flex: "1 0 0",
+    }}>
+      {/* Top row: avatar + name + match score */}
+      <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+        {/* Avatar */}
+        <div style={{
+          width: 44, height: 44, borderRadius: "50%", flexShrink: 0,
+          background: candidate.avatarColor,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 14, fontWeight: 700, color: "#fff",
+        }}>
+          {candidate.initials}
+        </div>
+        {/* Name + role */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2 }}>
+          <p style={{ fontSize: 14, fontWeight: 700, color: "#fafafa", lineHeight: "20px" }}>{candidate.name}</p>
+          <p style={{ fontSize: 14, color: "#d4d4d8", lineHeight: "20px" }}>{candidate.role}</p>
+        </div>
+        {/* Match score circle — green ring */}
+        <div style={{
+          width: 44, height: 44, borderRadius: "50%", flexShrink: 0,
+          border: "3.5px solid #1dc558",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <span style={{ fontSize: 16, fontWeight: 600, color: "#fff", lineHeight: "24px" }}>{candidate.matchScore}</span>
+        </div>
+      </div>
+      {/* Location + experience */}
+      <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+          <MapPin size={14} style={{ color: "#d4d4d8", flexShrink: 0 }} />
+          <span style={{ fontSize: 14, color: "#d4d4d8", lineHeight: "20px" }}>{candidate.location}</span>
+        </div>
+        <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+          <Building2 size={14} style={{ color: "#d4d4d8", flexShrink: 0 }} />
+          <span style={{ fontSize: 14, color: "#d4d4d8", lineHeight: "20px" }}>{candidate.experience}</span>
+        </div>
+      </div>
+      {/* Skill chips */}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        {candidate.skills.map((skill) => (
+          <span key={skill} style={{
+            background: "#27272a", borderRadius: 8, padding: "4px 8px",
+            fontSize: 14, color: "#fafafa", lineHeight: "20px", whiteSpace: "nowrap",
+          }}>{skill}</span>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 /* ── Options parsed from the loaded prompt markdown ──────────────────────── */
@@ -899,12 +1002,10 @@ function ChatView({
   isTyping: boolean;
   onSend: (text: string) => void;
   onChipClick: (chip: string) => void;
-  onCreateJobPosting: (jobCard: NonNullable<ChatMessage["jobCard"]>) => Promise<void>;
+  onCreateJobPosting: (jobCard: NonNullable<ChatMessage["jobCard"]>) => void;
   sessionReady?: boolean;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  // Tracks which job card message is currently being posted to show loading state.
-  const [postingMsgId, setPostingMsgId] = useState<string | null>(null);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -933,8 +1034,12 @@ function ChatView({
                 </div>
               ) : msg.type === "job-posted" && msg.job ? (
                 <div className="flex justify-start">
-                  <div className="flex flex-col gap-2 max-w-[480px] w-full">
-                    <p className="text-sm text-white/55">Success! This role has been posted successfully.</p>
+                  <div className="flex flex-col gap-4 w-full" style={{ maxWidth: 600 }}>
+                    {/* Divider */}
+                    <hr style={{ border: "none", borderTop: "1px solid rgba(255,255,255,0.08)" }} />
+                    {/* Success text */}
+                    <p className="text-base text-white/80 leading-6">Success! This role has been posted successfully.</p>
+                    {/* Compact job card */}
                     <div className="flex items-start justify-between px-4 py-3.5 rounded-2xl"
                       style={{ background: "var(--surface-elevated)", border: "1px solid var(--border-soft)" }}>
                       <div>
@@ -947,6 +1052,24 @@ function ChatView({
                         <Pencil size={13} />
                       </button>
                     </div>
+                    {/* Candidate cards (top 3 matched) */}
+                    {msg.candidates && msg.candidates.length > 0 && (
+                      <div className="flex flex-col gap-3">
+                        <p className="text-sm text-white/80 leading-relaxed">
+                          <span className="text-[#1dc558] font-semibold underline">{msg.candidates[0].name}</span>
+                          {` looks like a great fit for this role. Her skills in ${msg.candidates[0].skills.join(", ")} make her a `}
+                          <span className="font-semibold">{msg.candidates[0].matchScore}% match</span>
+                          {` for your `}
+                          <span className="text-[#1dc558] underline">{msg.job.title}</span>
+                          {` posting.`}
+                        </p>
+                        <div className="flex gap-3" style={{ overflowX: "auto", paddingBottom: 4 }}>
+                          {msg.candidates.map((c) => (
+                            <CandidateCard key={c.id} candidate={c} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -1008,23 +1131,11 @@ function ChatView({
 
                       {/* CTA button — semi-transparent green, rounded-full */}
                       <button
-                        onClick={async () => {
-                          if (postingMsgId) return;
-                          setPostingMsgId(msg.id);
-                          try {
-                            await onCreateJobPosting(msg.jobCard!);
-                          } finally {
-                            setPostingMsgId(null);
-                          }
-                        }}
-                        disabled={!!postingMsgId}
-                        className="h-10 w-full rounded-full text-base font-semibold text-[#f4f4f5] transition-opacity hover:opacity-90 active:scale-[0.98] disabled:opacity-60 flex items-center justify-center gap-2"
+                        onClick={() => onCreateJobPosting(msg.jobCard!)}
+                        className="h-10 w-full rounded-full text-base font-semibold text-[#f4f4f5] transition-opacity hover:opacity-90 active:scale-[0.98] flex items-center justify-center gap-2"
                         style={{ background: "rgba(29,197,88,0.5)" }}
                       >
-                        {postingMsgId === msg.id && (
-                          <Loader2 size={14} className="animate-spin" />
-                        )}
-                        {postingMsgId === msg.id ? "Posting…" : "Create Job Posting"}
+                        Create Job Posting
                       </button>
                     </div>
                   )}
@@ -1066,6 +1177,8 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
+  // True when the wizard is opened from a chat job card (pre-filled fields)
+  const [wizardPreFilled, setWizardPreFilled] = useState(false);
 
   // sessionReady is derived from the Zustand store's real connection state
   const sessionState = useVoiceSessionStore((s) => s.sessionState);
@@ -1458,59 +1571,25 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
     handleSend(chip);
   }, [handleSend]);
 
-  const handleCreateJobPosting = useCallback(async (jobCard: NonNullable<ChatMessage["jobCard"]>) => {
-    // Send the same structured message the wizard's Finish button sends.
-    // The Mobeus agent's system prompt parses "Create job posting with the
-    // following details:" and calls create_job_posting via MCP function-calling.
-    const lines: string[] = ["Create job posting with the following details:"];
-    if (jobCard.title)                  lines.push(`title: ${jobCard.title}`);
-    if (jobCard.location)               lines.push(`location: ${jobCard.location}`);
-    if (jobCard.description)            lines.push(`description: ${jobCard.description}`);
-    if (jobCard.mustHave?.length)       lines.push(`must_have: ${jobCard.mustHave.join(", ")}`);
-    if (jobCard.preferred?.length)      lines.push(`preferred: ${jobCard.preferred.join(", ")}`);
-    if (jobCard.niceToHave?.length)     lines.push(`nice_to_have: ${jobCard.niceToHave.join(", ")}`);
-    lines.push("posted_by: Omar S.");
-
-    await useVoiceSessionStore.getState().sendTextMessage(lines.join("\n"));
-
-    // Track in session jobs so it appears immediately in the Hiring tab.
-    setSessionCreatedJobs((prev) => {
-      const alreadyExists = prev.some((j) => j.title === jobCard.title && j.location === (jobCard.location || null));
-      if (alreadyExists) return prev;
-      return [...prev, {
-        id: `session-${Date.now()}`,
-        title: jobCard.title,
-        location: jobCard.location || null,
-        status: 'active',
-        department: null,
-        employment_type: null,
-        description: jobCard.description || null,
-        skills: null,
-        salary_min: null,
-        salary_max: null,
-        posted_by: 'Omar S.',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }];
-    });
-
-    // Optimistic UI: show a job-posted card immediately; the AI's textual
-    // confirmation will follow in a subsequent chat message.
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: `posted-${Date.now()}`,
-        role: "assistant" as const,
-        type: "job-posted" as const,
-        text: "",
-        job: {
-          title: jobCard.title,
-          department: "",
-          location: jobCard.location,
-          postedAt: new Date(),
-        },
+  // Called when the user clicks "Create Job Posting" on an inline chat job card.
+  // Opens the full wizard pre-filled with the chat-collected data so the employer
+  // can review / edit all fields before publishing (matches images 2-8 in spec).
+  const handleCreateJobPosting = useCallback((jobCard: NonNullable<ChatMessage["jobCard"]>) => {
+    const inferredSkills = inferSkills(jobCard.title);
+    setWizardInitialData({
+      title:          jobCard.title,
+      location:       jobCard.location || "",
+      description:    jobCard.description || inferDescription(jobCard.title),
+      employmentType: "Full Time",
+      department:     "Engineering",
+      skills: {
+        mustHave:    jobCard.mustHave?.length    ? jobCard.mustHave    : inferredSkills.mustHave,
+        preferred:   jobCard.preferred?.length   ? jobCard.preferred   : inferredSkills.preferred,
+        niceToHave:  jobCard.niceToHave?.length  ? jobCard.niceToHave  : inferredSkills.niceToHave,
       },
-    ]);
+    });
+    setWizardPreFilled(true);
+    setWizardOpen(true);
   }, []);
 
 
@@ -1682,10 +1761,16 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
                       {/* Wizard card */}
                       <PostJobWizardCard
                         initialData={wizardInitialData}
-                        onClose={() => { setWizardOpen(false); setWizardInitialData({}); }}
+                        isPreFilled={wizardPreFilled}
+                        onClose={() => {
+                          setWizardOpen(false);
+                          setWizardInitialData({});
+                          setWizardPreFilled(false);
+                        }}
                         onFinish={(job) => {
                           setWizardOpen(false);
                           setWizardInitialData({});
+                          setWizardPreFilled(false);
                           // Add to session jobs so the Hiring tab shows it immediately.
                           setSessionCreatedJobs((prev) => {
                             const alreadyExists = prev.some(
@@ -1708,14 +1793,16 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
                               updated_at: new Date().toISOString(),
                             }];
                           });
+                          const candidates = getJobCandidates(job.title);
                           setMessages(prev => [
                             ...prev,
                             {
                               id: `job-${Date.now()}`,
-                              role: "assistant",
+                              role: "assistant" as const,
                               text: "",
-                              type: "job-posted",
+                              type: "job-posted" as const,
                               job,
+                              candidates,
                             },
                           ]);
                         }}
