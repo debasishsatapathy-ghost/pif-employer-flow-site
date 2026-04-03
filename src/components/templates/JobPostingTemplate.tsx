@@ -1,8 +1,9 @@
-import { useState, useEffect, useMemo, useCallback, type ReactNode } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef, type ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  ChevronRight, Star, Sparkles, MessageCircle, X, Pencil,
+  ChevronRight, ChevronDown, Star, Sparkles, MessageCircle, X, Pencil,
   TrendingUp, Calendar, CheckCircle, ClipboardList, AlertCircle,
+  ArrowUpDown, ListFilter, Mail,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { JobCandidateView, type ApplicantWithScore } from "@/components/templates/JobCandidateView";
@@ -172,6 +173,58 @@ const MOCK_JOB_POSTING: JobPosting = {
   id: "job_004", title: "Senior AI Developer", department: "Engineering",
   location: "Jeddah", status: "active", posted_at: "2d ago",
 };
+
+/* ══════════════════════════════════════════════════════════════════════════
+   KANBAN + TALENT POOL TYPES & DATA
+══════════════════════════════════════════════════════════════════════════ */
+type MainTab   = "applicants" | "talentPool" | "jobDetails";
+type KanbanCol = "screening" | "shortlist" | "interview" | "hire";
+
+interface KCandidate { id: string; name: string; role: string; score: number }
+interface TalentCandidate { id: string; name: string; role: string; score: number; invited?: boolean }
+
+const KANBAN_LABELS: Record<KanbanCol, string> = {
+  screening: "Screening", shortlist: "Shortlist", interview: "Interview", hire: "Hire",
+};
+const KANBAN_EMPTY: Record<KanbanCol, string> = {
+  screening: "Drag candidates here",
+  shortlist: "Drag candidates here",
+  interview: "Drag candidates here",
+  hire:      "Drag candidates here\nto compare and hire",
+};
+
+const KANBAN_INIT: Record<KanbanCol, KCandidate[]> = {
+  screening: [
+    { id: "k1", name: "Waleed Jaber", role: "ML Specialist",   score: 79 },
+    { id: "k2", name: "Lina Faraj",   role: "AI Practitioner", score: 77 },
+    { id: "k3", name: "Yousef Rayan", role: "ML Engineer",     score: 74 },
+  ],
+  shortlist: [
+    { id: "k4", name: "Omar Abdul",   role: "AI Engineer",     score: 88 },
+    { id: "k5", name: "Faris Saleh",  role: "AI Developer",    score: 85 },
+    { id: "k6", name: "Ahmed Saad",   role: "ML Specialist",   score: 83 },
+    { id: "k7", name: "Lama Abdul",   role: "AI Developer",    score: 81 },
+    { id: "k8", name: "Tariq Nasser", role: "ML Practitioner", score: 80 },
+  ],
+  interview: [],
+  hire:      [],
+};
+
+const TALENT_POOL_INIT: TalentCandidate[] = [
+  { id: "tp1",  name: "Sara Khalid",   role: "AI Practitioner",     score: 93, invited: true },
+  { id: "tp2",  name: "Nora Ahmed",    role: "AI Developer",        score: 92 },
+  { id: "tp3",  name: "Fahad Yousef",  role: "AI Consultant",       score: 91 },
+  { id: "tp4",  name: "Badr Omar",     role: "AI Engineer",         score: 90 },
+  { id: "tp5",  name: "Rawan Saad",    role: "AI Solutions Lead",   score: 90 },
+  { id: "tp6",  name: "Dana Turki",    role: "AI Developer",        score: 89 },
+  { id: "tp7",  name: "Isa Hamad",     role: "Applied AI Lead",     score: 87 },
+  { id: "tp8",  name: "Maha Saleh",    role: "ML Specialist",       score: 90 },
+  { id: "tp9",  name: "Nabil Asim",    role: "AI Practitioner",     score: 86 },
+  { id: "tp10", name: "Reem Turkan",   role: "AI Architect",        score: 83 },
+  { id: "tp11", name: "Diana Majed",   role: "AI Practitioner",     score: 81 },
+  { id: "tp12", name: "Rayan Harbi",   role: "AI Practitioner",     score: 87 },
+  { id: "tp13", name: "Haya Suliman",  role: "AI & Data Consultant", score: 80 },
+];
 
 /* ══════════════════════════════════════════════════════════════════════════
    PRIMITIVE COMPONENTS  (reused throughout every card & modal)
@@ -1391,6 +1444,202 @@ function ApplicantCard({ applicant, delay = 0, compact = false, starred = false,
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
+   KANBAN + TALENT POOL COMPONENTS
+══════════════════════════════════════════════════════════════════════════ */
+
+/** SVG circular progress score ring — matches Figma Skill Score component */
+function ScoreCircle({ score, size = 44 }: { score: number; size?: number }) {
+  const r   = (size - 5) / 2;
+  const c   = size / 2;
+  const circ = 2 * Math.PI * r;
+  const dash = circ * (1 - score / 100);
+  const color = score >= 85 ? "#1ed25e" : score >= 75 ? "#f59e0b" : "#f87171";
+  return (
+    <div style={{ width: size, height: size, position: "relative", flexShrink: 0 }}>
+      <svg width={size} height={size} style={{ transform: "rotate(-90deg) scaleY(-1)" }}>
+        <circle cx={c} cy={c} r={r} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth={2.5} />
+        <circle cx={c} cy={c} r={r} fill="none"
+          stroke={color} strokeWidth={2.5}
+          strokeDasharray={circ}
+          strokeDashoffset={dash}
+          strokeLinecap="round"
+        />
+      </svg>
+      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color }}>{score}</span>
+      </div>
+    </div>
+  );
+}
+
+/** Round avatar with gradient + initials fallback */
+function CandidateAvatar({ name, size = 44 }: { name: string; size?: number }) {
+  const initials = name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
+  return (
+    <div
+      className="rounded-full flex items-center justify-center flex-shrink-0"
+      style={{
+        width: size, height: size,
+        background: "linear-gradient(135deg, #1e3a5f 0%, #2d1b69 100%)",
+        border: "1.5px solid rgba(255,255,255,0.12)",
+      }}
+    >
+      <span style={{ color: "white", fontSize: Math.round(size * 0.32), fontWeight: 600 }}>{initials}</span>
+    </div>
+  );
+}
+
+/** Single draggable card inside the Kanban board */
+function KanbanCardItem({ candidate, onDragStart }: {
+  candidate: KCandidate;
+  onDragStart: (e: React.DragEvent) => void;
+}) {
+  return (
+    <div
+      draggable
+      onDragStart={onDragStart}
+      className="flex items-center gap-3 p-4 rounded-xl select-none"
+      style={{
+        background: "rgba(255,255,255,0.05)",
+        border: "1px solid rgba(255,255,255,0.08)",
+        cursor: "grab",
+      }}
+    >
+      <CandidateAvatar name={candidate.name} />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-white leading-tight truncate">{candidate.name}</p>
+        <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>{candidate.role}</p>
+      </div>
+      <ScoreCircle score={candidate.score} />
+    </div>
+  );
+}
+
+/** One column of the Kanban board — handles drag-over visual + drop */
+function KanbanColumnPanel({
+  col, candidates, isDragOver,
+  onDragOver, onDragLeave, onDrop, onCandidateDragStart,
+}: {
+  col:                  KanbanCol;
+  candidates:           KCandidate[];
+  isDragOver:           boolean;
+  onDragOver:           (e: React.DragEvent) => void;
+  onDragLeave:          (e: React.DragEvent) => void;
+  onDrop:               (e: React.DragEvent) => void;
+  onCandidateDragStart: (e: React.DragEvent, c: KCandidate) => void;
+}) {
+  return (
+    <div
+      className="flex-1 flex flex-col gap-3 p-4 rounded-xl min-w-0 transition-colors"
+      style={{
+        background: isDragOver ? "rgba(29,197,88,0.04)" : "rgba(255,255,255,0.04)",
+        border: isDragOver
+          ? "1px solid rgba(29,197,88,0.35)"
+          : "1px solid rgba(255,255,255,0.08)",
+        minWidth: 0,
+      }}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+    >
+      {/* Column header pill */}
+      <div className="flex-shrink-0">
+        <span
+          className="inline-block px-3 py-1 rounded-full text-sm"
+          style={{ background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.9)" }}
+        >
+          {KANBAN_LABELS[col]}
+        </span>
+      </div>
+
+      {candidates.length > 0 ? (
+        <div className="flex flex-col gap-2">
+          {candidates.map((c) => (
+            <KanbanCardItem
+              key={c.id}
+              candidate={c}
+              onDragStart={(e) => onCandidateDragStart(e, c)}
+            />
+          ))}
+        </div>
+      ) : (
+        <div
+          className="flex-1 flex items-center justify-center rounded-xl"
+          style={{
+            border: "1.5px dashed rgba(255,255,255,0.15)",
+            minHeight: 80,
+          }}
+        >
+          <p
+            className="text-xs text-center px-4 leading-relaxed"
+            style={{ color: "rgba(255,255,255,0.3)", whiteSpace: "pre-line" }}
+          >
+            {KANBAN_EMPTY[col]}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Card in the Talent Pool grid */
+function TalentPoolCard({ candidate, onInvite }: {
+  candidate: TalentCandidate;
+  onInvite:  () => void;
+}) {
+  return (
+    <div
+      className="flex flex-col gap-3 p-4 rounded-xl"
+      style={{
+        background: "rgba(255,255,255,0.04)",
+        border: candidate.invited
+          ? "1px solid rgba(29,197,88,0.2)"
+          : "1px solid rgba(255,255,255,0.08)",
+      }}
+    >
+      {/* Avatar + name + score */}
+      <div className="flex items-center gap-3">
+        <CandidateAvatar name={candidate.name} />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-white leading-tight">{candidate.name}</p>
+          <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>{candidate.role}</p>
+        </div>
+        <ScoreCircle score={candidate.score} />
+      </div>
+
+      {/* Invite / Invited button */}
+      {candidate.invited ? (
+        <div
+          className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium"
+          style={{
+            background: "rgba(29,197,88,0.08)",
+            border: "1px solid rgba(29,197,88,0.2)",
+            color: "#1ed25e",
+          }}
+        >
+          <Sparkles size={13} />
+          Invitation sent
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={onInvite}
+          className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all hover:brightness-110 active:scale-[0.98]"
+          style={{
+            background: "rgba(255,255,255,0.07)",
+            border: "1px solid rgba(255,255,255,0.1)",
+            color: "rgba(255,255,255,0.8)",
+          }}
+        >
+          <Mail size={13} />
+          Invite to apply
+        </button>
+      )}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
    MAIN COMPONENT — JobPostingTemplate
 ══════════════════════════════════════════════════════════════════════════ */
 export function JobPostingTemplate({
@@ -1399,9 +1648,18 @@ export function JobPostingTemplate({
   /* ── data state ─────────────────────────────────────────────────────── */
   const [applicants,         setApplicants]         = useState<Applicant[]>([]);
   const [loading,            setLoading]             = useState(true);
-  const [activeTab,          setActiveTab]           = useState<"screened" | "shortlist" | "interview" | "hire">("screened");
   const [selectedApplicantId,setSelectedApplicantId] = useState<string | null>(null);
   const [starredIds,         setStarredIds]          = useState<Set<string>>(new Set());
+
+  /* ── new 3-tab state ─────────────────────────────────────────────────── */
+  const [mainTab,    setMainTab]    = useState<MainTab>("applicants");
+  const [kanban,     setKanban]     = useState<Record<KanbanCol, KCandidate[]>>(KANBAN_INIT);
+  const [dragOver,   setDragOver]   = useState<KanbanCol | null>(null);
+  const [talentPool, setTalentPool] = useState<TalentCandidate[]>(TALENT_POOL_INIT);
+  const dragRef = useRef<{ candidate: KCandidate; from: KanbanCol } | null>(null);
+
+  // keep activeTab for backward-compat with existing modal logic
+  const activeTab = "screened" as const;
 
   /* ── interview pipeline state ───────────────────────────────────────── */
   /*
@@ -1579,20 +1837,47 @@ export function JobPostingTemplate({
     );
   }
 
-  /* ── FAB helpers ────────────────────────────────────────────────────── */
-  const hireCandidates = allShortlistCandidates.filter((c) => {
-    const sr = secondRoundStatuses[c.id];
-    return sr?.verdict === "Strong Yes" || sr?.verdict === "Yes";
-  });
-  const allHireDecided = hireCandidates.length > 0 &&
-    hireCandidates.every((c) => hireStatuses[c.id] === "hired" || hireStatuses[c.id] === "unsuccessful");
-  const isCloseable = activeTab === "hire" && allHireDecided;
+  /* ── kanban drag handlers ────────────────────────────────────────────── */
+  function handleKanbanDragStart(e: React.DragEvent, candidate: KCandidate, from: KanbanCol) {
+    dragRef.current = { candidate, from };
+    e.dataTransfer.effectAllowed = "move";
+  }
+  function handleKanbanDragOver(e: React.DragEvent, col: KanbanCol) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOver(col);
+  }
+  function handleKanbanDragLeave(e: React.DragEvent) {
+    // only clear if leaving the column container itself, not a child
+    if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) {
+      setDragOver(null);
+    }
+  }
+  function handleKanbanDrop(e: React.DragEvent, to: KanbanCol) {
+    e.preventDefault();
+    setDragOver(null);
+    if (!dragRef.current) return;
+    const { candidate, from } = dragRef.current;
+    dragRef.current = null;
+    if (from === to) return;
+    setKanban((prev) => ({
+      ...prev,
+      [from]: prev[from].filter((c) => c.id !== candidate.id),
+      [to]:   [...prev[to], candidate],
+    }));
+  }
 
-  const fabLabel = isCloseable ? "Close Job Posting" :
-    activeTab === "shortlist"  ? "Chat about shortlist" :
-    activeTab === "interview"  ? "Chat about upcoming interviews" :
-    activeTab === "hire"       ? "Chat about hiring decision" :
-    "Chat about candidates";
+  /* ── talent pool invite handler ─────────────────────────────────────── */
+  function handleTalentInvite(id: string) {
+    setTalentPool((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, invited: true } : c)),
+    );
+  }
+
+  /* ── derived counts for tab badges ─────────────────────────────────── */
+  const applicantsCount = Object.values(kanban).reduce((s, col) => s + col.length, 0);
+  const talentPoolCount = talentPool.length;
+  const invitedCount    = talentPool.filter((c) => c.invited).length;
 
   /* ── render ─────────────────────────────────────────────────────────── */
   return (
@@ -1600,7 +1885,7 @@ export function JobPostingTemplate({
     <div className="flex h-full overflow-hidden gap-6 p-6">
       {/* Sidebar */}
       {jobs && jobs.length > 0 && (
-        <div className="w-80 flex-shrink-0 h-full">
+        <div className="w-72 flex-shrink-0 h-full">
           <JobPostingSidebar jobs={jobs} selectedId={effectivePostingId} onSelect={onSelectJob} />
         </div>
       )}
@@ -1608,258 +1893,224 @@ export function JobPostingTemplate({
       {/* Main */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
 
-        {/* Job header */}
-        <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }} className="pb-4 flex-shrink-0">
-        <div className="mb-2">
-            <Breadcrumb segments={[{ label: "Hiring", onClick: onNavigateToHiring }, { label: posting.title }]} />
+        {/* ── Breadcrumb ── */}
+        <div className="flex items-center gap-2 text-base mb-5 flex-shrink-0"
+          style={{ color: "rgba(255,255,255,0.5)" }}>
+          <button
+            type="button"
+            onClick={onNavigateToHiring}
+            className="hover:text-white transition-colors"
+          >
+            Hiring
+          </button>
+          <span>/</span>
+          <span className="text-white">{posting.title}</span>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">{posting.title}</h1>
-        <div className="flex items-center gap-3 text-sm text-[var(--text-muted)]">
-            <span className="px-2 py-0.5 rounded-full text-xs font-medium"
-              style={{ background: "rgba(29,197,88,0.15)", color: "var(--accent)", border: "1px solid rgba(29,197,88,0.3)" }}>
-            {posting.status}
-          </span>
-            {[posting.department, posting.location, posting.posted_at || "2d ago"].filter(Boolean).map((t, i) => (
-              <span key={i} className="flex items-center gap-3">
-                {i > 0 && <span>•</span>}<span>{t}</span>
-              </span>
-            ))}
-        </div>
-      </motion.div>
 
-      {/* Tabs */}
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-          transition={{ duration: 0.4, delay: 0.1 }} className="pb-3 flex-shrink-0">
-          <div className="inline-flex items-center gap-1 p-1 rounded-xl"
-            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
-          {(["screened", "shortlist", "interview", "hire"] as const).map((tab) => (
-              <button key={tab} onClick={() => setActiveTab(tab)}
-              className={cn(
-                "px-4 py-2 rounded-lg text-sm font-medium capitalize transition-all duration-200 flex items-center gap-2",
-                  activeTab === tab ? "text-white" : "text-white/50 hover:text-white/70",
-                )}
-                style={activeTab === tab ? { background: "rgba(255,255,255,0.1)" } : {}}>
-              <span className="capitalize">{tab}</span>
-              <span className="text-xs opacity-70">{stats[tab]}</span>
+        {/* ── Title row ── */}
+        <div className="flex items-center justify-between mb-6 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <h1 className="text-[40px] font-semibold text-white leading-tight">{posting.title}</h1>
+            <ChevronDown size={28} className="text-white opacity-70 flex-shrink-0" />
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              className="w-10 h-10 flex items-center justify-center rounded transition-colors hover:bg-white/10"
+              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+            >
+              <ArrowUpDown size={18} className="text-white/70" />
             </button>
-          ))}
+            <button
+              type="button"
+              className="w-10 h-10 flex items-center justify-center rounded transition-colors hover:bg-white/10"
+              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+            >
+              <ListFilter size={18} className="text-white/70" />
+            </button>
+          </div>
         </div>
-      </motion.div>
 
-        {/* Tab content */}
-      <div className="flex-1 overflow-y-auto pb-8">
-        <AnimatePresence mode="wait">
-          <motion.div key="content" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }} className="flex flex-col gap-6">
-
-            {/* Loading spinner only blocks the Screened tab (which needs the API) */}
-            {loading && activeTab === "screened" && (
-              <div className="flex items-center justify-center py-16">
-                <div className="text-[var(--text-subtle)] text-sm">Loading applicants...</div>
-              </div>
-            )}
-
-                {/* ── Screened tab ── */}
-              {activeTab === "screened" && recommendedApplicants.length > 0 && (
-                <section>
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <Sparkles size={18} className="text-[var(--accent)]" />
-                        <h2 className="text-base font-semibold text-white">Recommended Applicants</h2>
-                        <span className="px-2 py-0.5 rounded-full text-xs font-medium"
-                          style={{ background: "rgba(29,197,88,0.15)", color: "var(--accent)" }}>
-                        {recommendedApplicants.length}
-                      </span>
-                    </div>
-                    <button className="flex items-center gap-1 text-xs text-[var(--text-subtle)] hover:text-white transition-colors">
-                        <span>View all applicants</span><ChevronRight size={14} />
-                    </button>
-                  </div>
-                    <div className="mb-4 px-4 py-3 rounded-xl"
-                      style={{ background: "rgba(29,197,88,0.08)", border: "1px solid rgba(29,197,88,0.2)" }}>
-                    <p className="text-sm text-[var(--accent-light)] leading-relaxed">
-                      Sara Khalid is a standout applicant, with a 93% skill match thanks to her strong expertise in your must-have skills of Generative AI and Prompt Engineering. I recommend adding her to the shortlist.
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {recommendedApplicants.map((a, idx) => (
-                        <ApplicantCard key={a.id} applicant={a} delay={idx * 0.05}
-                          starred={starredIds.has(a.id)} onStar={handleStarApplicant} onClick={handleApplicantClick} />
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {activeTab === "screened" && aiSuggestions.length > 0 && (
-                <section>
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <Sparkles size={18} className="text-[var(--accent)]" />
-                        <h2 className="text-base font-semibold text-white">AI Suggestions: Invite to apply</h2>
-                        <span className="px-2 py-0.5 rounded-full text-xs font-medium"
-                          style={{ background: "rgba(29,197,88,0.15)", color: "var(--accent)" }}>
-                        {aiSuggestions.length}
-                      </span>
-                    </div>
-                  </div>
-                    <div className="mb-4 px-4 py-3 rounded-xl"
-                      style={{ background: "rgba(29,197,88,0.08)", border: "1px solid rgba(29,197,88,0.2)" }}>
-                    <p className="text-sm text-[var(--accent-light)] leading-relaxed">
-                      I've found eight additional candidates I recommend considering alongside Sara. Four have a skill match score above 80%. Add them to your shortlist and I can invite them to submit an application.
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                      {aiSuggestions.map((a, idx) => (
-                        <ApplicantCard key={a.id} applicant={a} delay={idx * 0.05} compact
-                          starred={starredIds.has(a.id)} onStar={handleStarApplicant} onClick={handleApplicantClick} />
-                    ))}
-                  </div>
-                </section>
-              )}
-
-                {activeTab === "screened" && filteredApplicants.length === 0 && !loading && (
-                  <EmptyTabState message="No applicants in this stage yet." />
-                )}
-
-                {/* ── Shortlist tab ── */}
-                {activeTab === "shortlist" && (
-                  <section className="flex flex-col gap-5">
-                    <div className="px-4 py-3 rounded-xl flex items-start gap-2.5"
-                      style={{ background: "rgba(29,197,88,0.07)", border: "1px solid rgba(29,197,88,0.2)" }}>
-                      <Sparkles size={16} className="flex-shrink-0 mt-0.5 text-[var(--accent)]" />
-                      <p className="text-sm text-[var(--accent-light)] leading-relaxed">
-                        <span className="text-[var(--accent)]">Nora is the top candidate overall, with a 97% skill match.</span>{" "}
-                        Of those who already applied, Sara is the standout, thanks to her skills in Generative AI and Prompt Engineering.
-                  </p>
+        {/* ── 3-tab bar ── */}
+        <div className="flex gap-6 relative mb-5 flex-shrink-0">
+          {(["applicants", "talentPool", "jobDetails"] as const).map((tab) => {
+            const isActive = mainTab === tab;
+            const label =
+              tab === "applicants"  ? "Applicants" :
+              tab === "talentPool"  ? "Talent Pool" :
+              "Job Details";
+            const count =
+              tab === "applicants" ? applicantsCount :
+              tab === "talentPool" ? talentPoolCount :
+              undefined;
+            return (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setMainTab(tab)}
+                className="flex flex-col items-center gap-[13px] pb-0 transition-opacity"
+                style={{ opacity: isActive ? 1 : 0.5 }}
+              >
+                <div className="flex items-center gap-1.5">
+                  <span className="text-base text-white">{label}</span>
+                  {count !== undefined && (
+                    <span
+                      className="px-2.5 rounded-full text-base leading-6"
+                      style={{ background: "rgba(255,255,255,0.1)", color: "#f4f4f5" }}
+                    >
+                      {count}
+                    </span>
+                  )}
                 </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {allShortlistCandidates.map((c, idx) => (
-                        <motion.div key={c.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.35, delay: idx * 0.07, ease: [0.16, 1, 0.3, 1] }}>
-                          <ShortlistCard
-                            c={c}
-                            onBook={() => setBookingCandidate(c)}
-                            onInvite={() => setInviteCandidate(c)}
-                            bookedTime={bookedTimes[c.id]}
-                            invited={!!invitedCandidates[c.id]}
-                          />
-                        </motion.div>
+                {isActive && (
+                  <div className="w-full h-[3px] rounded-[1px] bg-white flex-shrink-0" />
+                )}
+              </button>
+            );
+          })}
+          <div className="absolute bottom-0 left-0 right-0 h-px" style={{ background: "rgba(255,255,255,0.2)" }} />
+        </div>
+
+        {/* ── Tab content ── */}
+        <div className="flex-1 overflow-y-auto pb-8 min-h-0">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={mainTab}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="flex flex-col gap-5 h-full"
+            >
+
+              {/* ═══ APPLICANTS TAB ═══ */}
+              {mainTab === "applicants" && (
+                <>
+                  {/* AI banner */}
+                  <div
+                    className="flex items-start gap-2 rounded-xl overflow-hidden flex-shrink-0"
+                    style={{
+                      background: "rgba(119,220,155,0.05)",
+                      border: "1px solid rgba(74,209,121,0.6)",
+                    }}
+                  >
+                    <div className="w-2 self-stretch flex-shrink-0" style={{ background: "#4ad179" }} />
+                    <div className="flex items-start gap-2 px-4 py-4 flex-1">
+                      <Sparkles size={18} className="flex-shrink-0 mt-0.5" style={{ color: "#4ad179" }} />
+                      <p className="text-sm leading-relaxed" style={{ color: "#d2f3de" }}>
+                        <strong className="font-semibold">Showing {applicantsCount} recommended applicants</strong>
+                        {" "}from 53 total applications. trAIn filtered applicants who didn't meet key skills, surfacing the strongest matches first.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Kanban board — 4 equal columns */}
+                  <div className="flex gap-4 flex-1 min-h-0">
+                    {(["screening", "shortlist", "interview", "hire"] as KanbanCol[]).map((col) => (
+                      <KanbanColumnPanel
+                        key={col}
+                        col={col}
+                        candidates={kanban[col]}
+                        isDragOver={dragOver === col}
+                        onDragOver={(e) => handleKanbanDragOver(e, col)}
+                        onDragLeave={handleKanbanDragLeave}
+                        onDrop={(e) => handleKanbanDrop(e, col)}
+                        onCandidateDragStart={(e, c) => handleKanbanDragStart(e, c, col)}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {/* ═══ TALENT POOL TAB ═══ */}
+              {mainTab === "talentPool" && (
+                <>
+                  {/* AI banner */}
+                  <div
+                    className="flex items-start gap-2 rounded-xl overflow-hidden flex-shrink-0"
+                    style={{
+                      background: "rgba(119,220,155,0.05)",
+                      border: "1px solid rgba(74,209,121,0.6)",
+                    }}
+                  >
+                    <div className="w-2 self-stretch flex-shrink-0" style={{ background: "#4ad179" }} />
+                    <div className="flex items-start gap-2 px-4 py-4 flex-1">
+                      <Sparkles size={18} className="flex-shrink-0 mt-0.5" style={{ color: "#4ad179" }} />
+                      <p className="text-sm leading-relaxed" style={{ color: "#d2f3de" }}>
+                        <strong className="font-semibold">Showing {talentPoolCount} candidates who match required skills.</strong>
+                        {" "}Invite them to apply and trAIn will automatically contact them to request they submit an application.
+                        {invitedCount > 0 && (
+                          <span className="ml-1 opacity-75">({invitedCount} invited)</span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* 4-column grid */}
+                  <div className="grid grid-cols-4 gap-4">
+                    {talentPool.map((c) => (
+                      <TalentPoolCard
+                        key={c.id}
+                        candidate={c}
+                        onInvite={() => handleTalentInvite(c.id)}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {/* ═══ JOB DETAILS TAB ═══ */}
+              {mainTab === "jobDetails" && (
+                <div className="flex flex-col gap-4 max-w-2xl">
+                  <div
+                    className="rounded-2xl p-6 flex flex-col gap-4"
+                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+                  >
+                    <h2 className="text-xl font-semibold text-white">{posting.title}</h2>
+                    <div className="flex flex-wrap gap-3">
+                      {[
+                        { label: posting.department || "Engineering" },
+                        { label: posting.location   || "Remote" },
+                        { label: posting.status     || "active" },
+                      ].map(({ label }) => (
+                        <span
+                          key={label}
+                          className="px-3 py-1 rounded-full text-sm"
+                          style={{ background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.75)" }}
+                        >
+                          {label}
+                        </span>
                       ))}
                     </div>
-                  </section>
-                )}
+                    <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.55)" }}>
+                      We&apos;re looking for a {posting.title} to design, build, and deploy intelligent systems.
+                      You&apos;ll work across the full model lifecycle — from data prep and training to evaluation and production rollout.
+                    </p>
+                  </div>
+                </div>
+              )}
 
-                {/* ── Interview tab ── */}
-                {activeTab === "interview" && (
-                  interviewCount === 0 ? (
-                    <EmptyTabState
-                      message="No interviews booked yet."
-                      hint="Book an AI interview from the Shortlist tab to see candidates here."
-                    />
-                  ) : (
-                    <section className="flex flex-col gap-4">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {allShortlistCandidates.filter((c) => bookedTimes[c.id]).map((c) => (
-                          <InterviewCard
-                            key={c.id} c={c} time={bookedTimes[c.id]}
-                            outcome={interviewOutcomes[c.id]}
-                            nextRound={nextRoundBookings[c.id]}
-                            secondRound={secondRoundStatuses[c.id]}
-                            onReschedule={()        => setBookingCandidate(c)}
-                            onViewFeedback={()      => setFeedbackCandidate(c)}
-                            onBookNext={()          => setNextRoundCandidate(c)}
-                            onRescheduleNext={()    => setNextRoundCandidate(c)}
-                            onAddFeedback={()       => setFeedbackTarget(c)}
-                            onSimulateComplete={
-                              MOCK_AI_OUTCOMES[c.id]
-                                ? () => setInterviewOutcomes((prev) => ({ ...prev, [c.id]: MOCK_AI_OUTCOMES[c.id] }))
-                                : undefined
-                            }
-                            onSimulateSecondRound={
-                              MOCK_SECOND_ROUND_STATUSES[c.id]
-                                ? () => setSecondRoundStatuses((prev) => ({ ...prev, [c.id]: MOCK_SECOND_ROUND_STATUSES[c.id] }))
-                                : undefined
-                            }
-                          />
-                        ))}
-                      </div>
-                    </section>
-                  )
-                )}
+            </motion.div>
+          </AnimatePresence>
+        </div>
 
-                {/* ── Hire tab ── */}
-                {activeTab === "hire" && (() => {
-                  if (hireCandidates.length === 0) {
-                    return <EmptyTabState message="No candidates ready for hiring yet." />;
-                  }
-                  // AI hiring recommendations: highest scorer is primary pick, rest are backup
-                  const sorted = [...hireCandidates].sort((a, b) => b.score - a.score);
-                  const recs: Record<string, string> = {};
-                  sorted.forEach((c, i) => {
-                    const fn = c.name.split(" ")[0];
-                    if (i === 0) {
-                      recs[c.id] = `${fn} excelled in both interviews. Their feedback suggests they're an ideal candidate for the role.`;
-                    } else {
-                      const topFn = sorted[0].name.split(" ")[0];
-                      recs[c.id] = `${fn} is a strong fit if ${topFn} declines the offer. trAIn recommends offering ${topFn} the role first.`;
-                    }
-                  });
-                  return (
-                    <section className="flex flex-col gap-4">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {hireCandidates.map((c) => (
-                          <HireCard key={c.id} c={c}
-                            firstRoundVerdict={interviewOutcomes[c.id]?.verdict}
-                            secondRoundVerdict={secondRoundStatuses[c.id]?.verdict}
-                            recommendation={recs[c.id]}
-                            status={hireStatuses[c.id] ?? null}
-                            onMakeDecision={() => setHiringDecisionTarget(c)}
-                            onSimulateAcceptance={() =>
-                              setHireStatuses((prev) => ({ ...prev, [c.id]: "hired" }))
-                            }
-                          />
-                        ))}
-                      </div>
-                    </section>
-                  );
-                })()}
-
-          </motion.div>
-        </AnimatePresence>
-      </div>
-
-      {/* Floating Action Button */}
-      <AnimatePresence mode="wait">
-        {isCloseable ? (
-          <motion.button
-            key="close-job"
-            initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 12 }}
-            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            onClick={() => setShowCloseJobModal(true)}
-            className="fixed bottom-6 right-6 px-5 py-2.5 rounded-full shadow-lg transition-all hover:brightness-110 active:scale-95"
-            style={{ background: "rgba(255,255,255,0.18)", color: "white", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.2)" }}
-          >
-            <span className="text-[13px] font-semibold">Close Job Posting</span>
-          </motion.button>
-        ) : (
-          <motion.button
-            key={activeTab}
-            initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}
-            transition={{ duration: 0.4, delay: 0.3 }}
-            className="fixed bottom-6 right-6 px-5 py-3 rounded-full flex items-center gap-2 shadow-lg transition-all hover:scale-105 active:scale-95"
-            style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}
-          >
-            <MessageCircle size={18} />
-            <span className="text-sm font-semibold">{fabLabel}</span>
-          </motion.button>
-        )}
-      </AnimatePresence>
+        {/* Floating Action Button */}
+        <motion.button
+          initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.4, delay: 0.3 }}
+          className="fixed bottom-6 right-6 px-5 py-3 rounded-full flex items-center gap-2 shadow-lg transition-all hover:scale-105 active:scale-95"
+          style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}
+        >
+          <MessageCircle size={18} />
+          <span className="text-sm font-semibold">
+            {mainTab === "talentPool" ? "Chat about talent pool" : "Chat about candidates"}
+          </span>
+        </motion.button>
 
       </div>
     </div>
 
-    {/* ── Modals ─────────────────────────────────────────────────────── */}
+    {/* ── Retained modals (ShortlistCard interactions) ─────────────────── */}
 
     <AnimatePresence>
       {inviteCandidate && (
@@ -1887,7 +2138,7 @@ export function JobPostingTemplate({
             setBookingCandidate(null);
             if (!isNew) setInterviewOutcomes((prev) => { const n = { ...prev }; delete n[id]; return n; });
             setBookedTimes((prev) => ({ ...prev, [id]: time }));
-            if (isNew) setActiveTab("interview");
+            if (isNew) console.log("[Kanban] Interview booked for", id);
           }}
         />
       )}
@@ -1902,7 +2153,6 @@ export function JobPostingTemplate({
             const id = nextRoundCandidate.id;
             setNextRoundCandidate(null);
             setNextRoundBookings((prev) => ({ ...prev, [id]: booking }));
-            setActiveTab("interview");
           }}
         />
       )}
@@ -1917,8 +2167,6 @@ export function JobPostingTemplate({
             const id = feedbackTarget.id;
             setFeedbackTarget(null);
             setSecondRoundStatuses((prev) => ({ ...prev, [id]: { ...prev[id], verdict, notes } }));
-            // Verdict unlocks the Hire tab — navigate there automatically (Figma 5411-18968)
-            setActiveTab("hire");
           }}
         />
       )}
@@ -1962,9 +2210,9 @@ export function JobPostingTemplate({
       {showCloseJobModal && (
         <CloseJobPostingModal
           jobTitle={posting.title}
-          hiredCount={hireCandidates.filter((c) => hireStatuses[c.id] === "hired").length}
-          offeredCount={hireCandidates.filter((c) => hireStatuses[c.id] === "offered").length}
-          unsuccessfulCount={hireCandidates.filter((c) => hireStatuses[c.id] === "unsuccessful").length}
+          hiredCount={0}
+          offeredCount={0}
+          unsuccessfulCount={0}
           onClose={() => setShowCloseJobModal(false)}
           onConfirm={() => setShowCloseJobModal(false)}
         />
