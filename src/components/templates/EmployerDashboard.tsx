@@ -529,8 +529,7 @@ function CandidateCard({ candidate }: { candidate: CandidateData }) {
       display: "flex",
       flexDirection: "column",
       gap: 12,
-      minWidth: 220,
-      flex: "1 0 0",
+      minWidth: 0, // let CSS Grid control width
     }}>
       {/* Top row: avatar + name + match score */}
       <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
@@ -1043,44 +1042,44 @@ function ChatView({
                   </div>
                 </div>
               ) : msg.type === "job-posted" && msg.job ? (
-                <div className="flex justify-start">
-                  <div className="flex flex-col gap-4 w-full" style={{ maxWidth: 600 }}>
-                    {/* Divider */}
-                    <hr style={{ border: "none", borderTop: "1px solid rgba(255,255,255,0.08)" }} />
-                    {/* Success text */}
-                    <p className="text-base text-white/80 leading-6">Success! This role has been posted successfully.</p>
-                    {/* Compact job card */}
-                    <div className="flex items-start justify-between px-4 py-3.5 rounded-2xl"
-                      style={{ background: "var(--surface-elevated)", border: "1px solid var(--border-soft)" }}>
-                      <div>
-                        <p className="text-sm font-semibold text-white">{msg.job.title}</p>
-                        <p className="text-xs text-white/35 mt-0.5">
-                          {[msg.job.department, msg.job.location, "Just Now"].filter(Boolean).join(" • ")}
-                        </p>
-                      </div>
-                      <button className="text-white/30 hover:text-white/60 transition-colors mt-0.5">
-                        <Pencil size={13} />
-                      </button>
+                /* Use full chat width so all 3 candidate cards fit side-by-side */
+                <div className="flex flex-col gap-4 w-full">
+                  {/* Divider */}
+                  <hr style={{ border: "none", borderTop: "1px solid rgba(255,255,255,0.08)" }} />
+                  {/* Success text */}
+                  <p className="text-base text-white/80 leading-6">Success! This role has been posted successfully.</p>
+                  {/* Compact job card — constrained width so it doesn't stretch too wide */}
+                  <div className="flex items-start justify-between px-4 py-3.5 rounded-2xl"
+                    style={{ background: "var(--surface-elevated)", border: "1px solid var(--border-soft)", maxWidth: 480 }}>
+                    <div>
+                      <p className="text-sm font-semibold text-white">{msg.job.title}</p>
+                      <p className="text-xs text-white/35 mt-0.5">
+                        {[msg.job.department, msg.job.location, "Just Now"].filter(Boolean).join(" • ")}
+                      </p>
                     </div>
-                    {/* Candidate cards (top 3 matched) */}
-                    {msg.candidates && msg.candidates.length > 0 && (
-                      <div className="flex flex-col gap-3">
-                        <p className="text-sm text-white/80 leading-relaxed">
-                          <span className="text-[#1dc558] font-semibold underline">{msg.candidates[0].name}</span>
-                          {` looks like a great fit for this role. Her skills in ${msg.candidates[0].skills.join(", ")} make her a `}
-                          <span className="font-semibold">{msg.candidates[0].matchScore}% match</span>
-                          {` for your `}
-                          <span className="text-[#1dc558] underline">{msg.job.title}</span>
-                          {` posting.`}
-                        </p>
-                        <div className="flex gap-3" style={{ overflowX: "auto", paddingBottom: 4 }}>
-                          {msg.candidates.map((c) => (
-                            <CandidateCard key={c.id} candidate={c} />
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                    <button className="text-white/30 hover:text-white/60 transition-colors mt-0.5">
+                      <Pencil size={13} />
+                    </button>
                   </div>
+                  {/* Candidate cards — full width row, 3 cards share available space equally */}
+                  {msg.candidates && msg.candidates.length > 0 && (
+                    <div className="flex flex-col gap-3">
+                      <p className="text-sm text-white/80 leading-relaxed">
+                        <span className="text-[#1dc558] font-semibold underline">{msg.candidates[0].name}</span>
+                        {` looks like a great fit for this role. Her skills in ${msg.candidates[0].skills.join(", ")} make her a `}
+                        <span className="font-semibold">{msg.candidates[0].matchScore}% match</span>
+                        {` for your `}
+                        <span className="text-[#1dc558] underline">{msg.job.title}</span>
+                        {` posting.`}
+                      </p>
+                      {/* Equal-width columns; horizontal scroll only if viewport is very narrow */}
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+                        {msg.candidates.map((c) => (
+                          <CandidateCard key={c.id} candidate={c} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="flex justify-start flex-col gap-3 max-w-[520px]">
