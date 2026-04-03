@@ -1,9 +1,18 @@
 /**
- * useTeleSpeech - Mobeus Platform compatible hook
+ * useTeleSpeech — drives the "AI is talking" signal for EmployerDashboard.
  *
- * Listens to agent speech via LiveKit transcription events.
- * Gets the LiveKit room directly from the Zustand voice-session store,
- * so it works correctly in standalone mode (no window globals needed).
+ * PREVIOUS APPROACH (broken):
+ *   Registered its own `transcriptionReceived` listener and checked
+ *   `participant.kind !== 'agent'` (string). LiveKit's ParticipantKind is a
+ *   numeric protobuf enum (AGENT = 4), so that string comparison was always
+ *   `true` — every agent transcript was filtered out, `isTalking` never fired,
+ *   and the chat spinner rotated forever.
+ *
+ * CURRENT APPROACH (correct):
+ *   The Zustand voice-session store already handles `TranscriptionReceived`
+ *   using the correct numeric check (`participant.kind === ParticipantKind.AGENT`).
+ *   We simply watch `state.transcripts` and process new final agent entries,
+ *   eliminating the duplicate listener and the string-vs-number bug entirely.
  */
 
 import { useState, useEffect, useRef } from 'react';
@@ -19,78 +28,54 @@ export function useTeleSpeech(): TeleSpeechState {
   const [isTalking, setIsTalking] = useState(false);
   const speechTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Reactively get the room from the store — updates automatically when connect() completes
-  const room = useVoiceSessionStore((s) => s.room);
+  // IDs of final agent transcripts we've already surfaced to the UI.
+  const processedIdsRef = useRef<Set<string>>(new Set());
+  // Set to true after the first render so we can skip pre-existing transcripts.
+  const initializedRef = useRef(false);
+
+  const transcripts = useVoiceSessionStore((s) => s.transcripts);
 
   useEffect(() => {
-    if (!room) {
+    if (!initializedRef.current) {
+      // First render: treat all current final agent transcripts as already seen
+      // so we don't replay history on mount.
+      transcripts
+        .filter((t) => t.isAgent && t.isFinal)
+        .forEach((t) => processedIdsRef.current.add(t.id));
+      initializedRef.current = true;
       return;
     }
 
-    // Listen for transcription events from the agent
-    const handleTranscription = (
-      segments: any[],
-      participant: any,
-    ) => {
-      // Only process agent transcriptions
-      if (participant?.kind !== 'agent') return;
+    // Find final agent transcripts that haven't been surfaced yet.
+    // This handles both newly-appended segments AND segments that were
+    // initially non-final and then got their isFinal flag flipped to true
+    // (same ID, updated in place in the store array).
+    const newAgentFinals = transcripts.filter(
+      (t) => t.isAgent && t.isFinal && t.text && !processedIdsRef.current.has(t.id),
+    );
 
-      for (const segment of segments) {
-        if (segment.final && segment.text) {
-          // Agent is talking
-          setIsTalking(true);
-          setSpeech(segment.text);
+    if (newAgentFinals.length === 0) return;
 
-          // Clear any existing timeout
-          if (speechTimeoutRef.current) {
-            clearTimeout(speechTimeoutRef.current);
-          }
+    newAgentFinals.forEach((t) => processedIdsRef.current.add(t.id));
 
-          // Mark as not talking after 1 second of silence
-          speechTimeoutRef.current = setTimeout(() => {
-            setIsTalking(false);
-          }, 1000);
-        }
-      }
-    };
+    // Use the latest segment's text as the current speech chunk.
+    const latestText = newAgentFinals[newAgentFinals.length - 1].text;
+    setIsTalking(true);
+    setSpeech(latestText);
 
-    // Listen for agent state changes (alternative way to detect talking)
-    const handleParticipantAttributesChanged = (
-      changedAttributes: Record<string, string>,
-      participant: any,
-    ) => {
-      if (participant?.kind !== 'agent') return;
+    // Reset the silence window: mark as "not talking" 1 s after the last chunk.
+    if (speechTimeoutRef.current) clearTimeout(speechTimeoutRef.current);
+    speechTimeoutRef.current = setTimeout(() => {
+      setIsTalking(false);
+    }, 1000);
+  }, [transcripts]);
 
-      const agentState = changedAttributes['lk.agent.state'];
-      if (agentState === 'speaking') {
-        setIsTalking(true);
-      } else if (agentState === 'listening' || agentState === 'thinking') {
-        setIsTalking(false);
-      }
-    };
-
-    // Register event listeners
-    try {
-      room.on('transcriptionReceived', handleTranscription);
-      room.on('participantAttributesChanged', handleParticipantAttributesChanged);
-    } catch (err) {
-      console.warn('[useTeleSpeech] Failed to register event listeners:', err);
-    }
-
-    // Cleanup
+  // Cleanup the silence timer on unmount.
+  useEffect(() => {
     return () => {
-      try {
-        room.off('transcriptionReceived', handleTranscription);
-        room.off('participantAttributesChanged', handleParticipantAttributesChanged);
-      } catch (err) {
-        // Ignore cleanup errors
-      }
-
-      if (speechTimeoutRef.current) {
-        clearTimeout(speechTimeoutRef.current);
-      }
+      if (speechTimeoutRef.current) clearTimeout(speechTimeoutRef.current);
     };
-  }, [room]);
+  }, []);
 
   return { speech, isTalking };
 }

@@ -580,20 +580,20 @@ function extractOptionsFromPrompt(promptText: string): PromptStepOptions {
  * the question text against known patterns and return the prompt-sourced options.
  */
 function resolveFallbackOptions(text: string, opts: PromptStepOptions): string[] {
-  // Matches: "what role are you hiring for", "what role are you looking to hire",
-  //          "what role are you looking for", "which role are you hiring", etc.
-  if (/what role|which role|role are you (hiring|looking)|role.*hire for/i.test(text)) return opts.step1;
-  if (/experience level are you looking|what experience level|experience level.*looking/i.test(text)) return opts.step2;
-  // Matches: "Where is this role based?", "Where is this Senior Backend Developer role based?"
-  if (/where is this .* role based|where is this role based|role based\?/i.test(text)) return opts.step3;
+  // Step 1 — Role question
+  if (/what (type of )?role|which role|role are you (hiring|looking)|role.*hire for|type of role are you hiring/i.test(text)) return opts.step1;
+  // Step 2 — Experience / grade / seniority question (broad: covers context-aware phrasings)
+  if (/experience level|seniority|senior grade|junior|mid.level|appropriate for the|which grade|focus on candidates (who are )?appropriate/i.test(text)) return opts.step2;
+  // Step 3 — Location question (broad: covers "Where is this role based?", "Which location are you hiring for?", etc.)
+  if (/which location|where is (this|the) role|location are you hiring|where are you hiring|role based\?|hiring for\?/i.test(text)) return opts.step3;
   return [];
 }
 
 /** Returns which job field the AI is currently asking for. */
 function resolveCurrentStep(text: string): "role" | "experience" | "location" | null {
-  if (/what role|which role|role are you (hiring|looking)|role.*hire for/i.test(text)) return "role";
-  if (/experience level are you looking|what experience level|experience level.*looking/i.test(text)) return "experience";
-  if (/where is this .* role based|where is this role based|role based\?/i.test(text)) return "location";
+  if (/what (type of )?role|which role|role are you (hiring|looking)|role.*hire for|type of role are you hiring/i.test(text)) return "role";
+  if (/experience level|seniority|senior grade|junior|mid.level|appropriate for the|which grade|focus on candidates (who are )?appropriate/i.test(text)) return "experience";
+  if (/which location|where is (this|the) role|location are you hiring|where are you hiring|role based\?|hiring for\?/i.test(text)) return "location";
   return null;
 }
 
@@ -1054,10 +1054,17 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
   // (e.g. full job postings) arrive as multiple start/stop talking cycles.
   const chunkBufferRef = useRef<string[]>([]);
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Safety timeout: cleared when AI actually responds; fires after 30 s of silence.
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Debounced display: collect every speech chunk and only commit the combined
   // response once the avatar has been silent for 900 ms.
   const flushResponse = useCallback(() => {
+    // Clear the 30-second safety timeout — a real response arrived.
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
     const full = chunkBufferRef.current.join(" ").trim();
     if (!full || !sessionReady) { chunkBufferRef.current = []; return; }
 
@@ -1201,6 +1208,7 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
     return () => {
       muteCleanupRef.current?.();
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       console.log('[Employer] Cleaned up employer mode');
     };
   }, []);
@@ -1334,6 +1342,12 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
       clearTimeout(silenceTimerRef.current);
       silenceTimerRef.current = null;
     }
+    // Safety net: if no AI transcript arrives within 30 s, stop spinning so
+    // the user isn't stuck with a permanently disabled input.
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      setIsTyping(false);
+    }, 30000);
     sendChatText(text);
   }, []);
 
