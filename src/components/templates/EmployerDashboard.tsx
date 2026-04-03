@@ -753,37 +753,19 @@ function HiringTabContent({
   prefetchedJobsLoading?: boolean;
 }) {
   const [selectedJob, setSelectedJob] = useState<SelectedJob | null>(null);
-  // Seed local state from pre-fetched data immediately (no loading flash).
+  // Seed from parent-provided data; stays in sync via the effect below.
   const [apiJobs, setApiJobs] = useState<JobPostingResponse[]>(prefetchedJobs ?? []);
-  const [jobsLoading, setJobsLoading] = useState(prefetchedJobs !== undefined ? (prefetchedJobsLoading ?? false) : true);
+  const [jobsLoading, setJobsLoading] = useState(prefetchedJobsLoading ?? false);
 
-  // Keep local state in sync if the parent's pre-fetch completes after mount.
+  // Keep local state in sync when the parent updates (new job posted, AI fetch done).
   useEffect(() => {
-    if (prefetchedJobs !== undefined) {
-      setApiJobs(prefetchedJobs);
-      setJobsLoading(prefetchedJobsLoading ?? false);
-    }
+    setApiJobs(prefetchedJobs ?? []);
+    setJobsLoading(prefetchedJobsLoading ?? false);
   }, [prefetchedJobs, prefetchedJobsLoading]);
 
-  // Only run an internal fetch when no pre-fetched data was supplied.
-  // Uses the MCP bridge (agent RPC) — the same path the parent pre-fetch uses.
-  // This is a static export with no REST API routes, so mcpBridge is the only
-  // viable data source. Guard: wait until the Mobeus session is connected.
-  const sessionStateForFetch = useVoiceSessionStore((s) => s.sessionState);
-  useEffect(() => {
-    if (prefetchedJobs !== undefined) return; // parent already has data
-    if (sessionStateForFetch !== 'connected') return; // agent not ready yet
-    let cancelled = false;
-    setJobsLoading(true);
-
-    import('@/lib/mcpBridge')
-      .then(({ listJobPostings }) => listJobPostings(50, 0))
-      .then((data) => { if (!cancelled) setApiJobs(data.items ?? []); })
-      .catch((e: unknown) => console.error("[HiringTabContent] fetch jobs:", e))
-      .finally(() => { if (!cancelled) setJobsLoading(false); });
-
-    return () => { cancelled = true; };
-  }, [sessionStateForFetch, prefetchedJobs]);
+  // No internal fetch — callMcpTool RPC is not supported by the Mobeus agent.
+  // Jobs are populated by the parent via prefetchedJobs (either session-created
+  // jobs or those retrieved via the [FETCH_JOBS] → [JOB_LIST: ...] chat flow).
 
   const sidebarJobs = toSidebarJobs(apiJobs);
 
@@ -1090,24 +1072,18 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
   const sessionReady = sessionState === 'connected';
   const [wizardInitialData, setWizardInitialData] = useState<Partial<JobFormData>>({});
 
-  // Pre-fetch job postings via the MCP tool once the Mobeus session is connected.
-  // Fires as soon as sessionState becomes 'connected' — typically 1–2 s after mount —
-  // so the Hiring tab has real data ready by the time the user clicks it.
-  // Uses listJobPostings (MCP tool → agent RPC) because this is a static export
-  // with no Next.js API routes; the direct REST client has no backend to hit.
-  const [prefetchedJobs, setPrefetchedJobs] = useState<JobPostingResponse[] | undefined>(undefined);
-  const [prefetchedJobsLoading, setPrefetchedJobsLoading] = useState(true);
-  useEffect(() => {
-    if (sessionState !== 'connected') return; // wait for the agent to be ready
-    let cancelled = false;
-    setPrefetchedJobsLoading(true);
-    import('@/lib/mcpBridge')
-      .then(({ listJobPostings }) => listJobPostings(50, 0))
-      .then((data) => { if (!cancelled) setPrefetchedJobs(data.items ?? []); })
-      .catch(() => { if (!cancelled) setPrefetchedJobs([]); })
-      .finally(() => { if (!cancelled) setPrefetchedJobsLoading(false); });
-    return () => { cancelled = true; };
-  }, [sessionState]);
+  // Jobs available in the Hiring tab. Populated two ways:
+  // (a) Jobs created in this session (wizard Finish or chat card "Create Job Posting").
+  // (b) Existing jobs fetched from the AI via [FETCH_JOBS] → [JOB_LIST: ...] flow.
+  // Note: callMcpTool RPC is NOT supported by the Mobeus agent (returns "Method not
+  // supported"), so we cannot use the MCP bridge directly. The only working channel
+  // is sendTextMessage (lk.chat). On connect we send [FETCH_JOBS]; the AI (if its
+  // prompt handles it) responds with [JOB_LIST: id|title|location|status, ...].
+  const [sessionCreatedJobs, setSessionCreatedJobs] = useState<JobPostingResponse[]>([]);
+  // True while waiting for the AI to respond to the [FETCH_JOBS] request.
+  const [jobsFetching, setJobsFetching] = useState(false);
+  // Set to true right before sending [FETCH_JOBS]; cleared once the response arrives.
+  const fetchJobsRequestedRef = useRef(false);
   const sessionStartedRef = useRef(false);
   const muteCleanupRef = useRef<(() => void) | null>(null);
   const promptOptionsRef = useRef<PromptStepOptions>({ step1: [], step2: [], step3: [] });
@@ -1140,6 +1116,50 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
     }
     const full = chunkBufferRef.current.join(" ").trim();
     if (!full || !sessionReady) { chunkBufferRef.current = []; return; }
+
+    // ── 0. Intercept [FETCH_JOBS] response — never show in chat UI ────────────
+    // The AI responds with [JOB_LIST: id|title|location|status, ...] or plain
+    // text if it doesn't understand the request. Either way: parse jobs if
+    // present, then suppress the message from the visible chat.
+    if (fetchJobsRequestedRef.current) {
+      fetchJobsRequestedRef.current = false;
+      setJobsFetching(false);
+      // Wait for the complete [JOB_LIST: ...] marker before processing.
+      if (/\[JOB_LIST:/i.test(full) && !/\[JOB_LIST:[\s\S]*?\]/i.test(full)) {
+        silenceTimerRef.current = setTimeout(flushResponse, 1500);
+        return;
+      }
+      const listMatch = full.match(/\[JOB_LIST:([\s\S]*?)\]/i);
+      if (listMatch) {
+        const entries = listMatch[1].split(",").map(e => e.trim()).filter(Boolean);
+        const parsed: JobPostingResponse[] = entries.map((entry) => {
+          const parts = entry.split("|").map(p => p.trim());
+          return {
+            id: parts[0] || `fetched-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            title: parts[1] || "Untitled Role",
+            location: parts[2] || null,
+            status: parts[3] || "active",
+            department: null,
+            employment_type: null,
+            description: null,
+            skills: null,
+            salary_min: null,
+            salary_max: null,
+            posted_by: "Omar S.",
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+        });
+        if (parsed.length > 0) {
+          setSessionCreatedJobs(parsed);
+          console.log(`[Employer] Loaded ${parsed.length} job(s) from AI`);
+        }
+      }
+      // Suppress from visible chat (whether or not parsing succeeded).
+      chunkBufferRef.current = [];
+      setIsTyping(false);
+      return;
+    }
 
     // If [JOB_DATA: is present but the closing ] hasn't arrived yet, the SDK
     // split the marker across speech cycles. Keep the buffer and wait another
@@ -1394,7 +1414,17 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
             silenceTimerRef.current = null;
           }
           console.log('[Employer] Session ready for chat');
-        }, 1500);
+          // Ask the AI to list existing job postings. The system prompt handles
+          // [FETCH_JOBS] by calling list_job_postings_by_poster and responding
+          // with [JOB_LIST: id|title|location|status, ...]. flushResponse will
+          // parse that marker and populate sessionCreatedJobs silently.
+          fetchJobsRequestedRef.current = true;
+          setJobsFetching(true);
+          useVoiceSessionStore.getState().sendTextMessage('[FETCH_JOBS]').catch(() => {
+            fetchJobsRequestedRef.current = false;
+            setJobsFetching(false);
+          });
+        }, 2000);
       })
       .catch((err) => {
         console.error('[Employer] Connection failed:', err);
@@ -1442,6 +1472,27 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
     lines.push("posted_by: Omar S.");
 
     await useVoiceSessionStore.getState().sendTextMessage(lines.join("\n"));
+
+    // Track in session jobs so it appears immediately in the Hiring tab.
+    setSessionCreatedJobs((prev) => {
+      const alreadyExists = prev.some((j) => j.title === jobCard.title && j.location === (jobCard.location || null));
+      if (alreadyExists) return prev;
+      return [...prev, {
+        id: `session-${Date.now()}`,
+        title: jobCard.title,
+        location: jobCard.location || null,
+        status: 'active',
+        department: null,
+        employment_type: null,
+        description: jobCard.description || null,
+        skills: null,
+        salary_min: null,
+        salary_max: null,
+        posted_by: 'Omar S.',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }];
+    });
 
     // Optimistic UI: show a job-posted card immediately; the AI's textual
     // confirmation will follow in a subsequent chat message.
@@ -1635,6 +1686,28 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
                         onFinish={(job) => {
                           setWizardOpen(false);
                           setWizardInitialData({});
+                          // Add to session jobs so the Hiring tab shows it immediately.
+                          setSessionCreatedJobs((prev) => {
+                            const alreadyExists = prev.some(
+                              (j) => j.title === job.title && j.location === (job.location || null)
+                            );
+                            if (alreadyExists) return prev;
+                            return [...prev, {
+                              id: `session-${Date.now()}`,
+                              title: job.title,
+                              location: job.location || null,
+                              status: 'active',
+                              department: job.department || null,
+                              employment_type: null,
+                              description: null,
+                              skills: null,
+                              salary_min: null,
+                              salary_max: null,
+                              posted_by: 'Omar S.',
+                              created_at: new Date().toISOString(),
+                              updated_at: new Date().toISOString(),
+                            }];
+                          });
                           setMessages(prev => [
                             ...prev,
                             {
@@ -1768,8 +1841,8 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
                     className="flex-1 flex flex-col min-h-0 overflow-hidden">
                     <HiringTabContent
                       key={hiringKey}
-                      prefetchedJobs={prefetchedJobs}
-                      prefetchedJobsLoading={prefetchedJobsLoading}
+                      prefetchedJobs={sessionCreatedJobs}
+                      prefetchedJobsLoading={jobsFetching}
                       onPostJob={() => {
                         // Mirror the Home screen "Post a job" button behavior:
                         // switch to the home tab, add the user bubble, enter chat
