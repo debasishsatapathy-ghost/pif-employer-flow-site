@@ -1777,81 +1777,75 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
           </div>
         )}
 
-        {/* Content */}
+        {/* Content — single unified layout; chatMode only changes home-tab content */}
         <AnimatePresence mode="wait">
 
-          {chatMode && (
-            <motion.div key="chat"
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="flex-1 min-h-0 flex flex-col overflow-hidden">
-              {/* ChatView always shows full conversation history.
-                  The PostJobWizardCard renders inline below the messages when wizardOpen. */}
-              <ChatView
-                messages={messages}
-                isTyping={isTyping}
-                onSend={handleSend}
-                onChipClick={handleChipClick}
-                onCreateJobPosting={handleCreateJobPosting}
-                sessionReady={sessionReady}
-                wizardOpen={wizardOpen}
-                wizardInitialData={wizardInitialData}
-                wizardPreFilled={wizardPreFilled}
-                onWizardClose={() => {
-                  setWizardOpen(false);
-                  setWizardInitialData({});
-                  setWizardPreFilled(false);
-                }}
-                onWizardFinish={(job) => {
-                  setWizardOpen(false);
-                  setWizardInitialData({});
-                  setWizardPreFilled(false);
-                  // Add to session jobs so the Hiring tab shows it immediately.
-                  setSessionCreatedJobs((prev) => {
-                    const alreadyExists = prev.some(
-                      (j) => j.title === job.title && j.location === (job.location || null)
-                    );
-                    if (alreadyExists) return prev;
-                    return [...prev, {
-                      id: `session-${Date.now()}`,
-                      title: job.title,
-                      location: job.location || null,
-                      status: 'active',
-                      department: job.department || null,
-                      employment_type: null,
-                      description: null,
-                      skills: null,
-                      salary_min: null,
-                      salary_max: null,
-                      posted_by: 'Omar S.',
-                      created_at: new Date().toISOString(),
-                      updated_at: new Date().toISOString(),
-                    }];
-                  });
-                  const candidates = getJobCandidates(job.title);
-                  setMessages(prev => [
-                    ...prev,
-                    {
-                      id: `job-${Date.now()}`,
-                      role: "assistant" as const,
-                      text: "",
-                      type: "job-posted" as const,
-                      job,
-                      candidates,
-                    },
-                  ]);
-                }}
-              />
-            </motion.div>
-          )}
+          <motion.div key="dashboard"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="flex-1 min-h-0 flex flex-col overflow-hidden">
 
-          {!chatMode && (
-            <motion.div key="dashboard"
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="flex-1 min-h-0 flex flex-col overflow-hidden">
+              {/* When chatMode is active on the Home tab, show ChatView inline
+                  (full-height, within the same outer dashboard layout — no separate screen).
+                  All other tabs and the greeting/cards view are in the scrollable div below. */}
+              {activeTab === "home" && !avatarMode && chatMode && (
+                <ChatView
+                  messages={messages}
+                  isTyping={isTyping}
+                  onSend={handleSend}
+                  onChipClick={handleChipClick}
+                  onCreateJobPosting={handleCreateJobPosting}
+                  sessionReady={sessionReady}
+                  wizardOpen={wizardOpen}
+                  wizardInitialData={wizardInitialData}
+                  wizardPreFilled={wizardPreFilled}
+                  onWizardClose={() => {
+                    setWizardOpen(false);
+                    setWizardInitialData({});
+                    setWizardPreFilled(false);
+                  }}
+                  onWizardFinish={(job) => {
+                    setWizardOpen(false);
+                    setWizardInitialData({});
+                    setWizardPreFilled(false);
+                    setSessionCreatedJobs((prev) => {
+                      const alreadyExists = prev.some(
+                        (j) => j.title === job.title && j.location === (job.location || null)
+                      );
+                      if (alreadyExists) return prev;
+                      return [...prev, {
+                        id: `session-${Date.now()}`,
+                        title: job.title,
+                        location: job.location || null,
+                        status: 'active',
+                        department: job.department || null,
+                        employment_type: null,
+                        description: null,
+                        skills: null,
+                        salary_min: null,
+                        salary_max: null,
+                        posted_by: 'Omar S.',
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
+                      }];
+                    });
+                    const candidates = getJobCandidates(job.title);
+                    setMessages(prev => [
+                      ...prev,
+                      {
+                        id: `job-${Date.now()}`,
+                        role: "assistant" as const,
+                        text: "",
+                        type: "job-posted" as const,
+                        job,
+                        candidates,
+                      },
+                    ]);
+                  }}
+                />
+              )}
 
-              <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+              <div className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden${activeTab === "home" && !avatarMode && chatMode ? " hidden" : ""}`}>
 
                 {activeTab === "home" && (
                   <motion.div key="home"
@@ -2044,7 +2038,6 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
                 )}
               </div>
             </motion.div>
-          )}
         </AnimatePresence>
 
         {/* Floating bottom nav — Figma 3764:30678 */}
@@ -2096,16 +2089,12 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
               </svg>
             </button>
 
-            {/* ③ Chat button — selected when chatMode; returns to text home (image 2) when toggled off */}
+            {/* ③ Chat button — always navigates to home/landing view (image 2) */}
             <button
               onClick={() => {
-                if (chatMode) {
-                  setChatMode(false);
-                  setAvatarMode(false); // return to text home (image 2), not avatar
-                } else {
-                  setChatMode(true);
-                  setAvatarMode(false);
-                }
+                setChatMode(false);
+                setAvatarMode(false);
+                setActiveTab("home");
               }}
               className="flex items-center justify-center transition-all duration-200"
               style={{
