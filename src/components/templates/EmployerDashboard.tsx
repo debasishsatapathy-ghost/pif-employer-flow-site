@@ -1211,7 +1211,7 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
   const [activeTab, setActiveTab] = useState<NavTab>("home");
   const [hiringKey, setHiringKey] = useState(0);
   const [chatMode, setChatMode] = useState(false);
-  const [avatarMode, setAvatarMode] = useState(true); // default home view shows avatar
+  const [avatarMode, setAvatarMode] = useState(false); // text home is the default landing screen
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -2060,7 +2060,7 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
               boxShadow: '0px 0px 8px 0px rgba(255,255,255,0.25)',
             }}>
 
-            {/* ① Avatar button — selected when avatarMode on home tab (Figma: SelectedToggleItem) */}
+            {/* ① Sparkle/avatar button — selected when avatarMode (Image 2) */}
             <button
               onClick={() => {
                 setAvatarMode(true);
@@ -2070,14 +2070,14 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
               className="flex items-center justify-center transition-all duration-200"
               style={{
                 width: 56, height: 32, borderRadius: 100, outline: 'none', cursor: 'pointer',
-                ...(avatarMode && !chatMode && activeTab === "home"
+                ...(avatarMode
                   ? { background: '#1c1c1e', border: '1px solid #1ed25e', boxShadow: '0px 0px 8px 0px #1ed25e' }
                   : { background: 'transparent', border: '1px solid transparent' }),
               }}>
               <Sparkles
                 size={18}
                 style={{
-                  color: avatarMode && !chatMode && activeTab === "home" ? '#1ed25e' : 'rgba(255,255,255,0.45)',
+                  color: avatarMode ? '#1ed25e' : 'rgba(255,255,255,0.45)',
                   transform: 'rotate(-90deg)',
                   transition: 'color 0.2s',
                 }}
@@ -2086,6 +2086,7 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
 
             {/* ② Soundwave — center icon */}
             <button
+              onClick={() => { setAvatarMode(false); setChatMode(false); setActiveTab("home"); }}
               className="flex items-center justify-center transition-colors"
               style={{ width: 24, height: 24, background: 'transparent', border: 'none', outline: 'none', cursor: 'pointer' }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="rgba(255,255,255,0.4)">
@@ -2097,28 +2098,24 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
               </svg>
             </button>
 
-            {/* ③ Chat button — selected when chatMode */}
+            {/* ③ Chat button — selected when NOT in avatar mode (Image 1 = default landing) */}
             <button
               onClick={() => {
-                if (chatMode) {
-                  setChatMode(false);
-                  setAvatarMode(true);
-                } else {
-                  setChatMode(true);
-                  setAvatarMode(false);
-                }
+                setAvatarMode(false);
+                setChatMode(false);
+                setActiveTab("home");
               }}
               className="flex items-center justify-center transition-all duration-200"
               style={{
                 width: 56, height: 32, borderRadius: 100, outline: 'none', cursor: 'pointer',
-                ...(chatMode
+                ...(!avatarMode
                   ? { background: '#1c1c1e', border: '1px solid #1ed25e', boxShadow: '0px 0px 8px 0px #1ed25e' }
                   : { background: 'transparent', border: '1px solid transparent' }),
               }}>
               <MessageCircle
                 size={17}
                 style={{
-                  color: chatMode ? '#1ed25e' : 'rgba(255,255,255,0.45)',
+                  color: !avatarMode ? '#1ed25e' : 'rgba(255,255,255,0.45)',
                   transition: 'color 0.2s',
                 }}
               />
