@@ -18,6 +18,7 @@ import {
   Plus,
   Bell,
   ChevronDown,
+  ChevronRight,
   ArrowRight,
   ArrowUp,
   Loader2,
@@ -25,6 +26,7 @@ import {
   Users,
   BookOpen,
   MessageCircle,
+  Sparkles,
   X,
   Pencil,
   AlertTriangle,
@@ -1209,6 +1211,7 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
   const [activeTab, setActiveTab] = useState<NavTab>("home");
   const [hiringKey, setHiringKey] = useState(0);
   const [chatMode, setChatMode] = useState(false);
+  const [avatarMode, setAvatarMode] = useState(true); // default home view shows avatar
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -1855,79 +1858,157 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
                   <motion.div key="home"
                     initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                    className="flex flex-col items-center px-5 sm:px-8"
-                    style={{ paddingTop: '14vh', paddingBottom: '10vh' }}>
+                    className={avatarMode ? "h-full flex flex-col" : "flex flex-col items-center px-5 sm:px-8"}
+                    style={!avatarMode ? { paddingTop: '14vh', paddingBottom: '10vh' } : undefined}
+                  >
 
-                    <div className="w-full max-w-3xl flex flex-col gap-5 sm:gap-6">
+                    {avatarMode ? (
+                      /* ══ AVATAR MODE — Figma 3764:30878 + 3764:31106 + 3764:31064 ══ */
+                      <div className="flex-1 flex flex-col items-center justify-between overflow-hidden"
+                        style={{ paddingBottom: '88px' /* leave room for fixed bottom nav */ }}>
 
-                      {/* Greeting + Heading */}
-                      <div className="flex flex-col gap-2">
-                        <div className="flex items-center gap-2" style={{ color: '#1ed25e' }}>
-                          <SparkleIcon size={14} />
-                          <span className="text-[20px] font-normal leading-6 text-white">Hello Omar</span>
-                        </div>
-                        <h1 className="text-[32px] sm:text-[36px] font-normal text-white leading-[1.25]">
-                          Where should we begin?
-                        </h1>
-                      </div>
-
-                      {/* Action cards — Figma compact pill row */}
-                      <div className="flex flex-col sm:flex-row gap-5 sm:gap-6 w-full">
-                        {/* Post a job */}
-                        <button
-                          className="flex flex-1 h-[52px] items-center justify-between px-4 rounded-2xl transition-all duration-200 hover:bg-white/10 active:scale-[0.98]"
-                          style={{ background: 'rgba(255,255,255,0.05)', minWidth: 0 }}
-                          onClick={() => {
-                            setMessages(prev => [...prev, { id: `u-${Date.now()}`, role: "user", text: "Post a job" }]);
-                            setChatMode(true);
-                            // Brief pause so step 1-a (user bubble on blank canvas) is visible
-                            // before the wizard card animates in
-                            setTimeout(() => setWizardOpen(true), 200);
+                        {/* Speech bubble — Figma 3764:31106 */}
+                        <div style={{ marginTop: '6vh', zIndex: 2, flexShrink: 0 }}>
+                          <div style={{
+                            background: 'rgba(39,39,42,0.5)',
+                            borderRadius: 100,
+                            padding: '12px 32px',
+                            textAlign: 'center',
                           }}>
-                          <div className="flex items-center gap-2">
-                            <Building2 size={20} style={{ color: '#1ed25e' }} />
-                            <span className="text-base font-normal text-[#fafafa]">Post a job</span>
+                            <p className="text-base font-bold text-white leading-[24px]">Welcome back, Omar.</p>
+                            <p className="text-base font-light text-white leading-[24px]">Where should we begin?</p>
                           </div>
-                          <ArrowRight size={20} className="text-white/40" />
-                        </button>
-                        {/* Review applicants */}
-                        <button
-                          className="flex flex-1 h-[52px] items-center justify-between px-4 rounded-2xl transition-all duration-200 hover:bg-white/10 active:scale-[0.98]"
-                          style={{ background: 'rgba(255,255,255,0.05)', minWidth: 0 }}
-                          onClick={() => handleSend("Review applicants")}>
-                          <div className="flex items-center gap-2">
-                            <Users size={20} style={{ color: '#51a2ff' }} />
-                            <span className="text-base font-normal text-[#fafafa]">Review applicants</span>
-                          </div>
-                          <ArrowRight size={20} className="text-white/40" />
-                        </button>
-                        {/* Track Development */}
-                        <button
-                          className="flex flex-1 h-[52px] items-center justify-between px-4 rounded-2xl transition-all duration-200 hover:bg-white/10 active:scale-[0.98]"
-                          style={{ background: 'rgba(255,255,255,0.05)', minWidth: 0 }}
-                          onClick={() => handleSend("How is my training program?")}>
-                          <div className="flex items-center gap-2">
-                            <BookOpen size={20} style={{ color: '#a78bfa' }} />
-                            <span className="text-base font-normal text-[#fafafa]">Track Development</span>
-                          </div>
-                          <ArrowRight size={20} className="text-white/40" />
-                        </button>
-                      </div>
+                        </div>
 
-                      {/* Chat input */}
-                      <ChatInputBar onSend={handleSend} waiting={!sessionReady} placeholder={sessionReady ? "Or ask anything" : "Connecting to AI…"} />
+                        {/* Avatar image — Figma 3764:30878 */}
+                        <div className="flex-1 flex items-end justify-center w-full" style={{ overflow: 'hidden' }}>
+                          <img
+                            src="/avatar/avatar-full.png"
+                            alt="AI Assistant"
+                            style={{
+                              height: '65vh',
+                              maxHeight: 620,
+                              objectFit: 'contain',
+                              objectPosition: 'bottom',
+                              pointerEvents: 'none',
+                              userSelect: 'none',
+                            }}
+                          />
+                        </div>
 
-                      {/* Suggestion chips */}
-                      <div className="flex flex-wrap gap-3">
-                        {[
-                          "Where are our biggest gaps?",
-                          "What needs my attention today?",
-                          "How is our hiring?",
-                        ].map((chip) => (
-                          <SuggestionChip key={chip} label={chip} onClick={() => handleSend(chip)} />
-                        ))}
+                        {/* Action cards — Figma 3764:31064 */}
+                        <div className="w-full px-5 sm:px-8 flex-shrink-0" style={{ marginTop: 12 }}>
+                          <div className="flex gap-4 sm:gap-6 max-w-3xl mx-auto">
+                            {/* Post a job */}
+                            <button
+                              className="flex flex-1 h-[52px] items-center justify-between px-4 rounded-2xl transition-all duration-200 hover:bg-white/10 active:scale-[0.98] border-0"
+                              style={{ background: 'rgba(255,255,255,0.05)', border: 'none', minWidth: 0 }}
+                              onClick={() => {
+                                setAvatarMode(false);
+                                setMessages(prev => [...prev, { id: `u-${Date.now()}`, role: "user", text: "Post a job" }]);
+                                setChatMode(true);
+                                setTimeout(() => setWizardOpen(true), 200);
+                              }}>
+                              <div className="flex items-center gap-2">
+                                <Building2 size={20} style={{ color: '#1ed25e' }} />
+                                <span className="text-base font-normal text-[#fafafa]">Post a job</span>
+                              </div>
+                              <ChevronRight size={18} className="text-white/40" />
+                            </button>
+                            {/* Review applicants */}
+                            <button
+                              className="flex flex-1 h-[52px] items-center justify-between px-4 rounded-2xl transition-all duration-200 hover:bg-white/10 active:scale-[0.98] border-0"
+                              style={{ background: 'rgba(255,255,255,0.05)', border: 'none', minWidth: 0 }}
+                              onClick={() => { setAvatarMode(false); handleSend("Review applicants"); }}>
+                              <div className="flex items-center gap-2">
+                                <Users size={20} style={{ color: '#51a2ff' }} />
+                                <span className="text-base font-normal text-[#fafafa]">Review applicants</span>
+                              </div>
+                              <ChevronRight size={18} className="text-white/40" />
+                            </button>
+                            {/* Track Development */}
+                            <button
+                              className="flex flex-1 h-[52px] items-center justify-between px-4 rounded-2xl transition-all duration-200 hover:bg-white/10 active:scale-[0.98] border-0"
+                              style={{ background: 'rgba(255,255,255,0.05)', border: 'none', minWidth: 0 }}
+                              onClick={() => { setAvatarMode(false); handleSend("How is my training program?"); }}>
+                              <div className="flex items-center gap-2">
+                                <BookOpen size={20} style={{ color: '#a78bfa' }} />
+                                <span className="text-base font-normal text-[#fafafa]">Track Development</span>
+                              </div>
+                              <ChevronRight size={18} className="text-white/40" />
+                            </button>
+                          </div>
+                        </div>
+
                       </div>
-                    </div>
+                    ) : (
+                      /* ══ TEXT HOME MODE ══ */
+                      <div className="w-full max-w-3xl flex flex-col gap-5 sm:gap-6">
+
+                        {/* Greeting + Heading */}
+                        <div className="flex flex-col gap-2">
+                          <div className="flex items-center gap-2" style={{ color: '#1ed25e' }}>
+                            <SparkleIcon size={14} />
+                            <span className="text-[20px] font-normal leading-6 text-white">Hello Omar</span>
+                          </div>
+                          <h1 className="text-[32px] sm:text-[36px] font-normal text-white leading-[1.25]">
+                            Where should we begin?
+                          </h1>
+                        </div>
+
+                        {/* Action cards */}
+                        <div className="flex flex-col sm:flex-row gap-5 sm:gap-6 w-full">
+                          <button
+                            className="flex flex-1 h-[52px] items-center justify-between px-4 rounded-2xl transition-all duration-200 hover:bg-white/10 active:scale-[0.98] border-0"
+                            style={{ background: 'rgba(255,255,255,0.05)', border: 'none', minWidth: 0 }}
+                            onClick={() => {
+                              setMessages(prev => [...prev, { id: `u-${Date.now()}`, role: "user", text: "Post a job" }]);
+                              setChatMode(true);
+                              setTimeout(() => setWizardOpen(true), 200);
+                            }}>
+                            <div className="flex items-center gap-2">
+                              <Building2 size={20} style={{ color: '#1ed25e' }} />
+                              <span className="text-base font-normal text-[#fafafa]">Post a job</span>
+                            </div>
+                            <ArrowRight size={20} className="text-white/40" />
+                          </button>
+                          <button
+                            className="flex flex-1 h-[52px] items-center justify-between px-4 rounded-2xl transition-all duration-200 hover:bg-white/10 active:scale-[0.98] border-0"
+                            style={{ background: 'rgba(255,255,255,0.05)', border: 'none', minWidth: 0 }}
+                            onClick={() => handleSend("Review applicants")}>
+                            <div className="flex items-center gap-2">
+                              <Users size={20} style={{ color: '#51a2ff' }} />
+                              <span className="text-base font-normal text-[#fafafa]">Review applicants</span>
+                            </div>
+                            <ArrowRight size={20} className="text-white/40" />
+                          </button>
+                          <button
+                            className="flex flex-1 h-[52px] items-center justify-between px-4 rounded-2xl transition-all duration-200 hover:bg-white/10 active:scale-[0.98] border-0"
+                            style={{ background: 'rgba(255,255,255,0.05)', border: 'none', minWidth: 0 }}
+                            onClick={() => handleSend("How is my training program?")}>
+                            <div className="flex items-center gap-2">
+                              <BookOpen size={20} style={{ color: '#a78bfa' }} />
+                              <span className="text-base font-normal text-[#fafafa]">Track Development</span>
+                            </div>
+                            <ArrowRight size={20} className="text-white/40" />
+                          </button>
+                        </div>
+
+                        {/* Chat input */}
+                        <ChatInputBar onSend={handleSend} waiting={!sessionReady} placeholder={sessionReady ? "Or ask anything" : "Connecting to AI…"} />
+
+                        {/* Suggestion chips */}
+                        <div className="flex flex-wrap gap-3">
+                          {[
+                            "Where are our biggest gaps?",
+                            "What needs my attention today?",
+                            "How is our hiring?",
+                          ].map((chip) => (
+                            <SuggestionChip key={chip} label={chip} onClick={() => handleSend(chip)} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </motion.div>
                 )}
 
@@ -1967,44 +2048,82 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
           )}
         </AnimatePresence>
 
-        {/* Floating bottom nav — fixed so it persists over wizard + chat views */}
-        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
-          <div className="relative flex items-center pointer-events-auto"
+        {/* Floating bottom nav — Figma 3764:30678 */}
+        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-30">
+          <div className="flex items-center"
             style={{
               background: '#18181b',
               border: '1px solid #27272a',
               borderRadius: 100,
-              padding: '8px 16px',
+              padding: '8px 8px',
               gap: 8,
-              boxShadow: '0px 4px 4px 0px rgba(0,0,0,0.25), 0px 0px 8px 0px rgba(255,255,255,0.08)',
+              boxShadow: '0px 0px 8px 0px rgba(255,255,255,0.25)',
             }}>
-            {/* Sparkle / expand */}
+
+            {/* ① Avatar button — selected when avatarMode on home tab (Figma: SelectedToggleItem) */}
             <button
-              className="w-6 h-6 flex items-center justify-center text-white/50 hover:text-white/80 transition-colors"
-              style={{ transform: 'rotate(-90deg)' }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M9 18l6-6-6-6" />
-              </svg>
+              onClick={() => {
+                setAvatarMode(true);
+                setChatMode(false);
+                setActiveTab("home");
+              }}
+              className="flex items-center justify-center transition-all duration-200"
+              style={{
+                width: 56, height: 32, borderRadius: 100, outline: 'none', cursor: 'pointer',
+                ...(avatarMode && !chatMode && activeTab === "home"
+                  ? { background: '#1c1c1e', border: '1px solid #1ed25e', boxShadow: '0px 0px 8px 0px #1ed25e' }
+                  : { background: 'transparent', border: '1px solid transparent' }),
+              }}>
+              <Sparkles
+                size={18}
+                style={{
+                  color: avatarMode && !chatMode && activeTab === "home" ? '#1ed25e' : 'rgba(255,255,255,0.45)',
+                  transform: 'rotate(-90deg)',
+                  transition: 'color 0.2s',
+                }}
+              />
             </button>
-            {/* Soundwave */}
-            <button className="w-6 h-6 flex items-center justify-center text-white/40 hover:text-white/70 transition-colors">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                <rect x="2" y="9" width="2" height="6" rx="1" opacity="0.4" />
-                <rect x="6" y="6" width="2" height="12" rx="1" opacity="0.6" />
+
+            {/* ② Soundwave — center icon */}
+            <button
+              className="flex items-center justify-center transition-colors"
+              style={{ width: 24, height: 24, background: 'transparent', border: 'none', outline: 'none', cursor: 'pointer' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="rgba(255,255,255,0.4)">
+                <rect x="2"  y="9" width="2" height="6"  rx="1" opacity="0.4" />
+                <rect x="6"  y="6" width="2" height="12" rx="1" opacity="0.6" />
                 <rect x="10" y="3" width="2" height="18" rx="1" />
                 <rect x="14" y="6" width="2" height="12" rx="1" opacity="0.6" />
-                <rect x="18" y="9" width="2" height="6" rx="1" opacity="0.4" />
+                <rect x="18" y="9" width="2" height="6"  rx="1" opacity="0.4" />
               </svg>
             </button>
-            {/* Chat toggle — active with green glow */}
+
+            {/* ③ Chat button — selected when chatMode */}
             <button
-              onClick={() => chatMode ? setChatMode(false) : setChatMode(true)}
-              className="w-14 h-8 rounded-full flex items-center justify-center transition-all"
-              style={chatMode
-                ? { background: '#1c1c1e', border: '1px solid #1ed25e', boxShadow: '0px 0px 8px 0px #1ed25e' }
-                : { background: '#1c1c1e', border: '1px solid rgba(255,255,255,0.15)' }}>
-              <MessageCircle size={16} style={{ color: chatMode ? '#1ed25e' : 'rgba(255,255,255,0.5)' }} />
+              onClick={() => {
+                if (chatMode) {
+                  setChatMode(false);
+                  setAvatarMode(true);
+                } else {
+                  setChatMode(true);
+                  setAvatarMode(false);
+                }
+              }}
+              className="flex items-center justify-center transition-all duration-200"
+              style={{
+                width: 56, height: 32, borderRadius: 100, outline: 'none', cursor: 'pointer',
+                ...(chatMode
+                  ? { background: '#1c1c1e', border: '1px solid #1ed25e', boxShadow: '0px 0px 8px 0px #1ed25e' }
+                  : { background: 'transparent', border: '1px solid transparent' }),
+              }}>
+              <MessageCircle
+                size={17}
+                style={{
+                  color: chatMode ? '#1ed25e' : 'rgba(255,255,255,0.45)',
+                  transition: 'color 0.2s',
+                }}
+              />
             </button>
+
           </div>
         </div>
 
