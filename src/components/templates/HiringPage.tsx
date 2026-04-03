@@ -11,7 +11,7 @@
  * └────────────────────────────────────┴───────────────────┴──────────────────┘
  */
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   MoreHorizontal,
@@ -23,7 +23,6 @@ import {
   UserPlus,
   UserCheck,
   AlertCircle,
-  Briefcase,
   DollarSign,
   Plus,
   Star,
@@ -338,60 +337,140 @@ function buildMeta(job: JobPostingResponse): string {
   return parts.join(" · ");
 }
 
-/* ── live job posting card ───────────────────────────────────────────────── */
+/* ── live job posting card — matches Figma 4812:41693 ────────────────────── */
+// Renders a real JobPostingResponse in the same rich format as the mock
+// DetailedJobCard: title/meta header, status dots stacked above label,
+// two metric sub-cards (screened + talent pool), and a bottom sub-label.
+// For newly posted jobs the counts start at 0; they will grow over time.
 function LiveJobCard({ job, onClick }: { job: JobPostingResponse; onClick?: () => void }) {
   const dotColor = statusDotColor(job.status);
   const { solid, faded } = statusDotCount(job.status);
-  const hasSalary = job.salary_min || job.salary_max;
-  const salaryText = hasSalary
-    ? [job.salary_min, job.salary_max].filter(Boolean).join(" – ")
-    : null;
-  const skillCount = (job.skills?.mustHave?.length ?? 0) +
-    (job.skills?.preferred?.length ?? 0) +
-    (job.skills?.niceToHave?.length ?? 0);
+
+  // Meta parts separated by bullet dots (matches Figma separator style)
+  const metaParts: string[] = [];
+  if (job.department) metaParts.push(job.department);
+  if (job.location)   metaParts.push(job.location);
+  metaParts.push(relativeDate(job.created_at));
+
+  // Applicant counts (0 for freshly posted jobs; real data from API in future)
+  const screened   = 0;
+  const shortlisted = 0;
+  const talentPool = 0;
+  const suggestions = 0;
+
+  // Colorful grid squares — blue/purple mix for screened, all-purple for pool
+  // Renders up to `max` squares; shows a faint dash when count is 0
+  function GridDots({ count, max, colors }: { count: number; max: number; colors: string[] }) {
+    if (count === 0) return <span style={{ fontSize: 12, color: "rgba(255,255,255,0.2)" }}>—</span>;
+    return (
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+        {Array.from({ length: Math.min(count, max) }).map((_, i) => (
+          <span
+            key={i}
+            style={{
+              width: 12, height: 12, borderRadius: 4, flexShrink: 0,
+              background: colors[Math.floor((i / Math.min(count, max)) * colors.length)],
+            }}
+          />
+        ))}
+      </div>
+    );
+  }
 
   return (
-    <button type="button" onClick={onClick} className="rounded-xl p-4 w-full text-left transition-all hover:scale-[1.01] active:scale-[0.99]" style={CARD}>
-      {/* title row */}
-      <div className="flex items-start justify-between mb-1">
-        <div className="min-w-0 flex-1">
-          <p className="text-[13px] font-semibold text-white leading-tight truncate">{job.title}</p>
-          <p className="text-[10px] text-white/40 mt-0.5">{buildMeta(job)}</p>
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full text-left transition-all hover:scale-[1.005] active:scale-[0.998]"
+      style={{
+        background: "rgba(255,255,255,0.05)",
+        border: "1px solid rgba(255,255,255,0.05)",
+        borderRadius: 12,
+        padding: 20,
+        display: "flex",
+        flexDirection: "column",
+        gap: 16,
+      }}
+    >
+      {/* ── Header: title + status (stacked) ── */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 4, width: "100%" }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", width: "100%" }}>
+          <p style={{ fontSize: 16, fontWeight: 600, color: "#fafafa", lineHeight: "24px", margin: 0 }}>
+            {job.title}
+          </p>
+          {/* Status: dots row on top, label below — matches Figma node 4812:41706 */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0, marginLeft: 12 }}>
+            <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+              {Array.from({ length: solid }).map((_, i) => (
+                <span key={`s-${i}`} style={{ width: 12, height: 12, borderRadius: "50%", background: dotColor, flexShrink: 0 }} />
+              ))}
+              {Array.from({ length: faded }).map((_, i) => (
+                <span key={`f-${i}`} style={{ width: 12, height: 12, borderRadius: "50%", background: "#71717b", flexShrink: 0 }} />
+              ))}
+            </div>
+            <span style={{ fontSize: 14, color: "#d4d4d8", lineHeight: "20px" }}>
+              {statusLabel(job.status)}
+            </span>
+          </div>
         </div>
-        <div className="flex items-center gap-1.5 flex-shrink-0 ml-2 mt-0.5">
-          <Dots color={dotColor} solid={solid} faded={faded} />
-          <span className="text-[10px] text-white/65 font-medium">{statusLabel(job.status)}</span>
+
+        {/* Meta row: Engineering • Jeddah • just now — Figma node 4812:41713 */}
+        <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 0 }}>
+          {metaParts.map((part, i) => (
+            <React.Fragment key={i}>
+              {i > 0 && (
+                <span style={{ width: 4, height: 4, borderRadius: "50%", background: "#d4d4d8", flexShrink: 0, margin: "0 12px" }} />
+              )}
+              <span style={{ fontSize: 14, color: "#d4d4d8", lineHeight: "20px" }}>{part}</span>
+            </React.Fragment>
+          ))}
         </div>
       </div>
 
-      {/* tags */}
-      <div className="flex flex-wrap gap-1.5 mt-2.5">
-        {job.employment_type && (
-          <span className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] text-white/60"
-            style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.09)" }}>
-            <Briefcase size={9} className="flex-shrink-0" />
-            {job.employment_type}
-          </span>
-        )}
-        {salaryText && (
-          <span className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] text-white/60"
-            style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.09)" }}>
-            <DollarSign size={9} className="flex-shrink-0" />
-            {salaryText}
-          </span>
-        )}
-        {skillCount > 0 && (
-          <span className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] text-white/60"
-            style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.09)" }}>
-            {skillCount} skills required
-          </span>
-        )}
-      </div>
+      {/* ── Two metric sub-cards ── */}
+      <div style={{ display: "flex", gap: 16, width: "100%" }}>
+        {/* Left — screened applicants */}
+        <div style={{
+          background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 16,
+          flex: "1 0 0", display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 12,
+        }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {/* Big number + label */}
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
+              <span style={{ fontSize: 40, fontWeight: 600, color: "#f4f4f5", lineHeight: "48px" }}>{screened}</span>
+              <span style={{ fontSize: 16, color: "#d4d4d8", paddingBottom: 5 }}>screened applicants</span>
+            </div>
+            {/* Grid dots: blue → purple gradient for screened */}
+            <GridDots count={screened} max={8} colors={["#3689ff", "#3689ff", "#3689ff", "#9e36ff", "#9e36ff"]} />
+          </div>
+          {/* Bottom sub-label */}
+          <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+            <Users size={16} style={{ color: "rgba(255,255,255,0.6)", flexShrink: 0 }} />
+            <span style={{ fontSize: 14, color: "#fff" }}>{shortlisted} shortlisted</span>
+          </div>
+        </div>
 
-      {/* description preview */}
-      {job.description && (
-        <p className="text-[10px] text-white/35 mt-2 line-clamp-2 leading-relaxed">{job.description}</p>
-      )}
+        {/* Right — talent pool */}
+        <div style={{
+          background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 16,
+          flex: "1 0 0", display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 12,
+        }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {/* Big number + label */}
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
+              <span style={{ fontSize: 40, fontWeight: 600, color: "#f4f4f5", lineHeight: "48px" }}>{talentPool}</span>
+              <span style={{ fontSize: 16, color: "#d4d4d8", paddingBottom: 5 }}>talent pool</span>
+            </div>
+            {/* Grid dots: all purple for talent pool */}
+            <GridDots count={talentPool} max={13} colors={["#9e36ff"]} />
+          </div>
+          {/* Bottom sub-label */}
+          <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+            <Users size={16} style={{ color: "rgba(255,255,255,0.6)", flexShrink: 0 }} />
+            <span style={{ fontSize: 14, color: "#fff" }}>{suggestions} new suggestions</span>
+          </div>
+        </div>
+      </div>
     </button>
   );
 }
@@ -1063,12 +1142,25 @@ export function HiringPage({ onSelectJob, onPostJob, apiJobs: externalJobs, apiJ
               </div>
             )}
 
-            {/* Show mock DetailedJobCards when no real data (Active tab) */}
-            {!jobsLoading && !jobsError && filteredJobs.length === 0 && jobTab === "Active" && (
+            {/* ── Job postings list ── */}
+            {!jobsLoading && !jobsError && jobTab === "Active" && (
               <div className="flex flex-col gap-3">
-                {JOBS.map((job) => (
-                  <DetailedJobCard key={job.title} job={job} />
+                {/* Real posted jobs — rich card style, clickable */}
+                {filteredJobs.map((job) => (
+                  <LiveJobCard
+                    key={job.id}
+                    job={job}
+                    onClick={() => {
+                      const j = { id: job.id, title: job.title, department: job.department || "Engineering", location: job.location || "", status: job.status, posted_at: relativeDate(job.created_at) };
+                      setSelectedJob(j);
+                      onSelectJob?.(job.id, j);
+                    }}
+                  />
                 ))}
+                {/* Cloud Engineer always shown as a static demo card below real jobs */}
+                <DetailedJobCard job={JOBS[1]} />
+                {/* When no real jobs yet, also show the Senior AI Developer demo card */}
+                {filteredJobs.length === 0 && <DetailedJobCard job={JOBS[0]} />}
               </div>
             )}
 
@@ -1079,19 +1171,6 @@ export function HiringPage({ onSelectJob, onPostJob, apiJobs: externalJobs, apiJ
                 <p className="text-[11px] text-white/35">Completed postings will appear here.</p>
               </div>
             )}
-
-            {/* Real job postings */}
-            {!jobsLoading && !jobsError && filteredJobs.map((job) => (
-              <LiveJobCard
-                key={job.id}
-                job={job}
-                onClick={() => {
-                  const j = { id: job.id, title: job.title, department: job.department || "Engineering", location: job.location || "", status: job.status, posted_at: relativeDate(job.created_at) };
-                  setSelectedJob(j);
-                  onSelectJob?.(job.id, j);
-                }}
-              />
-            ))}
           </div>
 
           {/* Hiring Intelligence — xl:col-span-3 (bottom-RIGHT, after Job Postings) */}
