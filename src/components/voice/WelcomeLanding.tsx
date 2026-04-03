@@ -12,27 +12,15 @@ export function WelcomeLanding() {
   }
 
   return (
-    <div className="min-h-dvh lg:h-dvh lg:overflow-hidden grid grid-rows-[auto_1fr_auto] p-3 md:p-6 lg:p-8 relative" style={{ background: '#09090b' }}>
-      {/* Left-centre glow — matches EmployerDashboard background (Figma 3509:46544) */}
-      <div className="absolute pointer-events-none" style={{
-        width: 712, height: 712,
-        top: -37,
-        left: 'calc(50% - 720px)',
-        transform: 'translateX(-50%)',
-        background: 'radial-gradient(ellipse at center, rgba(0,130,75,0.72) 0%, rgba(0,85,50,0.38) 40%, transparent 70%)',
-        filter: 'blur(206px)',
-        zIndex: 0,
-      }} />
-      {/* Bottom-right glow */}
-      <div className="absolute pointer-events-none" style={{
-        width: 1182, height: 1182,
-        top: 861,
-        left: 'calc(50% + 608px)',
-        transform: 'translateX(-50%)',
-        background: 'radial-gradient(ellipse at center, rgba(0,110,62,0.55) 0%, rgba(0,68,36,0.22) 45%, transparent 70%)',
-        filter: 'blur(356px)',
-        zIndex: 0,
-      }} />
+    <div className="min-h-dvh lg:h-dvh lg:overflow-hidden grid grid-rows-[auto_1fr_auto] p-3 md:p-6 lg:p-8 relative" style={{
+      background: `
+        radial-gradient(ellipse 950px 950px at calc(50% - 720px) 319px,
+          rgba(0,130,75,0.72) 0%, rgba(0,85,50,0.36) 38%, transparent 65%),
+        radial-gradient(ellipse 1800px 1800px at calc(50% + 608px) 1452px,
+          rgba(0,115,64,0.58) 0%, rgba(0,72,38,0.24) 38%, transparent 60%),
+        #09090b
+      `
+    }}>
       {/* Header */}
       <header className="relative z-10 flex items-center justify-between">
         <div className="flex items-center gap-2.5">

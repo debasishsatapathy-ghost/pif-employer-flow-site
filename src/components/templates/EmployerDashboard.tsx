@@ -1617,28 +1617,19 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
 
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden flex" style={{ background: "var(--bg)", zIndex: 100, position: "relative" }}>
+    <div className="relative w-screen h-screen overflow-hidden flex" style={{ zIndex: 100, position: "relative" }}>
 
-      {/* ── Background — Figma node 3509:46544 "Widescreen background" ── */}
-      {/* Base */}
-      <div className="absolute inset-0 pointer-events-none" style={{ background: '#09090b' }} />
-      {/* Left-centre glow — Figma: 712×712, blur 206px, left: calc(50%−720px), top: −37px */}
-      <div className="absolute pointer-events-none" style={{
-        width: 712, height: 712,
-        top: -37,
-        left: 'calc(50% - 720px)',
-        transform: 'translateX(-50%)',
-        background: 'radial-gradient(ellipse at center, rgba(0,130,75,0.72) 0%, rgba(0,85,50,0.38) 40%, transparent 70%)',
-        filter: 'blur(206px)',
-      }} />
-      {/* Bottom-right glow — Figma: 1182×1182, blur 356px, left: calc(50%+608px), top: 861px */}
-      <div className="absolute pointer-events-none" style={{
-        width: 1182, height: 1182,
-        top: 861,
-        left: 'calc(50% + 608px)',
-        transform: 'translateX(-50%)',
-        background: 'radial-gradient(ellipse at center, rgba(0,110,62,0.55) 0%, rgba(0,68,36,0.22) 45%, transparent 70%)',
-        filter: 'blur(356px)',
+      {/* ── Background — Figma node 3509:46544 "Widescreen background" ──
+           Uses CSS radial-gradient (not filter:blur) so overflow:hidden never clips them.
+           Gradient centers match Figma exactly; CSS renders only the in-bounds portion. ── */}
+      <div className="absolute inset-0 pointer-events-none" style={{
+        background: `
+          radial-gradient(ellipse 950px 950px at calc(50% - 720px) 319px,
+            rgba(0,130,75,0.72) 0%, rgba(0,85,50,0.36) 38%, transparent 65%),
+          radial-gradient(ellipse 1800px 1800px at calc(50% + 608px) 1452px,
+            rgba(0,115,64,0.58) 0%, rgba(0,72,38,0.24) 38%, transparent 60%),
+          #09090b
+        `,
       }} />
 
       {/* Left sidebar — Figma pill container */}
