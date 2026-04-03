@@ -742,24 +742,44 @@ function toSidebarJobs(apiJobs: JobPostingResponse[]): SidebarJob[] {
   }));
 }
 
-function HiringTabContent({ onPostJob }: { onPostJob?: () => void }) {
+function HiringTabContent({
+  onPostJob,
+  prefetchedJobs,
+  prefetchedJobsLoading,
+}: {
+  onPostJob?: () => void;
+  /** Jobs pre-fetched by the parent on mount — skips the internal fetch when provided. */
+  prefetchedJobs?: JobPostingResponse[];
+  prefetchedJobsLoading?: boolean;
+}) {
   const [selectedJob, setSelectedJob] = useState<SelectedJob | null>(null);
-  const [apiJobs, setApiJobs] = useState<JobPostingResponse[]>([]);
-  const [jobsLoading, setJobsLoading] = useState(true);
+  // Seed local state from pre-fetched data immediately (no loading flash).
+  const [apiJobs, setApiJobs] = useState<JobPostingResponse[]>(prefetchedJobs ?? []);
+  const [jobsLoading, setJobsLoading] = useState(prefetchedJobs !== undefined ? (prefetchedJobsLoading ?? false) : true);
 
+  // Keep local state in sync if the parent's pre-fetch completes after mount.
   useEffect(() => {
+    if (prefetchedJobs !== undefined) {
+      setApiJobs(prefetchedJobs);
+      setJobsLoading(prefetchedJobsLoading ?? false);
+    }
+  }, [prefetchedJobs, prefetchedJobsLoading]);
+
+  // Only run an internal fetch when no pre-fetched data was supplied.
+  // Uses the direct REST client (no agent session required).
+  useEffect(() => {
+    if (prefetchedJobs !== undefined) return;
     let cancelled = false;
     setJobsLoading(true);
-    
-    import('@/lib/mcpBridge').then(({ listJobPostings }) => {
-      return listJobPostings(50, 0);
-    })
+
+    import('@/lib/employerApi')
+      .then(({ fetchJobPostings }) => fetchJobPostings(50, 0))
       .then((data) => { if (!cancelled) setApiJobs(data.items ?? []); })
       .catch((e: unknown) => console.error("[HiringTabContent] fetch jobs:", e))
       .finally(() => { if (!cancelled) setJobsLoading(false); });
-    
+
     return () => { cancelled = true; };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sidebarJobs = toSidebarJobs(apiJobs);
 
@@ -1065,6 +1085,21 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
   const sessionState = useVoiceSessionStore((s) => s.sessionState);
   const sessionReady = sessionState === 'connected';
   const [wizardInitialData, setWizardInitialData] = useState<Partial<JobFormData>>({});
+
+  // Pre-fetch job postings in the background the moment the dashboard mounts
+  // so the Hiring tab shows data instantly (no loading flash on tab switch).
+  // Uses the direct REST client — independent of the Mobeus agent session.
+  const [prefetchedJobs, setPrefetchedJobs] = useState<JobPostingResponse[] | undefined>(undefined);
+  const [prefetchedJobsLoading, setPrefetchedJobsLoading] = useState(true);
+  useEffect(() => {
+    let cancelled = false;
+    import('@/lib/employerApi')
+      .then(({ fetchJobPostings }) => fetchJobPostings(50, 0))
+      .then((data) => { if (!cancelled) setPrefetchedJobs(data.items ?? []); })
+      .catch(() => { if (!cancelled) setPrefetchedJobs([]); }) // silent fail — HiringTabContent will show empty state
+      .finally(() => { if (!cancelled) setPrefetchedJobsLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
   const sessionStartedRef = useRef(false);
   const muteCleanupRef = useRef<(() => void) | null>(null);
   const promptOptionsRef = useRef<PromptStepOptions>({ step1: [], step2: [], step3: [] });
@@ -1725,6 +1760,8 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
                     className="flex-1 flex flex-col min-h-0 overflow-hidden">
                     <HiringTabContent
                       key={hiringKey}
+                      prefetchedJobs={prefetchedJobs}
+                      prefetchedJobsLoading={prefetchedJobsLoading}
                       onPostJob={() => {
                         // Mirror the Home screen "Post a job" button behavior:
                         // switch to the home tab, add the user bubble, enter chat
