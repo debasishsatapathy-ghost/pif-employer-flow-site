@@ -1024,8 +1024,9 @@ function ChatView({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Message list */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 sm:px-12 pt-6 pb-4 flex flex-col gap-10">
+      {/* Message list — centered 800px container matching Figma layout */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto pt-6 pb-4">
+        <div className="max-w-[800px] mx-auto w-full px-5 sm:px-8 flex flex-col gap-10">
         <AnimatePresence initial={false}>
           {messages.map((msg) => (
             <motion.div
@@ -1086,7 +1087,7 @@ function ChatView({
                 </div>
               ) : (
                 /* ── AI message — left-aligned, plain text + pill option bubbles ── */
-                <div className="flex flex-col gap-5 max-w-[620px]">
+                <div className="flex flex-col gap-6 w-full">
                   <p
                     className={`text-base leading-[24px] text-[#f4f4f5] ${
                       msg.options && msg.options.length > 0 ? "font-semibold" : "font-normal"
@@ -1094,15 +1095,15 @@ function ChatView({
                   >
                     {msg.text}
                   </p>
-                  {/* Option bubbles — pill-shaped, 40px tall, Figma: rounded-[100px] */}
+                  {/* Option bubbles — Figma: rounded-[100px] h-[40px] px-[16px] py-[8px] gap-[16px], no border */}
                   {msg.options && msg.options.length > 0 && (
                     <div className="flex flex-wrap gap-4">
                       {msg.options.map((chip) => (
                         <button
                           key={chip}
                           onClick={() => onChipClick(chip)}
-                          className="h-10 px-4 rounded-full text-base text-[#f4f4f5] hover:brightness-125 active:scale-[0.97] transition-all duration-150"
-                          style={{ background: "rgba(255,255,255,0.05)" }}
+                          className="h-10 px-4 rounded-full text-base text-[#f4f4f5] border-0 hover:brightness-125 active:scale-[0.97] transition-all duration-150"
+                          style={{ background: "rgba(255,255,255,0.05)", border: "none", outline: "none" }}
                         >
                           {chip}
                         </button>
@@ -1189,12 +1190,15 @@ function ChatView({
             </motion.div>
           )}
         </AnimatePresence>
+        </div>
       </div>
 
-      {/* Pinned input */}
-      <div className="px-5 sm:px-12 pb-6 pt-3 flex-shrink-0">
-        <ChatInputBar onSend={onSend} waiting={isTyping || !sessionReady}
-          placeholder={!sessionReady ? "Connecting to AI…" : "Ask anything"} />
+      {/* Pinned input — stays aligned with the 800px message container */}
+      <div className="pb-6 pt-3 flex-shrink-0">
+        <div className="max-w-[800px] mx-auto w-full px-5 sm:px-8">
+          <ChatInputBar onSend={onSend} waiting={isTyping || !sessionReady}
+            placeholder={!sessionReady ? "Connecting to AI…" : "Ask anything"} />
+        </div>
       </div>
     </div>
   );
