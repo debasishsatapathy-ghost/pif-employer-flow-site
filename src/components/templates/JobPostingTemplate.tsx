@@ -180,8 +180,8 @@ const MOCK_JOB_POSTING: JobPosting = {
 type MainTab   = "applicants" | "talentPool" | "jobDetails";
 type KanbanCol = "screening" | "shortlist" | "interview" | "hire";
 
-interface KCandidate { id: string; name: string; role: string; score: number }
-interface TalentCandidate { id: string; name: string; role: string; score: number; invited?: boolean }
+interface KCandidate { id: string; name: string; role: string; score: number; avatar?: string }
+interface TalentCandidate { id: string; name: string; role: string; score: number; invited?: boolean; avatar?: string }
 
 const KANBAN_LABELS: Record<KanbanCol, string> = {
   screening: "Screening", shortlist: "Shortlist", interview: "Interview", hire: "Hire",
@@ -195,35 +195,35 @@ const KANBAN_EMPTY: Record<KanbanCol, string> = {
 
 const KANBAN_INIT: Record<KanbanCol, KCandidate[]> = {
   screening: [
-    { id: "k1", name: "Waleed Jaber", role: "ML Specialist",   score: 79 },
-    { id: "k2", name: "Lina Faraj",   role: "AI Practitioner", score: 77 },
-    { id: "k3", name: "Yousef Rayan", role: "ML Engineer",     score: 74 },
+    { id: "k1", name: "Waleed Jaber", role: "ML Specialist",   score: 79, avatar: "https://i.pravatar.cc/88?u=waleed_jaber_train" },
+    { id: "k2", name: "Lina Faraj",   role: "AI Practitioner", score: 77, avatar: "https://i.pravatar.cc/88?u=lina_faraj_train" },
+    { id: "k3", name: "Yousef Rayan", role: "ML Engineer",     score: 74, avatar: "https://i.pravatar.cc/88?u=yousef_rayan_train" },
   ],
   shortlist: [
-    { id: "k4", name: "Omar Abdul",   role: "AI Engineer",     score: 88 },
-    { id: "k5", name: "Faris Saleh",  role: "AI Developer",    score: 85 },
-    { id: "k6", name: "Ahmed Saad",   role: "ML Specialist",   score: 83 },
-    { id: "k7", name: "Lama Abdul",   role: "AI Developer",    score: 81 },
-    { id: "k8", name: "Tariq Nasser", role: "ML Practitioner", score: 80 },
+    { id: "k4", name: "Omar Abdul",   role: "AI Engineer",     score: 88, avatar: "https://i.pravatar.cc/88?u=omar_abdul_train" },
+    { id: "k5", name: "Faris Saleh",  role: "AI Developer",    score: 85, avatar: "https://i.pravatar.cc/88?u=faris_saleh_train" },
+    { id: "k6", name: "Ahmed Saad",   role: "ML Specialist",   score: 83, avatar: "https://i.pravatar.cc/88?u=ahmed_saad_train" },
+    { id: "k7", name: "Lama Abdul",   role: "AI Developer",    score: 81, avatar: "https://i.pravatar.cc/88?u=lama_abdul_train" },
+    { id: "k8", name: "Tariq Nasser", role: "ML Practitioner", score: 80, avatar: "https://i.pravatar.cc/88?u=tariq_nasser_train" },
   ],
   interview: [],
   hire:      [],
 };
 
 const TALENT_POOL_INIT: TalentCandidate[] = [
-  { id: "tp1",  name: "Sara Khalid",   role: "AI Practitioner",     score: 93, invited: true },
-  { id: "tp2",  name: "Nora Ahmed",    role: "AI Developer",        score: 92 },
-  { id: "tp3",  name: "Fahad Yousef",  role: "AI Consultant",       score: 91 },
-  { id: "tp4",  name: "Badr Omar",     role: "AI Engineer",         score: 90 },
-  { id: "tp5",  name: "Rawan Saad",    role: "AI Solutions Lead",   score: 90 },
-  { id: "tp6",  name: "Dana Turki",    role: "AI Developer",        score: 89 },
-  { id: "tp7",  name: "Isa Hamad",     role: "Applied AI Lead",     score: 87 },
-  { id: "tp8",  name: "Maha Saleh",    role: "ML Specialist",       score: 90 },
-  { id: "tp9",  name: "Nabil Asim",    role: "AI Practitioner",     score: 86 },
-  { id: "tp10", name: "Reem Turkan",   role: "AI Architect",        score: 83 },
-  { id: "tp11", name: "Diana Majed",   role: "AI Practitioner",     score: 81 },
-  { id: "tp12", name: "Rayan Harbi",   role: "AI Practitioner",     score: 87 },
-  { id: "tp13", name: "Haya Suliman",  role: "AI & Data Consultant", score: 80 },
+  { id: "tp1",  name: "Sara Khalid",   role: "AI Practitioner",      score: 93, invited: true, avatar: "https://i.pravatar.cc/88?u=sara_khalid_train" },
+  { id: "tp2",  name: "Nora Ahmed",    role: "AI Developer",         score: 92, avatar: "https://i.pravatar.cc/88?u=nora_ahmed_train" },
+  { id: "tp3",  name: "Fahad Yousef",  role: "AI Consultant",        score: 91, avatar: "https://i.pravatar.cc/88?u=fahad_yousef_train" },
+  { id: "tp4",  name: "Badr Omar",     role: "AI Engineer",          score: 90, avatar: "https://i.pravatar.cc/88?u=badr_omar_train" },
+  { id: "tp5",  name: "Rawan Saad",    role: "AI Solutions Lead",    score: 90, avatar: "https://i.pravatar.cc/88?u=rawan_saad_train" },
+  { id: "tp6",  name: "Dana Turki",    role: "AI Developer",         score: 89, avatar: "https://i.pravatar.cc/88?u=dana_turki_train" },
+  { id: "tp7",  name: "Isa Hamad",     role: "Applied AI Lead",      score: 87, avatar: "https://i.pravatar.cc/88?u=isa_hamad_train" },
+  { id: "tp8",  name: "Maha Saleh",    role: "ML Specialist",        score: 90, avatar: "https://i.pravatar.cc/88?u=maha_saleh_train" },
+  { id: "tp9",  name: "Nabil Asim",    role: "AI Practitioner",      score: 86, avatar: "https://i.pravatar.cc/88?u=nabil_asim_train" },
+  { id: "tp10", name: "Reem Turkan",   role: "AI Architect",         score: 83, avatar: "https://i.pravatar.cc/88?u=reem_turkan_train" },
+  { id: "tp11", name: "Diana Majed",   role: "AI Practitioner",      score: 81, avatar: "https://i.pravatar.cc/88?u=diana_majed_train" },
+  { id: "tp12", name: "Rayan Harbi",   role: "AI Practitioner",      score: 87, avatar: "https://i.pravatar.cc/88?u=rayan_harbi_train" },
+  { id: "tp13", name: "Haya Suliman",  role: "AI & Data Consultant",  score: 80, avatar: "https://i.pravatar.cc/88?u=haya_suliman_train" },
 ];
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -1472,8 +1472,18 @@ function ScoreCircle({ score, size = 44 }: { score: number; size?: number }) {
   );
 }
 
-/** Round avatar with gradient + initials fallback */
-function CandidateAvatar({ name, size = 44 }: { name: string; size?: number }) {
+/** Round avatar — uses photo URL when provided, falls back to gradient + initials */
+function CandidateAvatar({ name, size = 44, avatar }: { name: string; size?: number; avatar?: string }) {
+  if (avatar) {
+    return (
+      <img
+        src={avatar}
+        alt={name}
+        className="rounded-full flex-shrink-0 object-cover"
+        style={{ width: size, height: size, border: "1.5px solid rgba(255,255,255,0.12)" }}
+      />
+    );
+  }
   const initials = name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2);
   return (
     <div
@@ -1505,7 +1515,7 @@ function KanbanCardItem({ candidate, onDragStart }: {
         cursor: "grab",
       }}
     >
-      <CandidateAvatar name={candidate.name} />
+      <CandidateAvatar name={candidate.name} avatar={candidate.avatar} />
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-white leading-tight truncate">{candidate.name}</p>
         <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>{candidate.role}</p>
@@ -1599,7 +1609,7 @@ function TalentPoolCard({ candidate, onInvite }: {
     >
       {/* Avatar + name + score */}
       <div className="flex items-center gap-3">
-        <CandidateAvatar name={candidate.name} />
+        <CandidateAvatar name={candidate.name} avatar={candidate.avatar} />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-white leading-tight">{candidate.name}</p>
           <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>{candidate.role}</p>
@@ -1882,16 +1892,10 @@ export function JobPostingTemplate({
   /* ── render ─────────────────────────────────────────────────────────── */
   return (
     <>
-    <div className="flex h-full overflow-hidden gap-6 p-6">
-      {/* Sidebar */}
-      {jobs && jobs.length > 0 && (
-        <div className="w-72 flex-shrink-0 h-full">
-          <JobPostingSidebar jobs={jobs} selectedId={effectivePostingId} onSelect={onSelectJob} />
-        </div>
-      )}
+    <div className="flex h-full overflow-hidden">
 
-      {/* Main */}
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+      {/* Main — full width, no sidebar in the new 3-tab detail view */}
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden px-8 pt-6 pb-0">
 
         {/* ── Breadcrumb ── */}
         <div className="flex items-center gap-2 text-base mb-5 flex-shrink-0"
