@@ -1116,7 +1116,7 @@ function ChatView({
                   {msg.jobCard && (
                     <div
                       className="flex flex-col gap-4 p-4 rounded-[12px] shrink-0"
-                      style={{ background: "rgba(255,255,255,0.05)" }}
+                      style={{ background: "rgba(255,255,255,0.05)", maxWidth: 280, width: "fit-content" }}
                     >
                       {/* Title + Location */}
                       <div className="flex flex-col gap-1">
