@@ -766,20 +766,24 @@ function HiringTabContent({
   }, [prefetchedJobs, prefetchedJobsLoading]);
 
   // Only run an internal fetch when no pre-fetched data was supplied.
-  // Uses the direct REST client (no agent session required).
+  // Uses the MCP bridge (agent RPC) — the same path the parent pre-fetch uses.
+  // This is a static export with no REST API routes, so mcpBridge is the only
+  // viable data source. Guard: wait until the Mobeus session is connected.
+  const sessionStateForFetch = useVoiceSessionStore((s) => s.sessionState);
   useEffect(() => {
-    if (prefetchedJobs !== undefined) return;
+    if (prefetchedJobs !== undefined) return; // parent already has data
+    if (sessionStateForFetch !== 'connected') return; // agent not ready yet
     let cancelled = false;
     setJobsLoading(true);
 
-    import('@/lib/employerApi')
-      .then(({ fetchJobPostings }) => fetchJobPostings(50, 0))
+    import('@/lib/mcpBridge')
+      .then(({ listJobPostings }) => listJobPostings(50, 0))
       .then((data) => { if (!cancelled) setApiJobs(data.items ?? []); })
       .catch((e: unknown) => console.error("[HiringTabContent] fetch jobs:", e))
       .finally(() => { if (!cancelled) setJobsLoading(false); });
 
     return () => { cancelled = true; };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sessionStateForFetch, prefetchedJobs]);
 
   const sidebarJobs = toSidebarJobs(apiJobs);
 
@@ -1086,20 +1090,24 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
   const sessionReady = sessionState === 'connected';
   const [wizardInitialData, setWizardInitialData] = useState<Partial<JobFormData>>({});
 
-  // Pre-fetch job postings in the background the moment the dashboard mounts
-  // so the Hiring tab shows data instantly (no loading flash on tab switch).
-  // Uses the direct REST client — independent of the Mobeus agent session.
+  // Pre-fetch job postings via the MCP tool once the Mobeus session is connected.
+  // Fires as soon as sessionState becomes 'connected' — typically 1–2 s after mount —
+  // so the Hiring tab has real data ready by the time the user clicks it.
+  // Uses listJobPostings (MCP tool → agent RPC) because this is a static export
+  // with no Next.js API routes; the direct REST client has no backend to hit.
   const [prefetchedJobs, setPrefetchedJobs] = useState<JobPostingResponse[] | undefined>(undefined);
   const [prefetchedJobsLoading, setPrefetchedJobsLoading] = useState(true);
   useEffect(() => {
+    if (sessionState !== 'connected') return; // wait for the agent to be ready
     let cancelled = false;
-    import('@/lib/employerApi')
-      .then(({ fetchJobPostings }) => fetchJobPostings(50, 0))
+    setPrefetchedJobsLoading(true);
+    import('@/lib/mcpBridge')
+      .then(({ listJobPostings }) => listJobPostings(50, 0))
       .then((data) => { if (!cancelled) setPrefetchedJobs(data.items ?? []); })
-      .catch(() => { if (!cancelled) setPrefetchedJobs([]); }) // silent fail — HiringTabContent will show empty state
+      .catch(() => { if (!cancelled) setPrefetchedJobs([]); })
       .finally(() => { if (!cancelled) setPrefetchedJobsLoading(false); });
     return () => { cancelled = true; };
-  }, []);
+  }, [sessionState]);
   const sessionStartedRef = useRef(false);
   const muteCleanupRef = useRef<(() => void) | null>(null);
   const promptOptionsRef = useRef<PromptStepOptions>({ step1: [], step2: [], step3: [] });
