@@ -1619,13 +1619,26 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
   return (
     <div className="relative w-screen h-screen overflow-hidden flex" style={{ background: "var(--bg)", zIndex: 100, position: "relative" }}>
 
-      {/* ── Background — pure #09090b base with a single muted dark-green glow
-               anchored to the bottom-right, matching Figma widescreen design ── */}
+      {/* ── Background — Figma node 3509:46544 "Widescreen background" ── */}
+      {/* Base */}
       <div className="absolute inset-0 pointer-events-none" style={{ background: '#09090b' }} />
+      {/* Left-centre glow — Figma: 712×712, blur 206px, left: calc(50%−720px), top: −37px */}
       <div className="absolute pointer-events-none" style={{
-        width: 900, height: 900, bottom: -220, right: -120,
-        background: 'radial-gradient(ellipse at center, rgba(0,90,45,0.42) 0%, rgba(0,55,28,0.18) 45%, transparent 70%)',
-        filter: 'blur(130px)',
+        width: 712, height: 712,
+        top: -37,
+        left: 'calc(50% - 720px)',
+        transform: 'translateX(-50%)',
+        background: 'radial-gradient(ellipse at center, rgba(0,130,75,0.72) 0%, rgba(0,85,50,0.38) 40%, transparent 70%)',
+        filter: 'blur(206px)',
+      }} />
+      {/* Bottom-right glow — Figma: 1182×1182, blur 356px, left: calc(50%+608px), top: 861px */}
+      <div className="absolute pointer-events-none" style={{
+        width: 1182, height: 1182,
+        top: 861,
+        left: 'calc(50% + 608px)',
+        transform: 'translateX(-50%)',
+        background: 'radial-gradient(ellipse at center, rgba(0,110,62,0.55) 0%, rgba(0,68,36,0.22) 45%, transparent 70%)',
+        filter: 'blur(356px)',
       }} />
 
       {/* Left sidebar — Figma pill container */}

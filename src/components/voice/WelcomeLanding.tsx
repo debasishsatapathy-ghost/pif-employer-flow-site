@@ -12,9 +12,29 @@ export function WelcomeLanding() {
   }
 
   return (
-    <div className="min-h-dvh lg:h-dvh lg:overflow-hidden grid grid-rows-[auto_1fr_auto] p-3 md:p-6 lg:p-8" style={{ background: '#09090b' }}>
+    <div className="min-h-dvh lg:h-dvh lg:overflow-hidden grid grid-rows-[auto_1fr_auto] p-3 md:p-6 lg:p-8 relative" style={{ background: '#09090b' }}>
+      {/* Left-centre glow — matches EmployerDashboard background (Figma 3509:46544) */}
+      <div className="absolute pointer-events-none" style={{
+        width: 712, height: 712,
+        top: -37,
+        left: 'calc(50% - 720px)',
+        transform: 'translateX(-50%)',
+        background: 'radial-gradient(ellipse at center, rgba(0,130,75,0.72) 0%, rgba(0,85,50,0.38) 40%, transparent 70%)',
+        filter: 'blur(206px)',
+        zIndex: 0,
+      }} />
+      {/* Bottom-right glow */}
+      <div className="absolute pointer-events-none" style={{
+        width: 1182, height: 1182,
+        top: 861,
+        left: 'calc(50% + 608px)',
+        transform: 'translateX(-50%)',
+        background: 'radial-gradient(ellipse at center, rgba(0,110,62,0.55) 0%, rgba(0,68,36,0.22) 45%, transparent 70%)',
+        filter: 'blur(356px)',
+        zIndex: 0,
+      }} />
       {/* Header */}
-      <header className="flex items-center justify-between">
+      <header className="relative z-10 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #1ed25e, #51a2ff)' }}>
             <Building2 size={16} className="text-white" />
@@ -27,7 +47,7 @@ export function WelcomeLanding() {
       </header>
 
       {/* Content */}
-      <main className="flex items-center">
+      <main className="relative z-10 flex items-center">
         <div className="max-w-2xl space-y-8">
           {/* Badge */}
           <div className="animate-slide-in-left" style={{ animationDelay: '0.1s' }}>
@@ -77,7 +97,7 @@ export function WelcomeLanding() {
       </main>
 
       {/* Footer */}
-      <footer className="flex items-center justify-between text-[10px] sm:text-xs text-white/30 uppercase tracking-widest">
+      <footer className="relative z-10 flex items-center justify-between text-[10px] sm:text-xs text-white/30 uppercase tracking-widest">
         <span>POWERED BY MOBEUS</span>
         <span>PIF EMPLOYER FLOW</span>
       </footer>
