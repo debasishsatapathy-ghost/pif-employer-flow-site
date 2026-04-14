@@ -1,5 +1,7 @@
-import { WelcomeLanding } from '@/components/voice/WelcomeLanding';
+'use client';
+
+import { EmployerDashboard } from '@/components/templates/EmployerDashboard';
 
 export default function Home() {
-  return <WelcomeLanding />;
+  return <EmployerDashboard />;
 }

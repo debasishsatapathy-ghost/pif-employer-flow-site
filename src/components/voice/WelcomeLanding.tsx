@@ -1,78 +1,93 @@
 'use client';
 
-import { useVoiceSessionStore } from '@/lib/stores/voice-session-store';
-import { ArrowRight } from 'lucide-react';
-
-const agentName = process.env.NEXT_PUBLIC_AGENT_NAME || 'AI Assistant';
+import { useState } from 'react';
+import { ArrowRight, Building2, Users, Sparkles, TrendingUp } from 'lucide-react';
+import { EmployerDashboard } from '@/components/templates/EmployerDashboard';
 
 export function WelcomeLanding() {
-  const connect = useVoiceSessionStore((s) => s.connect);
-  const sessionState = useVoiceSessionStore((s) => s.sessionState);
+  const [entered, setEntered] = useState(false);
 
-  const isConnecting = sessionState === 'connecting';
+  if (entered) {
+    return <EmployerDashboard onBack={() => setEntered(false)} />;
+  }
 
   return (
-    <div className="min-h-dvh lg:h-dvh lg:overflow-hidden grid grid-rows-[auto_1fr_auto] p-3 md:p-6 lg:p-8">
-      {/* Header — agent name top-left */}
-      <header className="flex items-center">
-        <span className="text-white/80 font-hero text-lg md:text-xl font-semibold tracking-tight">
-          {agentName}
+    <div className="min-h-dvh lg:h-dvh lg:overflow-hidden grid grid-rows-[auto_1fr_auto] p-3 md:p-6 lg:p-8 relative" style={{
+      background: `
+        radial-gradient(ellipse 950px 950px at calc(50% - 720px) 319px,
+          rgba(0,130,75,0.72) 0%, rgba(0,85,50,0.36) 38%, transparent 65%),
+        radial-gradient(ellipse 1800px 1800px at calc(50% + 608px) 1452px,
+          rgba(0,115,64,0.58) 0%, rgba(0,72,38,0.24) 38%, transparent 60%),
+        #09090b
+      `
+    }}>
+      {/* Header */}
+      <header className="relative z-10 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #1ed25e, #51a2ff)' }}>
+            <Building2 size={16} className="text-white" />
+          </div>
+          <span className="text-white/80 font-semibold text-lg tracking-tight">PIF Employer</span>
+        </div>
+        <span className="inline-block rounded-full bg-white/10 px-3 py-1 text-[10px] font-medium tracking-[0.12em] text-white/60 uppercase border border-white/10">
+          AI POWERED
         </span>
       </header>
 
-      {/* Content — left-aligned, vertically centered */}
-      <main className="flex items-center">
-        <div className="max-w-2xl space-y-6">
-          {/* Badge pill */}
-          <div
-            className="animate-slide-in-left"
-            style={{ animationDelay: '0.1s' }}
-          >
-            <span className="inline-block rounded-full bg-white/10 px-4 py-1.5 text-xs font-data tracking-[0.15em] text-white/80 uppercase backdrop-blur-sm border border-white/10">
-              {agentName} &middot; AI POWERED
+      {/* Content */}
+      <main className="relative z-10 flex items-center">
+        <div className="max-w-2xl space-y-8">
+          {/* Badge */}
+          <div className="animate-slide-in-left" style={{ animationDelay: '0.1s' }}>
+            <span className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium tracking-wide text-[#1ed25e] border" style={{ background: 'rgba(30,210,94,0.08)', borderColor: 'rgba(30,210,94,0.2)' }}>
+              <Sparkles size={12} />
+              Intelligent Hiring Platform
             </span>
           </div>
 
           {/* Title */}
-          <h1
-            className="animate-slide-in-left font-hero text-5xl sm:text-6xl md:text-7xl lg:text-8xl leading-[0.95] tracking-tight text-white"
-            style={{ animationDelay: '0.25s' }}
-          >
-            Your AI{' '}
-            <span className="text-[#00e5ff]">
-              Assistant
-            </span>
+          <h1 className="animate-slide-in-left text-5xl sm:text-6xl md:text-7xl leading-[0.95] tracking-tight text-white font-bold" style={{ animationDelay: '0.2s' }}>
+            Hire smarter{' '}
+            <span style={{ color: '#1ed25e' }}>with AI</span>
           </h1>
 
           {/* Subtitle */}
-          <p
-            className="animate-slide-in-left text-base sm:text-lg md:text-xl text-white/60 max-w-lg"
-            style={{ animationDelay: '0.4s' }}
-          >
-            Always available &middot; Instant answers &middot; Personalized help
+          <p className="animate-slide-in-left text-base sm:text-lg text-white/50 max-w-lg leading-relaxed" style={{ animationDelay: '0.35s' }}>
+            Post jobs, review applicants, and get hiring insights — all through a conversational AI assistant built for employers.
           </p>
 
-          {/* START CONVERSATION button */}
-          <div
-            className="animate-slide-in-left"
-            style={{ animationDelay: '0.55s' }}
-          >
+          {/* Feature pills */}
+          <div className="animate-slide-in-left flex flex-wrap gap-3" style={{ animationDelay: '0.45s' }}>
+            {[
+              { icon: Building2, label: 'Job Posting Wizard' },
+              { icon: Users, label: 'Applicant Review' },
+              { icon: TrendingUp, label: 'Hiring Intelligence' },
+            ].map(({ icon: Icon, label }) => (
+              <div key={label} className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs text-white/50" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <Icon size={12} className="text-white/40" />
+                {label}
+              </div>
+            ))}
+          </div>
+
+          {/* CTA */}
+          <div className="animate-slide-in-left" style={{ animationDelay: '0.55s' }}>
             <button
-              onClick={connect}
-              disabled={isConnecting}
-              className="start-button inline-flex items-center gap-3 rounded-none disabled:opacity-60"
+              onClick={() => setEntered(true)}
+              className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl text-sm font-semibold text-black transition-all hover:scale-[1.02] active:scale-[0.98]"
+              style={{ background: '#1ed25e' }}
             >
-              {isConnecting ? 'CONNECTING...' : 'START CONVERSATION'}
-              {!isConnecting && <ArrowRight className="w-4 h-4" />}
+              ENTER EMPLOYER DASHBOARD
+              <ArrowRight className="w-4 h-4" />
             </button>
           </div>
         </div>
       </main>
 
       {/* Footer */}
-      <footer className="flex items-center justify-between text-[10px] sm:text-xs font-data text-white/40 uppercase tracking-widest">
+      <footer className="relative z-10 flex items-center justify-between text-[10px] sm:text-xs text-white/30 uppercase tracking-widest">
         <span>POWERED BY MOBEUS</span>
-        <span>VOICE AI PLATFORM</span>
+        <span>PIF EMPLOYER FLOW</span>
       </footer>
     </div>
   );

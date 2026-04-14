@@ -13,18 +13,6 @@ import {
 import { ComponentTemplate, SceneData } from '@/types';
 import { parseDSL } from '@/utils/parseDSL';
 import { setInformTeleRoom } from '@/utils/informTele';
-import {
-  logTellAgent, logTellAgentResponse,
-  logInformAgent, logInformAgentResponse,
-  logAskAgent, logAskAgentResponse,
-  logAgentSay, logAgentSayResponse,
-  logRpcNavigate, logRpcSetScene, logRpcClearScene, logRpcCallSiteFunction,
-  logDataScene, logDataToolActivity,
-  logAgentStateChange, logConnectionStateChange,
-  logTranscription,
-  logParticipantConnected, logParticipantDisconnected,
-  logSessionConnected, logSessionDisconnected,
-} from '@/utils/observability';
 
 // Agent state from LiveKit
 export type AgentState =
@@ -50,6 +38,51 @@ export interface TranscriptEntry {
   timestamp: Date;
   isFinal: boolean;
   isAgent: boolean;
+}
+
+// Job progression state
+export type ProgressionStage = 'initial' | 'screening' | 'shortlisted';
+
+export interface JobProgressionState {
+  jobId: string;
+  stage: ProgressionStage;
+  postedAt: number;   // timestamp when job was posted (wizard finish)
+  viewedAt?: number;  // timestamp when user first opened the Hiring dashboard
+                      // The 15s/30s visibility clocks run from viewedAt, not postedAt.
+                      // This guarantees the user always sees each stage for the full
+                      // duration regardless of how long they spent on the chat screen.
+  screeningCount: number;
+  shortlistCount: number;
+  interviewCount: number;
+  hireCount: number;
+}
+
+// Job detail state (kanban, talent pool, pending invites)
+// Persists across component mount/unmount for same session
+export interface KCandidate {
+  id: string;
+  name: string;
+  role: string;
+  score: number;
+  avatar?: string;
+}
+
+export interface TalentCandidate {
+  id: string;
+  name: string;
+  role: string;
+  score: number;
+  invited?: boolean;
+  avatar?: string;
+}
+
+export type KanbanCol = 'screening' | 'shortlist' | 'interview' | 'hire';
+
+export interface JobDetailState {
+  kanban: Record<KanbanCol, KCandidate[]>;
+  talentPool: TalentCandidate[];
+  pendingInvites: Record<string, number>;  // candidateId -> timestamp
+  mainTab: 'applicants' | 'talentPool' | 'jobDetails';
 }
 
 // UI Component from agent RPC
@@ -114,8 +147,6 @@ interface VoiceSessionState {
 
   // Transcripts
   transcripts: TranscriptEntry[];
-  // Tool activity events (separate from transcripts so they never get lost)
-  toolActivity: TranscriptEntry[];
 
   // UI Components (from agent RPC)
   uiComponents: UIComponent[];
@@ -130,6 +161,12 @@ interface VoiceSessionState {
 
   // Chat panel state
   isChatPanelOpen: boolean;
+
+  // Job progression state (survives refresh via sessionStorage)
+  jobProgressions: Record<string, JobProgressionState>;
+
+  // Job detail state (kanban, talent pool, invites - survives component unmount via sessionStorage)
+  jobDetailStates: Record<string, JobDetailState>;
 
   // Theme
   theme: 'light' | 'dark';
@@ -160,20 +197,69 @@ interface VoiceSessionState {
   clearScene: () => void;
   navigateSceneBack: () => void;
   navigateSceneForward: () => void;
-  tellAgent: (message: string) => Promise<{ success: boolean; error?: string } | null>;
-  informAgent: (message: string) => Promise<{ success: boolean; error?: string } | null>;
-  // askAgent: silent trigger — agent responds but no user message appears in the chat bar
-  askAgent: (message: string) => Promise<{ success: boolean; error?: string } | null>;
-  // agentSay: direct TTS — agent speaks exact phrase, no LLM, no chat context
-  agentSay: (message: string) => Promise<{ success: boolean; error?: string } | null>;
-  // Snake_case aliases for coding-agent compatibility
-  tell_agent: (message: string) => Promise<{ success: boolean; error?: string } | null>;
-  inform_agent: (message: string) => Promise<{ success: boolean; error?: string } | null>;
-  ask_agent: (message: string) => Promise<{ success: boolean; error?: string } | null>;
-  agent_say: (message: string) => Promise<{ success: boolean; error?: string } | null>;
+  tellAgent: (message: string) => Promise<void>;
+  informAgent: (message: string) => Promise<void>;
+
+  // Job progression actions
+  setJobProgression: (jobId: string, state: JobProgressionState) => void;
+  getJobProgression: (jobId: string) => JobProgressionState | undefined;
+  clearJobProgressions: () => void;
+
+  // Job detail state actions
+  setJobDetailState: (jobId: string, state: JobDetailState) => void;
+  getJobDetailState: (jobId: string) => JobDetailState | undefined;
+  updateJobKanban: (jobId: string, kanban: Record<KanbanCol, KCandidate[]>) => void;
+  updateJobTalentPool: (jobId: string, talentPool: TalentCandidate[]) => void;
+  updateJobPendingInvites: (jobId: string, pendingInvites: Record<string, number>) => void;
+  updateJobMainTab: (jobId: string, mainTab: 'applicants' | 'talentPool' | 'jobDetails') => void;
+  clearJobDetailStates: () => void;
 }
 
 const AGENT_STATE_ATTRIBUTE = 'lk.agent.state';
+const JOB_PROGRESSION_KEY = 'pif-job-progressions';
+const JOB_DETAIL_STATES_KEY = 'pif-job-detail-states';
+
+// Load job progressions from sessionStorage
+function loadJobProgressions(): Record<string, JobProgressionState> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const stored = sessionStorage.getItem(JOB_PROGRESSION_KEY);
+    return stored ? JSON.parse(stored) : {};
+  } catch {
+    return {};
+  }
+}
+
+// Save job progressions to sessionStorage
+function saveJobProgressions(progressions: Record<string, JobProgressionState>) {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.setItem(JOB_PROGRESSION_KEY, JSON.stringify(progressions));
+  } catch (err) {
+    console.error('Failed to save job progressions:', err);
+  }
+}
+
+// Load job detail states from sessionStorage
+function loadJobDetailStates(): Record<string, JobDetailState> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const stored = sessionStorage.getItem(JOB_DETAIL_STATES_KEY);
+    return stored ? JSON.parse(stored) : {};
+  } catch {
+    return {};
+  }
+}
+
+// Save job detail states to sessionStorage
+function saveJobDetailStates(states: Record<string, JobDetailState>) {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.setItem(JOB_DETAIL_STATES_KEY, JSON.stringify(states));
+  } catch (err) {
+    console.error('Failed to save job detail states:', err);
+  }
+}
 
 export const useVoiceSessionStore = create<VoiceSessionState>((set, get) => ({
   // Initial state
@@ -204,7 +290,6 @@ export const useVoiceSessionStore = create<VoiceSessionState>((set, get) => ({
   isMuted: false,
   isVolumeMuted: false,
   transcripts: [],
-  toolActivity: [],
   uiComponents: [],
   templates: [],
 
@@ -217,6 +302,12 @@ export const useVoiceSessionStore = create<VoiceSessionState>((set, get) => ({
 
   // Chat panel
   isChatPanelOpen: false,
+
+  // Job progressions (loaded from sessionStorage)
+  jobProgressions: loadJobProgressions(),
+
+  // Job detail states (loaded from sessionStorage)
+  jobDetailStates: loadJobDetailStates(),
 
   // Theme
   theme: 'dark',
@@ -334,7 +425,6 @@ export const useVoiceSessionStore = create<VoiceSessionState>((set, get) => ({
       sessionState: 'connecting',
       error: null,
       transcripts: [],
-      toolActivity: [],
       uiComponents: [],
       templates: [],
       agentState: 'initializing',
@@ -416,7 +506,6 @@ export const useVoiceSessionStore = create<VoiceSessionState>((set, get) => ({
           _preWarm: null,
           _preWarmState: 'idle',
         });
-        logSessionConnected(sessionId, roomName);
         applyAudioRouting(get);
 
         return;
@@ -511,7 +600,6 @@ export const useVoiceSessionStore = create<VoiceSessionState>((set, get) => ({
         sessionId: sessionData.sessionId,
         sessionState: 'connected',
       });
-      logSessionConnected(sessionData.sessionId);
       applyAudioRouting(get);
 
       // Note: No PATCH /api/sessions/{id} needed — agent shutdown callback handles persistence
@@ -579,10 +667,6 @@ export const useVoiceSessionStore = create<VoiceSessionState>((set, get) => ({
         _preWarm: null,
         _preWarmState: 'idle',
       });
-
-      // Re-warm in the background so the next connect() uses the fast path.
-      // Small delay ensures all state resets have settled before warming starts.
-      setTimeout(() => get().preWarm(), 100);
     }
   },
 
@@ -786,10 +870,10 @@ export const useVoiceSessionStore = create<VoiceSessionState>((set, get) => ({
 
   tellAgent: async (message: string) => {
     const { room, agentParticipant } = get();
-    if (!room?.localParticipant || !agentParticipant) return null;
+    if (!room?.localParticipant || !agentParticipant) return;
 
     const trimmed = message.trim();
-    if (!trimmed) return null;
+    if (!trimmed) return;
 
     try {
       // Add to transcripts as user message (visible)
@@ -808,109 +892,124 @@ export const useVoiceSessionStore = create<VoiceSessionState>((set, get) => ({
         ],
       }));
 
-      // Send RPC to agent and return parsed response
-      logTellAgent(trimmed);
-      const response = await room.localParticipant.performRpc({
+      // Send RPC to agent
+      await room.localParticipant.performRpc({
         destinationIdentity: agentParticipant.identity,
         method: 'tellAgent',
         payload: JSON.stringify({ message: trimmed }),
       });
-      const parsed = JSON.parse(response) as { success: boolean; error?: string };
-      logTellAgentResponse(trimmed, parsed);
-      return parsed;
     } catch (error) {
       console.error('tellAgent error:', error);
-      logTellAgentResponse(trimmed, { success: false, error: String(error) });
-      return { success: false, error: String(error) };
     }
   },
 
   informAgent: async (message: string) => {
     const { room, agentParticipant } = get();
-    if (!room?.localParticipant || !agentParticipant) return null;
+    if (!room?.localParticipant || !agentParticipant) return;
 
     try {
       // NOT added to transcripts (invisible context)
-      logInformAgent(message);
-      const response = await room.localParticipant.performRpc({
+      await room.localParticipant.performRpc({
         destinationIdentity: agentParticipant.identity,
         method: 'informAgent',
         payload: JSON.stringify({ message }),
       });
-      const parsed = JSON.parse(response) as { success: boolean; error?: string };
-      logInformAgentResponse(message, parsed);
-      return parsed;
     } catch (error) {
       console.error('informAgent error:', error);
-      logInformAgentResponse(message, { success: false, error: String(error) });
-      return { success: false, error: String(error) };
     }
   },
 
-  // askAgent: silent trigger — agent responds but no user message in chat bar.
-  // Like informAgent it does NOT add to transcripts, but unlike informAgent
-  // the agent WILL generate a spoken/text response. Use this when you want
-  // the agent to react to a page event without showing a user chat bubble.
-  askAgent: async (message: string) => {
-    const { room, agentParticipant } = get();
-    if (!room?.localParticipant || !agentParticipant) return null;
+  // Job progression actions
+  setJobProgression: (jobId: string, state: JobProgressionState) => {
+    set((prevState) => {
+      const newProgressions = { ...prevState.jobProgressions, [jobId]: state };
+      saveJobProgressions(newProgressions);
+      return { jobProgressions: newProgressions };
+    });
+  },
 
-    const trimmed = message.trim();
-    if (!trimmed) return null;
+  getJobProgression: (jobId: string) => {
+    return get().jobProgressions[jobId];
+  },
 
-    try {
-      // NOT added to transcripts — only the agent's response will appear in chat
-      logAskAgent(trimmed);
-      const response = await room.localParticipant.performRpc({
-        destinationIdentity: agentParticipant.identity,
-        method: 'askAgent',
-        payload: JSON.stringify({ message: trimmed }),
+  clearJobProgressions: () => {
+    set({ jobProgressions: {} });
+    saveJobProgressions({});
+  },
+
+  // Job detail state actions
+  setJobDetailState: (jobId: string, state: JobDetailState) => {
+    set((prevState) => {
+      const newStates = { ...prevState.jobDetailStates, [jobId]: state };
+      saveJobDetailStates(newStates);
+      return { jobDetailStates: newStates };
+    });
+  },
+
+  getJobDetailState: (jobId: string) => {
+    return get().jobDetailStates[jobId];
+  },
+
+  updateJobKanban: (jobId: string, kanban: Record<KanbanCol, KCandidate[]>) => {
+    const existing = get().jobDetailStates[jobId];
+    if (existing) {
+      set((prevState) => {
+        const newStates = {
+          ...prevState.jobDetailStates,
+          [jobId]: { ...existing, kanban },
+        };
+        saveJobDetailStates(newStates);
+        return { jobDetailStates: newStates };
       });
-      const parsed = JSON.parse(response) as { success: boolean; error?: string };
-      logAskAgentResponse(trimmed, parsed);
-      return parsed;
-    } catch (error) {
-      console.error('askAgent error:', error);
-      logAskAgentResponse(trimmed, { success: false, error: String(error) });
-      return { success: false, error: String(error) };
     }
   },
 
-  // agentSay: direct TTS — agent speaks the exact phrase provided.
-  // Unlike askAgent (which goes through the LLM), agentSay bypasses the LLM
-  // entirely and goes straight to TTS. No chat context entry, no interpretation.
-  // Use for pre-written messages, notifications, or UI-driven speech.
-  agentSay: async (message: string) => {
-    const { room, agentParticipant } = get();
-    if (!room?.localParticipant || !agentParticipant) return null;
-
-    const trimmed = message.trim();
-    if (!trimmed) return null;
-
-    try {
-      logAgentSay(trimmed);
-      const response = await room.localParticipant.performRpc({
-        destinationIdentity: agentParticipant.identity,
-        method: 'agentSay',
-        payload: JSON.stringify({ message: trimmed }),
+  updateJobTalentPool: (jobId: string, talentPool: TalentCandidate[]) => {
+    const existing = get().jobDetailStates[jobId];
+    if (existing) {
+      set((prevState) => {
+        const newStates = {
+          ...prevState.jobDetailStates,
+          [jobId]: { ...existing, talentPool },
+        };
+        saveJobDetailStates(newStates);
+        return { jobDetailStates: newStates };
       });
-      const parsed = JSON.parse(response) as { success: boolean; error?: string };
-      logAgentSayResponse(trimmed, parsed);
-      return parsed;
-    } catch (error) {
-      console.error('agentSay error:', error);
-      logAgentSayResponse(trimmed, { success: false, error: String(error) });
-      return { success: false, error: String(error) };
     }
   },
 
-  // ── Snake_case aliases (coding-agent compatibility) ──
-  // AI coding assistants may generate snake_case calls when a client says
-  // "call tell_agent here". These aliases forward to the camelCase methods.
-  tell_agent: async (message: string) => get().tellAgent(message),
-  inform_agent: async (message: string) => get().informAgent(message),
-  ask_agent: async (message: string) => get().askAgent(message),
-  agent_say: async (message: string) => get().agentSay(message),
+  updateJobPendingInvites: (jobId: string, pendingInvites: Record<string, number>) => {
+    const existing = get().jobDetailStates[jobId];
+    if (existing) {
+      set((prevState) => {
+        const newStates = {
+          ...prevState.jobDetailStates,
+          [jobId]: { ...existing, pendingInvites },
+        };
+        saveJobDetailStates(newStates);
+        return { jobDetailStates: newStates };
+      });
+    }
+  },
+
+  updateJobMainTab: (jobId: string, mainTab: 'applicants' | 'talentPool' | 'jobDetails') => {
+    const existing = get().jobDetailStates[jobId];
+    if (existing) {
+      set((prevState) => {
+        const newStates = {
+          ...prevState.jobDetailStates,
+          [jobId]: { ...existing, mainTab },
+        };
+        saveJobDetailStates(newStates);
+        return { jobDetailStates: newStates };
+      });
+    }
+  },
+
+  clearJobDetailStates: () => {
+    set({ jobDetailStates: {} });
+    saveJobDetailStates({});
+  },
 }));
 
 function applyAudioRouting(get: () => VoiceSessionState) {
@@ -944,9 +1043,7 @@ function setupRoomEventListeners(
   // Connection state changes
   room.on(RoomEvent.ConnectionStateChanged, (connectionState: ConnectionState) => {
     console.log('Connection state:', connectionState);
-    logConnectionStateChange(connectionState);
     if (connectionState === ConnectionState.Disconnected) {
-      logSessionDisconnected();
       const { avatarAudioElement, agentAudioElement } = get();
       avatarAudioElement?.remove();
       agentAudioElement?.remove();
@@ -1007,12 +1104,25 @@ function setupRoomEventListeners(
     } else if (track.kind === Track.Kind.Audio) {
       if (participant.kind === ParticipantKind.AGENT) {
         const audioElement = track.attach() as HTMLAudioElement;
-        audioElement.id = `audio-agent-${participant.identity}`;
-        audioElement.autoplay = true;
-        document.body.appendChild(audioElement);
-        audioElement.play().catch((e) => console.warn('Agent audio autoplay blocked:', e));
-        set({ agentAudioTrack: track, agentAudioElement: audioElement });
-        applyAudioRouting(get);
+        // Background audio track (e.g. tool notification sounds) should always
+        // play regardless of avatar state — it's on a separate track from the
+        // agent's voice. Only the main agent voice track gets muted when avatar
+        // is active (avatar re-publishes the voice audio).
+        const isBackgroundAudio = publication.trackName === 'background_audio';
+        if (isBackgroundAudio) {
+          audioElement.id = `audio-bg-${participant.identity}`;
+          audioElement.autoplay = true;
+          document.body.appendChild(audioElement);
+          audioElement.play().catch((e) => console.warn('Background audio autoplay blocked:', e));
+          console.log('Background audio track attached (always audible)');
+        } else {
+          audioElement.id = `audio-agent-${participant.identity}`;
+          audioElement.autoplay = true;
+          document.body.appendChild(audioElement);
+          audioElement.play().catch((e) => console.warn('Agent audio autoplay blocked:', e));
+          set({ agentAudioTrack: track, agentAudioElement: audioElement });
+          applyAudioRouting(get);
+        }
       }
     }
   });
@@ -1050,19 +1160,17 @@ function setupRoomEventListeners(
     const publishOnBehalf = participant.attributes?.['lk.publish_on_behalf'];
     if (publishOnBehalf) {
       console.log('Avatar worker connected');
-      logParticipantConnected(participant.identity, 'avatar-worker');
       set({ avatarParticipant: participant });
       return;
     }
 
-    logParticipantConnected(participant.identity, participant.kind === ParticipantKind.AGENT ? 'agent' : 'participant');
     if (participant.kind === ParticipantKind.AGENT) {
       set({ agentParticipant: participant });
-      updateAgentStateFromAttributes(participant, set, get);
+      updateAgentStateFromAttributes(participant, set);
 
       participant.on('attributesChanged', (changedAttributes) => {
         if (AGENT_STATE_ATTRIBUTE in changedAttributes) {
-          updateAgentStateFromAttributes(participant, set, get);
+          updateAgentStateFromAttributes(participant, set);
         }
       });
     }
@@ -1071,7 +1179,6 @@ function setupRoomEventListeners(
   // Participant disconnected
   room.on(RoomEvent.ParticipantDisconnected, (participant: RemoteParticipant) => {
     console.log('Participant disconnected:', participant.identity);
-    logParticipantDisconnected(participant.identity);
 
     const state = get();
     if (state.avatarParticipant?.identity === participant.identity) {
@@ -1096,7 +1203,7 @@ function setupRoomEventListeners(
         return;
       }
       if (AGENT_STATE_ATTRIBUTE in changedAttributes) {
-        updateAgentStateFromAttributes(participant, set, get);
+        updateAgentStateFromAttributes(participant, set);
       }
     }
   });
@@ -1119,8 +1226,6 @@ function setupRoomEventListeners(
         isFinal: segment.final,
         isAgent,
       };
-
-      logTranscription(isAgent ? 'agent' : 'user', segment.text, segment.final);
 
       set((state) => {
         const existingIndex = state.transcripts.findIndex((t) => t.id === segment.id);
@@ -1172,7 +1277,6 @@ function setupRoomEventListeners(
     try {
       const message = JSON.parse(new TextDecoder().decode(payload));
       console.log('DataReceived [ui-engine:scene]:', message.type, message);
-      logDataScene(message);
 
       if (message.type === 'skeleton') {
         set({
@@ -1223,29 +1327,6 @@ function setupRoomEventListeners(
     }
   });
 
-  // DataReceived: handle tool-activity events from SpeakLLM / ShowLLM
-  // Stored in a SEPARATE toolActivity array so transcript operations never clear them.
-  room.on(RoomEvent.DataReceived, (payload: Uint8Array, _participant: RemoteParticipant | undefined, _kind: unknown, topic: string | undefined) => {
-    if (topic !== 'tool-activity') return;
-    try {
-      const event = JSON.parse(new TextDecoder().decode(payload));
-      console.log('DataReceived [tool-activity]:', event);
-      logDataToolActivity(event);
-      const entry: TranscriptEntry = {
-        id: `tool-${event.source}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        text: JSON.stringify({ _source: event.source, tool: event.tool, ...event.data }),
-        participant: 'tool',
-        participantName: event.tool || 'unknown',
-        timestamp: new Date(event.timestamp ? event.timestamp * 1000 : Date.now()),
-        isFinal: true,
-        isAgent: false,
-      };
-      set((state) => ({ toolActivity: [...state.toolActivity, entry] }));
-    } catch (err) {
-      console.error('Error parsing tool-activity data:', err);
-    }
-  });
-
   // Check for existing agent participants
   for (const participant of room.remoteParticipants.values()) {
     if (participant.attributes?.['lk.publish_on_behalf']) {
@@ -1255,11 +1336,11 @@ function setupRoomEventListeners(
 
     if (participant.kind === ParticipantKind.AGENT) {
       set({ agentParticipant: participant });
-      updateAgentStateFromAttributes(participant, set, get);
+      updateAgentStateFromAttributes(participant, set);
 
       participant.on('attributesChanged', (changedAttributes) => {
         if (AGENT_STATE_ATTRIBUTE in changedAttributes) {
-          updateAgentStateFromAttributes(participant, set, get);
+          updateAgentStateFromAttributes(participant, set);
         }
       });
     }
@@ -1269,13 +1350,10 @@ function setupRoomEventListeners(
 // Helper: Update agent state from participant attributes
 function updateAgentStateFromAttributes(
   participant: Participant,
-  set: (state: Partial<VoiceSessionState>) => void,
-  get?: () => VoiceSessionState
+  set: (state: Partial<VoiceSessionState>) => void
 ) {
   const stateAttr = participant.attributes[AGENT_STATE_ATTRIBUTE];
   if (stateAttr) {
-    const prev = get ? get().agentState : 'unknown';
-    logAgentStateChange(prev, stateAttr);
     set({ agentState: stateAttr as AgentState });
   }
 }
@@ -1293,7 +1371,6 @@ function registerRpcHandlers(
     try {
       const payload = JSON.parse(data.payload);
       console.log('RPC: navigate', payload);
-      logRpcNavigate(payload);
 
       // Use Next.js router for client-side navigation (preserves connection)
       window.dispatchEvent(
@@ -1312,7 +1389,6 @@ function registerRpcHandlers(
     try {
       const payload = JSON.parse(data.payload);
       console.log('RPC: setScene', payload);
-      logRpcSetScene(payload);
 
       const sceneData: SceneData = {
         id: payload.id || `scene-${Date.now()}`,
@@ -1344,7 +1420,6 @@ function registerRpcHandlers(
   // Handler: Clear scene (return to static page)
   localParticipant.registerRpcMethod('clearScene', async () => {
     console.log('RPC: clearScene');
-    logRpcClearScene();
     set({ sceneActive: false, currentScene: null });
     return JSON.stringify({ success: true });
   });
@@ -1358,12 +1433,10 @@ function registerRpcHandlers(
 
       const fn = (window as any).__siteFunctions?.[name];
       if (!fn) {
-        logRpcCallSiteFunction(name, args, { error: `Unknown site function: ${name}` });
         return JSON.stringify({ success: false, error: `Unknown site function: ${name}` });
       }
 
       const result = await fn(args);
-      logRpcCallSiteFunction(name, args, result);
       return JSON.stringify({ success: true, result });
     } catch (error) {
       console.error('RPC callSiteFunction error:', error);

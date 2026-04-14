@@ -10,7 +10,6 @@
  */
 
 import type { Room } from 'livekit-client';
-import { logDataFeedback } from '@/utils/observability';
 
 let _room: Room | null = null;
 
@@ -33,7 +32,6 @@ export function informTele(message: string): void {
   }
 
   console.log('[informTele] Feedback:', message);
-  logDataFeedback(message);
 
   // Also fire a custom event for local debugging / dev tools
   setTimeout(() => {

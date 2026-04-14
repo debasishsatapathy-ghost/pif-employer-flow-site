@@ -24,7 +24,6 @@ interface ToolCallIndicatorProps {
   parameters: Record<string, unknown>;
   timestamp?: Date;
   defaultExpanded?: boolean;
-  source?: 'speak-llm' | 'show-llm';
 }
 
 const TOOL_DISPLAY_CONFIG: Record<string, { label: string; Icon: React.ElementType }> = {
@@ -44,16 +43,10 @@ const TOOL_DISPLAY_CONFIG: Record<string, { label: string; Icon: React.ElementTy
   search: { label: 'search', Icon: Search },
 };
 
-const SOURCE_BADGE: Record<string, { label: string; bg: string; text: string }> = {
-  'speak-llm': { label: 'Voice', bg: 'rgba(59,130,246,0.20)', text: 'rgba(147,197,253,0.9)' },
-  'show-llm': { label: 'Visual', bg: 'rgba(168,85,247,0.20)', text: 'rgba(216,180,254,0.9)' },
-};
-
 export function ToolCallIndicator({
   toolName,
   parameters,
   defaultExpanded = false,
-  source,
 }: ToolCallIndicatorProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [copied, setCopied] = useState(false);
@@ -88,14 +81,6 @@ export function ToolCallIndicator({
       >
         <div className="flex items-center gap-2 min-w-0 pr-2">
           <DisplayIcon className="w-4 h-4 text-emerald-400 shrink-0" />
-          {source && SOURCE_BADGE[source] && (
-            <span
-              className="text-[10px] font-medium px-1.5 py-0.5 rounded-full shrink-0"
-              style={{ background: SOURCE_BADGE[source].bg, color: SOURCE_BADGE[source].text }}
-            >
-              {SOURCE_BADGE[source].label}
-            </span>
-          )}
           <span
             className="text-xs font-mono font-medium truncate"
             style={{ color: 'rgba(255,255,255,0.5)' }}

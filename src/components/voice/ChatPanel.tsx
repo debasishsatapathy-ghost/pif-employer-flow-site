@@ -11,7 +11,6 @@ const SLEEP_TIMEOUT = 5000;
 export function ChatPanel() {
   const sessionState = useVoiceSessionStore((s) => s.sessionState);
   const transcripts = useVoiceSessionStore((s) => s.transcripts);
-  const toolActivity = useVoiceSessionStore((s) => s.toolActivity);
   const isChatPanelOpen = useVoiceSessionStore((s) => s.isChatPanelOpen);
   const sendTextMessage = useVoiceSessionStore((s) => s.sendTextMessage);
   const currentAgentName = useVoiceSessionStore((s) => s.currentAgentName);
@@ -30,7 +29,7 @@ export function ChatPanel() {
   // Auto-scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [transcripts, toolActivity]);
+  }, [transcripts]);
 
   // Sleep mode: dim after mouse idle
   const resetSleep = useCallback(() => {
@@ -76,11 +75,9 @@ export function ChatPanel() {
     await sendTextMessage(message);
   };
 
-  // Merge transcripts + tool activity, sorted chronologically
-  const allEntries = [...transcripts, ...(showToolCalls ? toolActivity : [])];
-  allEntries.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
-  const visibleTranscripts = allEntries.filter((t) => {
-    if (t.participant === 'tool') return true; // already filtered above via showToolCalls
+  // Filter transcripts based on smart mode
+  const visibleTranscripts = transcripts.filter((t) => {
+    if (t.participant === 'tool') return showToolCalls;
     return t.isFinal || t.isAgent;
   });
 
@@ -117,12 +114,8 @@ export function ChatPanel() {
           // Tool call entries
           if (t.participant === 'tool') {
             let toolParams: Record<string, unknown> = {};
-            let source: string | undefined;
             try {
-              const parsed = JSON.parse(t.text);
-              source = parsed._source;
-              const { _source: _, ...rest } = parsed;
-              toolParams = rest;
+              toolParams = JSON.parse(t.text);
             } catch {
               toolParams = { raw: t.text };
             }
@@ -132,7 +125,6 @@ export function ChatPanel() {
                 toolName={t.participantName}
                 parameters={toolParams}
                 timestamp={t.timestamp}
-                source={source as 'speak-llm' | 'show-llm' | undefined}
               />
             );
           }

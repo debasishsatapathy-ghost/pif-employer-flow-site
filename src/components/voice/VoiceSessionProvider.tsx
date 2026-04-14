@@ -26,32 +26,6 @@ export function VoiceSessionProvider({ children }: VoiceSessionProviderProps) {
     preWarm();
   }, [preWarm]);
 
-  // Check provider health on mount and log warnings for degraded/down services.
-  useEffect(() => {
-    const widgetHost = process.env.NEXT_PUBLIC_WIDGET_HOST || 'https://app.mobeus.ai';
-    fetch(`${widgetHost}/api/widget/provider-health`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (!data?.providers) return;
-        for (const p of data.providers) {
-          if (p.status === 'down') {
-            console.warn(
-              `[Provider Health] ⚠️ ${p.provider} is DOWN${p.message ? ': ' + p.message : ''}. ` +
-              'Features depending on this service may not work.'
-            );
-          } else if (p.status === 'degraded') {
-            console.warn(
-              `[Provider Health] ⚠️ ${p.provider} is DEGRADED${p.message ? ': ' + p.message : ''}. ` +
-              'Some features may be limited.'
-            );
-          }
-        }
-      })
-      .catch(() => {
-        // Silently ignore — health check is best-effort
-      });
-  }, []);
-
   // Listen for agent navigation commands
   useEffect(() => {
     const handleAgentNavigate = (event: CustomEvent) => {
