@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef, type ReactNode } fro
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronRight, ChevronDown, ChevronLeft, Star, Sparkles, MessageCircle, X, Pencil,
-  TrendingUp, Calendar, CheckCircle, ClipboardList, AlertCircle,
+  TrendingUp, Calendar, CheckCircle, ClipboardList, AlertCircle, ChevronsUp, Circle,
   ArrowUpDown, ListFilter, Mail, Briefcase, GraduationCap, Info, User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -187,7 +187,7 @@ interface KCandidate {
   role: string;
   score: number;
   avatar?: string;
-  interviewBadges?: { count: string; status: string; statusVariant?: "green" | "default" };
+  interviewBadges?: { count: string; status: string; statusVariant?: "green" | "blue" | "default" };
   scoreIncreased?: boolean;
 }
 interface TalentCandidate { id: string; name: string; role: string; score: number; invited?: boolean; avatar?: string }
@@ -291,7 +291,7 @@ const SARA_PROFILE_DATA: CandidateProfileData = {
   skills: [
     { name: "Generative AI", level: "Intermediate" },
     { name: "Prompt Engineering", level: "Intermediate" },
-    { name: "Python", level: "Advanced" },
+    { name: "Python", level: "Beginner" },
     { name: "Distributed Training", level: "Novice" },
   ],
 };
@@ -1543,18 +1543,16 @@ function ScoreCircle({ score, size = 44, fontSize, textColor, scoreIncreased }: 
       <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
         <span style={{ fontSize: numSize, fontWeight: 700, color: numColor }}>{score}</span>
       </div>
-      {/* Score increase indicator — small green up-arrow badge at top-left (Figma SkillScoreChangeIndicator) */}
+      {/* Score increase indicator — Figma SkillScoreChangeIndicator: 16×16 green circle at top-left */}
       {scoreIncreased && (
         <div style={{
-          position: "absolute", top: -6, left: -6,
+          position: "absolute", top: -8, left: -8,
           width: 16, height: 16,
           borderRadius: "50%",
           background: "#1dc558",
           display: "flex", alignItems: "center", justifyContent: "center",
         }}>
-          <svg width={10} height={10} viewBox="0 0 10 10" fill="none">
-            <path d="M5 8V2M5 2L2 5M5 2L8 5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
+          <ChevronsUp size={10} color="white" strokeWidth={2.5} />
         </div>
       )}
     </div>
@@ -1626,9 +1624,11 @@ function KanbanCardItem({ candidate, onDragStart, onClick }: {
           <span
             className="text-xs px-2 py-1 rounded-lg"
             style={
-              candidate.interviewBadges.statusVariant === "green"
-                ? { background: "rgba(29,197,88,0.1)", color: "#4ad179", border: "1px solid rgba(29,197,88,0.35)" }
-                : { background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.9)" }
+              candidate.interviewBadges.statusVariant === "blue"
+                ? { background: "rgba(54,137,255,0.05)", color: "#d7e7ff", border: "1px solid #5ea1ff" }
+                : candidate.interviewBadges.statusVariant === "green"
+                  ? { background: "rgba(29,197,88,0.1)", color: "#4ad179", border: "1px solid rgba(29,197,88,0.35)" }
+                  : { background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.9)" }
             }
           >
             {candidate.interviewBadges.status}
@@ -1721,6 +1721,7 @@ function CandidateProfileModal({
   onAddToShortlist,
   onBookInterview,
   onBookNextInterview,
+  onAddFeedback,
 }: {
   profile: CandidateProfileData;
   context: "talentPool" | "screening" | "shortlist" | "interview" | "interview-ai-complete" | "interview-second-booked" | "interview-add-feedback";
@@ -1730,6 +1731,7 @@ function CandidateProfileModal({
   onAddToShortlist?: () => void;
   onBookInterview?: () => void;
   onBookNextInterview?: () => void;
+  onAddFeedback?: () => void;
 }) {
   // Only one accordion open at a time
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
@@ -2268,16 +2270,43 @@ function CandidateProfileModal({
                       style={{ overflow: "hidden" }}
                     >
                       <div className="px-4 pb-4 flex flex-col gap-3">
+                        {/* HOW THIS SCORE IS CALCULATED — Figma 8895:37963 */}
+                        <div style={{
+                          background: "rgba(119,220,155,0.05)",
+                          border: "1px solid #4ad179",
+                          borderRadius: 12,
+                          padding: "16px",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 8,
+                        }}>
+                          <p style={{ fontSize: 12, fontWeight: 600, color: "#d2f3de", letterSpacing: "0.05em", lineHeight: "16px" }}>
+                            HOW THIS SCORE IS CALCULATED
+                          </p>
+                          <div style={{ display: "flex", gap: 16, fontSize: 14, lineHeight: "20px" }}>
+                            <span style={{ color: "#d4d4d8" }}>Skills <span style={{ color: "#f4f4f5" }}>60%</span></span>
+                            <span style={{ color: "#d4d4d8" }}>Experience <span style={{ color: "#f4f4f5" }}>25%</span></span>
+                            <span style={{ color: "#d4d4d8" }}>Certifications <span style={{ color: "#f4f4f5" }}>15%</span></span>
+                          </div>
+                          <p style={{ fontSize: 12, color: "#d2f3de", lineHeight: "16px" }}>
+                            Skills are weighted by how closely a candidate matches your role requirements. Scores above 80 indicate a strong fit.
+                          </p>
+                        </div>
+                        {/* Skill rows */}
                         {profile.skills.map((skill, idx) => (
                           <div key={idx} className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                              <CheckCircle
-                                size={20}
-                                style={{
-                                  color: skill.level === "Novice" ? "#ffc940" : "#1dc558",
-                                  flexShrink: 0,
-                                }}
-                              />
+                              {skill.level === "Novice" ? (
+                                <Circle
+                                  size={20}
+                                  style={{ color: "#ffc940", flexShrink: 0 }}
+                                />
+                              ) : (
+                                <CheckCircle
+                                  size={20}
+                                  style={{ color: "#1dc558", flexShrink: 0 }}
+                                />
+                              )}
                               <span className="text-base text-[#f4f4f5]">{skill.name}</span>
                             </div>
                             <span
@@ -2511,6 +2540,7 @@ function CandidateProfileModal({
                   </div>
                   <button
                     type="button"
+                    onClick={() => onAddFeedback?.()}
                     className="flex items-center justify-center text-base font-normal transition-all hover:brightness-110 active:scale-[0.98] flex-shrink-0"
                     style={{ padding: "8px 24px", background: "#1dc558", color: "#18181b", borderRadius: 4, lineHeight: "24px" }}
                   >
@@ -2873,6 +2903,7 @@ export function JobPostingTemplate({
   const [invitedCandidates,   setInvitedCandidates]   = useState<Record<string, boolean>>({});
   const [selectedProfile,     setSelectedProfile]     = useState<CandidateProfileData | null>(null);
   const [selectedProfileContext, setSelectedProfileContext] = useState<"talentPool" | "screening" | "shortlist" | "interview" | "interview-ai-complete" | "interview-second-booked" | "interview-add-feedback">("talentPool");
+  const [showFeedbackModal,   setShowFeedbackModal]   = useState(false);
 
   // Sara's interview progression state — drives 5s and 7s timed transitions
   type SaraInterviewState = "none" | "ai_booked" | "ai_feedback" | "second_booked" | "awaiting_feedback";
@@ -2887,7 +2918,7 @@ export function JobPostingTemplate({
         ...prev,
         interview: prev.interview.map((c) =>
           c.id === "tp1"
-            ? { ...c, score: 95, scoreIncreased: true, interviewBadges: { count: "1 of 2", status: "AI Feedback available", statusVariant: "green" } }
+            ? { ...c, score: 95, scoreIncreased: true, interviewBadges: { count: "1 of 2", status: "AI Feedback available", statusVariant: "blue" } }
             : c
         ),
       }));
@@ -2904,7 +2935,7 @@ export function JobPostingTemplate({
         ...prev,
         interview: prev.interview.map((c) =>
           c.id === "tp1"
-            ? { ...c, interviewBadges: { count: "2 of 2", status: "Awaiting Feedback", statusVariant: "default" } }
+            ? { ...c, interviewBadges: { count: "2 of 2", status: "Awaiting Feedback", statusVariant: "blue" } }
             : c
         ),
       }));
@@ -3629,10 +3660,482 @@ export function JobPostingTemplate({
             setSaraInterviewState("second_booked");
             setSelectedProfile(null);
           }}
+          onAddFeedback={() => setShowFeedbackModal(true)}
+        />
+      )}
+      {/* Interview Feedback Modal — opens when "Add Feedback" is clicked */}
+      {showFeedbackModal && (
+        <FeedbackModal
+          key="feedback-modal"
+          onClose={() => setShowFeedbackModal(false)}
         />
       )}
     </AnimatePresence>
     </>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   INTERVIEW FEEDBACK MODAL  (Figma 8003-60983 → 4 tabs)
+══════════════════════════════════════════════════════════════════════════ */
+
+type FeedbackTab = "overview" | "technical" | "soft" | "behavioural";
+
+/** Horizontal score bar row used in all tab panels */
+function FeedbackScoreRow({ label, score, color }: { label: string; score: number; color: "green" | "amber" }) {
+  const barColor  = color === "green" ? "#1dc558" : "#f59e0b";
+  const badgeBg   = color === "green" ? "rgba(29,197,88,0.15)"   : "rgba(245,158,11,0.15)";
+  const badgeText = color === "green" ? "#1dc558"                 : "#f59e0b";
+  const badgeLabel = color === "green" ? "Strong" : "Moderate";
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 12, height: 28 }}>
+      <span style={{ color: "#d4d4d8", fontSize: 16, lineHeight: "24px", minWidth: 180, flexShrink: 0 }}>{label}</span>
+      <div style={{ flex: 1, height: 8, background: "rgba(255,255,255,0.08)", borderRadius: 100, overflow: "hidden" }}>
+        <div style={{ width: `${score}%`, height: "100%", background: barColor, borderRadius: 100 }} />
+      </div>
+      <span style={{ color: "white", fontWeight: 600, fontSize: 16, minWidth: 32, textAlign: "right", flexShrink: 0 }}>{score}</span>
+      <span style={{ background: badgeBg, color: badgeText, fontSize: 14, lineHeight: "20px", padding: "4px 12px", borderRadius: 8, minWidth: 72, textAlign: "center", flexShrink: 0 }}>
+        {badgeLabel}
+      </span>
+    </div>
+  );
+}
+
+/** Section heading inside Technical/Soft Skills tabs */
+function FeedbackSectionHead({ title }: { title: string }) {
+  return <p style={{ color: "white", fontWeight: 600, fontSize: 16, lineHeight: "24px", marginBottom: 4, marginTop: 8 }}>{title}</p>;
+}
+
+function FeedbackModal({ onClose }: { onClose: () => void }) {
+  const [activeTab, setActiveTab] = useState<FeedbackTab>("overview");
+  const [notes, setNotes]               = useState("");
+  const [recommendation, setRecommendation] = useState<string | null>(null);
+
+  const tabs: { key: FeedbackTab; label: string }[] = [
+    { key: "overview",     label: "Overview" },
+    { key: "technical",    label: "Technical Skills" },
+    { key: "soft",         label: "Soft Skills" },
+    { key: "behavioural",  label: "Behavioural Analysis" },
+  ];
+
+  const recOptions = ["Strong No", "No", "Yes", "Strong Yes"];
+  const canSubmit = recommendation !== null && notes.length > 0;
+
+  return (
+    <motion.div
+      key="feedback-modal-overlay"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+      style={{
+        position: "fixed", inset: 0, zIndex: 200,
+        background: "rgba(0,0,0,0.75)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: 24,
+        overflowY: "auto",
+      }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.97 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.97 }}
+        transition={{ duration: 0.2 }}
+        style={{
+          background: "rgba(255,255,255,0.05)",
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+          borderRadius: 16,
+          border: "1px solid rgba(255,255,255,0.08)",
+          width: "100%",
+          maxWidth: 1354,
+          display: "flex",
+          flexDirection: "column",
+          gap: 32,
+          padding: 32,
+          flexShrink: 0,
+        }}
+      >
+        {/* ── Header ── */}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+            {/* Sara's avatar */}
+            <div style={{
+              width: 52, height: 52, borderRadius: "50%", flexShrink: 0,
+              background: "#ffdabf", overflow: "hidden",
+              border: "1.5px solid rgba(255,255,255,0.12)",
+            }}>
+              <img src="/sara-khalid.png" alt="Sara Khalid"
+                style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }} />
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <p style={{ fontSize: 24, fontWeight: 600, color: "white", lineHeight: "28px" }}>
+                Interview Feedback: Sara Khalid
+              </p>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 14, color: "#d4d4d8", lineHeight: "20px" }}>Senior AI Developer</span>
+                <div style={{ width: 4, height: 4, borderRadius: "50%", background: "#d4d4d8", flexShrink: 0 }} />
+                <span style={{ fontSize: 14, color: "#d4d4d8", lineHeight: "20px" }}>Interviewed today at 1:00pm</span>
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              width: 40, height: 40, borderRadius: 4,
+              background: "rgba(255,255,255,0.05)",
+              border: "none", cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+            }}
+          >
+            <X size={20} color="white" />
+          </button>
+        </div>
+
+        {/* ── Two-column body ── */}
+        <div style={{ display: "flex", gap: 24, alignItems: "flex-start" }}>
+
+          {/* LEFT: Interview Synthesis panel */}
+          <div style={{
+            flex: 1, minWidth: 0,
+            background: "rgba(255,255,255,0.05)",
+            borderRadius: 16,
+            padding: 24,
+            display: "flex",
+            flexDirection: "column",
+            gap: 24,
+            overflow: "hidden",
+          }}>
+            {/* Header row: title + AI badge */}
+            <div style={{ display: "flex", alignItems: "center", gap: 24, flexShrink: 0 }}>
+              <p style={{ fontSize: 20, fontWeight: 600, color: "white", lineHeight: "24px", whiteSpace: "nowrap" }}>
+                Interview Synthesis
+              </p>
+              <div style={{
+                display: "flex", alignItems: "center", gap: 8,
+                background: "rgba(29,197,88,0.05)",
+                border: "1px solid #1dc558",
+                borderRadius: 8,
+                padding: "4px 8px",
+                flexShrink: 0,
+              }}>
+                <Sparkles size={14} color="#1dc558" />
+                <span style={{ fontSize: 14, color: "#fafafa", lineHeight: "20px", whiteSpace: "nowrap" }}>
+                  AI-generated from interview transcript
+                </span>
+              </div>
+            </div>
+
+            {/* Tabs */}
+            <div style={{ display: "flex", gap: 24, borderBottom: "1px solid rgba(255,255,255,0.08)", flexShrink: 0 }}>
+              {tabs.map((t) => (
+                <button
+                  key={t.key}
+                  onClick={() => setActiveTab(t.key)}
+                  style={{
+                    background: "none", border: "none", cursor: "pointer",
+                    padding: "0 0 13px 0",
+                    fontSize: 16, lineHeight: "24px",
+                    color: "white",
+                    opacity: activeTab === t.key ? 1 : 0.5,
+                    borderBottom: activeTab === t.key ? "3px solid #fafafa" : "3px solid transparent",
+                    marginBottom: -1,
+                    whiteSpace: "nowrap",
+                    transition: "opacity 0.15s",
+                  }}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Tab content */}
+            <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+
+              {/* OVERVIEW TAB */}
+              {activeTab === "overview" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    <p style={{ color: "white", fontWeight: 600, fontSize: 16, lineHeight: "24px" }}>Summary</p>
+                    <div style={{
+                      background: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(255,255,255,0.08)",
+                      borderRadius: 10, padding: 17,
+                    }}>
+                      <p style={{ color: "#d4d4d8", fontSize: 16, lineHeight: "24px", whiteSpace: "pre-line" }}>
+                        {`Sara demonstrated strong clarity of thought throughout. She structured answers using concrete examples and showed genuine enthusiasm for the role. Sara's Generative AI expertise was once again a standout - she further expanded on her previous experience in this space.\n\nPacing was confident, with minimal hesitation on core questions.\n\nOne area to probe further: her experience with production-scale model deployment was light on specifics.`}
+                      </p>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    <p style={{ color: "white", fontWeight: 600, fontSize: 16, lineHeight: "24px" }}>Analysis</p>
+                    <div style={{
+                      background: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(255,255,255,0.08)",
+                      borderRadius: 10, padding: 17,
+                      display: "flex", flexDirection: "column", gap: 16,
+                    }}>
+                      <FeedbackScoreRow label="Technical depth"     score={84} color="green" />
+                      <FeedbackScoreRow label="Communication"       score={91} color="green" />
+                      <FeedbackScoreRow label="Problem solving"     score={88} color="green" />
+                      <FeedbackScoreRow label="MLOps / deployment"  score={58} color="amber" />
+                      <FeedbackScoreRow label="Culture fit"         score={90} color="green" />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TECHNICAL SKILLS TAB */}
+              {activeTab === "technical" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <FeedbackSectionHead title="Generative AI & LLMs" />
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 12 }}>
+                    <FeedbackScoreRow label="Fine-tuning & RLHF"   score={90} color="green" />
+                    <FeedbackScoreRow label="Prompt engineering"    score={95} color="green" />
+                    <FeedbackScoreRow label="Vector databases"      score={82} color="green" />
+                  </div>
+                  <FeedbackSectionHead title="MLOps & deployment" />
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 12 }}>
+                    <FeedbackScoreRow label="CI/CD for ML"          score={52} color="amber" />
+                    <FeedbackScoreRow label="Model monitoring"      score={49} color="amber" />
+                    <FeedbackScoreRow label="Containerisation"      score={64} color="amber" />
+                  </div>
+                  <FeedbackSectionHead title="Python & system design" />
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    <FeedbackScoreRow label="Code quality"          score={87} color="green" />
+                    <FeedbackScoreRow label="System design"         score={83} color="green" />
+                  </div>
+                </div>
+              )}
+
+              {/* SOFT SKILLS TAB */}
+              {activeTab === "soft" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <FeedbackSectionHead title="Interpersonal" />
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 12 }}>
+                    <FeedbackScoreRow label="Clarity of communication" score={91} color="green" />
+                    <FeedbackScoreRow label="Active listening"         score={86} color="green" />
+                    <FeedbackScoreRow label="Collaboration signals"    score={89} color="green" />
+                  </div>
+                  <FeedbackSectionHead title="Cognitive" />
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    <FeedbackScoreRow label="Structured thinking"      score={88} color="green" />
+                    <FeedbackScoreRow label="Ambiguity handling"       score={84} color="green" />
+                    <FeedbackScoreRow label="Recovery under pressure"  score={80} color="green" />
+                  </div>
+                </div>
+              )}
+
+              {/* BEHAVIOURAL ANALYSIS TAB */}
+              {activeTab === "behavioural" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+                  {/* 3 metric cards */}
+                  <div style={{ display: "flex", gap: 16 }}>
+                    {[
+                      { label: "Confidence",     value: "High",      score: 82, color: "#1dc558" },
+                      { label: "Engagement",     value: "Very high",  score: 91, color: "#1dc558" },
+                      { label: "Stress markers", value: "Low",       score: 18, color: "#f59e0b" },
+                    ].map((m) => (
+                      <div key={m.label} style={{
+                        flex: 1,
+                        background: "rgba(255,255,255,0.04)",
+                        border: "1px solid rgba(255,255,255,0.08)",
+                        borderRadius: 10, padding: 20,
+                        display: "flex", flexDirection: "column", gap: 8,
+                      }}>
+                        <p style={{ fontSize: 14, color: "#a1a1aa", lineHeight: "20px" }}>{m.label}</p>
+                        <p style={{ fontSize: 24, fontWeight: 600, color: "white", lineHeight: "32px" }}>{m.value}</p>
+                        <p style={{ fontSize: 14, color: "#a1a1aa", lineHeight: "20px" }}>{m.score} / 100</p>
+                        <div style={{ height: 6, background: "rgba(255,255,255,0.08)", borderRadius: 100, overflow: "hidden" }}>
+                          <div style={{ width: `${m.score}%`, height: "100%", background: m.color, borderRadius: 100 }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Confidence signal timeline */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <p style={{ color: "white", fontWeight: 600, fontSize: 16, lineHeight: "24px" }}>
+                      Confidence signal — interview timeline
+                    </p>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#71717a", marginBottom: 4 }}>
+                      <span>Start</span>
+                      <span>45 min</span>
+                    </div>
+                    {/* gradient bar with tick markers */}
+                    <div style={{
+                      height: 48, borderRadius: 100, position: "relative",
+                      background: "linear-gradient(90deg, #1dc558 0%, #60c152 7%, #84bd4b 14%, #a0b843 21%, #b8b33a 29%, #cead30 36%, #e2a622 43%, #f59e0b 50%, #e2a622 57%, #cead30 64%, #b8b33a 71%, #a0b843 79%, #84bd4b 86%, #60c152 93%, #1dc558 100%)",
+                    }}>
+                      {/* White tick markers */}
+                      {[10, 63, 91].map((pct) => (
+                        <div key={pct} style={{
+                          position: "absolute", left: `${pct}%`, top: -6, width: 3, height: 60,
+                          background: "white", borderRadius: 100,
+                        }} />
+                      ))}
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#71717a" }}>
+                      {["0:00", "10:00", "20:00", "30:00", "40:00", "45:00"].map((t) => <span key={t}>{t}</span>)}
+                    </div>
+                  </div>
+
+                  {/* Key moments */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <p style={{ color: "white", fontWeight: 600, fontSize: 16, lineHeight: "24px" }}>Key moments</p>
+                    {[
+                      { time: "12:04", text: " Peak confidence — LLM fine-tuning explanation. Leaned forward, sustained eye contact.", color: "#1dc558" },
+                      { time: "28:41", text: " Hesitation spike — CI/CD question. Speech rate increased. Recovered within 30s.",        color: "#f59e0b" },
+                      { time: "41:10", text: " High engagement — team culture discussion. Animated posture, frequent nodding.",          color: "#1dc558" },
+                    ].map((m) => (
+                      <div key={m.time} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: m.color, flexShrink: 0, marginTop: 8 }} />
+                        <p style={{ fontSize: 14, color: "#71717a", lineHeight: "24px" }}>
+                          <span style={{ color: "white" }}>{m.time}</span>{m.text}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* RIGHT: Panel Status + Your Assessment */}
+          <div style={{ width: 380, flexShrink: 0, display: "flex", flexDirection: "column", gap: 24 }}>
+
+            {/* Panel Status card */}
+            <div style={{
+              background: "rgba(255,255,255,0.05)",
+              borderRadius: 16, padding: 24,
+              display: "flex", flexDirection: "column", gap: 24,
+            }}>
+              <p style={{ fontSize: 20, fontWeight: 600, color: "white", lineHeight: "24px" }}>Panel Status</p>
+              {/* Omar S */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                  <div style={{
+                    width: 44, height: 44, borderRadius: "50%", flexShrink: 0,
+                    background: "#d2f3de", overflow: "hidden",
+                  }}>
+                    <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <User size={22} color="#0c4f23" />
+                    </div>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 16, fontWeight: 600, color: "#fafafa", lineHeight: "24px" }}>You (Omar S)</p>
+                    <p style={{ fontSize: 14, color: "#d4d4d8", lineHeight: "20px" }}>Hiring Manager</p>
+                  </div>
+                </div>
+                <span style={{ background: "#ffe1cc", color: "#401b00", fontSize: 14, lineHeight: "20px", padding: "4px 8px", borderRadius: 100 }}>
+                  Pending
+                </span>
+              </div>
+              {/* Ahmed W */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                  <div style={{
+                    width: 44, height: 44, borderRadius: "50%", flexShrink: 0,
+                    background: "#afd0ff", overflow: "hidden",
+                  }}>
+                    <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <User size={22} color="#0c2f66" />
+                    </div>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 16, fontWeight: 600, color: "#fafafa", lineHeight: "24px" }}>Ahmed W</p>
+                    <p style={{ fontSize: 14, color: "#d4d4d8", lineHeight: "20px" }}>Tech Principal</p>
+                  </div>
+                </div>
+                <span style={{ background: "#d2f3de", color: "#0c4f23", fontSize: 14, lineHeight: "20px", padding: "4px 8px", borderRadius: 100 }}>
+                  Submitted
+                </span>
+              </div>
+            </div>
+
+            {/* Your assessment card */}
+            <div style={{
+              background: "rgba(255,255,255,0.05)",
+              borderRadius: 16, padding: 24,
+              display: "flex", flexDirection: "column", gap: 24,
+              flex: 1,
+            }}>
+              <p style={{ fontSize: 20, fontWeight: 600, color: "white", lineHeight: "24px" }}>Your assessment</p>
+
+              {/* Notes */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>
+                <p style={{ fontSize: 16, fontWeight: 600, color: "white", lineHeight: "24px" }}>Notes</p>
+                <div style={{ position: "relative", flex: 1 }}>
+                  <textarea
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value.slice(0, 500))}
+                    placeholder="Add your notes: observations, concerns, or anything the AI summary missed..."
+                    style={{
+                      width: "100%", minHeight: 180, resize: "vertical",
+                      background: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(255,255,255,0.08)",
+                      borderRadius: 10, padding: 17,
+                      color: "white", fontSize: 16, lineHeight: "24px",
+                      outline: "none",
+                      fontFamily: "inherit",
+                      boxSizing: "border-box",
+                    }}
+                  />
+                  <p style={{
+                    position: "absolute", bottom: 8, right: 12,
+                    fontSize: 12, color: "#9f9fa9", lineHeight: "16px",
+                  }}>
+                    {notes.length}/500
+                  </p>
+                </div>
+              </div>
+
+              {/* Hiring recommendation */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <p style={{ fontSize: 16, fontWeight: 600, color: "white", lineHeight: "24px" }}>Hiring recommendation</p>
+                <div style={{ display: "flex", gap: 12 }}>
+                  {recOptions.map((opt) => (
+                    <button
+                      key={opt}
+                      onClick={() => setRecommendation(opt)}
+                      style={{
+                        flex: 1, padding: "10px 4px", borderRadius: 12,
+                        background: recommendation === opt ? "rgba(29,197,88,0.15)" : "rgba(255,255,255,0.05)",
+                        border: recommendation === opt ? "1px solid #1dc558" : "1px solid rgba(255,255,255,0.05)",
+                        color: "white", fontWeight: 600, fontSize: 14, lineHeight: "24px",
+                        cursor: "pointer", transition: "all 0.15s",
+                      }}
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Submit button */}
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <button
+                  disabled={!canSubmit}
+                  onClick={() => canSubmit && onClose()}
+                  style={{
+                    padding: "10px 24px", borderRadius: 100,
+                    background: canSubmit ? "#1dc558" : "rgba(29,197,88,0.5)",
+                    opacity: canSubmit ? 1 : 0.35,
+                    border: "none", cursor: canSubmit ? "pointer" : "not-allowed",
+                    color: "#f4f4f5", fontWeight: 600, fontSize: 16, lineHeight: "24px",
+                    transition: "all 0.15s",
+                    minWidth: 100,
+                  }}
+                >
+                  Submit
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
