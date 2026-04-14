@@ -187,7 +187,8 @@ interface KCandidate {
   role: string;
   score: number;
   avatar?: string;
-  interviewBadges?: { count: string; status: string };
+  interviewBadges?: { count: string; status: string; statusVariant?: "green" | "default" };
+  scoreIncreased?: boolean;
 }
 interface TalentCandidate { id: string; name: string; role: string; score: number; invited?: boolean; avatar?: string }
 
@@ -1517,17 +1518,17 @@ function ApplicantCard({ applicant, delay = 0, compact = false, starred = false,
 ══════════════════════════════════════════════════════════════════════════ */
 
 /** SVG circular progress score ring — matches Figma Skill Score component */
-function ScoreCircle({ score, size = 44, fontSize, textColor }: { score: number; size?: number; fontSize?: number; textColor?: string }) {
+function ScoreCircle({ score, size = 44, fontSize, textColor, scoreIncreased }: { score: number; size?: number; fontSize?: number; textColor?: string; scoreIncreased?: boolean }) {
   const r   = (size - 5) / 2;
   const c   = size / 2;
   const circ = 2 * Math.PI * r;
   const dash = circ * (1 - score / 100);
-  
+
   // Quality-based color: green>=80%, yellow>=60%, red<60%
   const arcColor = score >= 80 ? "#1dc558" : score >= 60 ? "#f59e0b" : "#f87171";
   const numColor = textColor ?? arcColor;
   const numSize  = fontSize ?? (size <= 36 ? 11 : size <= 48 ? 14 : 16);
-  
+
   return (
     <div style={{ width: size, height: size, position: "relative", flexShrink: 0 }}>
       <svg width={size} height={size} style={{ transform: "rotate(-90deg) scaleY(-1)" }}>
@@ -1542,6 +1543,20 @@ function ScoreCircle({ score, size = 44, fontSize, textColor }: { score: number;
       <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
         <span style={{ fontSize: numSize, fontWeight: 700, color: numColor }}>{score}</span>
       </div>
+      {/* Score increase indicator — small green up-arrow badge at top-left (Figma SkillScoreChangeIndicator) */}
+      {scoreIncreased && (
+        <div style={{
+          position: "absolute", top: -6, left: -6,
+          width: 16, height: 16,
+          borderRadius: "50%",
+          background: "#1dc558",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <svg width={10} height={10} viewBox="0 0 10 10" fill="none">
+            <path d="M5 8V2M5 2L2 5M5 2L8 5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
+      )}
     </div>
   );
 }
@@ -1597,7 +1612,7 @@ function KanbanCardItem({ candidate, onDragStart, onClick }: {
           <p className="text-sm font-semibold text-white leading-tight truncate">{candidate.name}</p>
           <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>{candidate.role}</p>
         </div>
-        <ScoreCircle score={candidate.score} />
+        <ScoreCircle score={candidate.score} scoreIncreased={candidate.scoreIncreased} />
       </div>
       {/* Interview sub-badges — "2 of 2" + "3:00pm Wednesday" */}
       {candidate.interviewBadges && (
@@ -1609,8 +1624,12 @@ function KanbanCardItem({ candidate, onDragStart, onClick }: {
             {candidate.interviewBadges.count}
           </span>
           <span
-            className="text-xs px-2 py-1 rounded-lg text-white/90"
-            style={{ background: "rgba(255,255,255,0.05)" }}
+            className="text-xs px-2 py-1 rounded-lg"
+            style={
+              candidate.interviewBadges.statusVariant === "green"
+                ? { background: "rgba(29,197,88,0.1)", color: "#4ad179", border: "1px solid rgba(29,197,88,0.35)" }
+                : { background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.9)" }
+            }
           >
             {candidate.interviewBadges.status}
           </span>
@@ -1701,31 +1720,44 @@ function CandidateProfileModal({
   onInvite,
   onAddToShortlist,
   onBookInterview,
+  onBookNextInterview,
 }: {
   profile: CandidateProfileData;
-  context: "talentPool" | "screening" | "shortlist" | "interview";
+  context: "talentPool" | "screening" | "shortlist" | "interview" | "interview-ai-complete" | "interview-second-booked" | "interview-add-feedback";
   isInvited: boolean;
   onClose: () => void;
   onInvite: () => void;
   onAddToShortlist?: () => void;
   onBookInterview?: () => void;
+  onBookNextInterview?: () => void;
 }) {
   // Only one accordion open at a time
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
-  // Book AI Interview flow: "profile" → "booking" → "confirmed"
-  const [bookingStep, setBookingStep] = useState<"profile" | "booking" | "confirmed">("profile");
+  // Booking flow: "profile" → "booking" (AI) → "confirmed" (AI) OR "booking-next" (human) → "next-confirmed"
+  const [bookingStep, setBookingStep] = useState<"profile" | "booking" | "confirmed" | "booking-next" | "next-confirmed">("profile");
 
   const toggleSection = (section: string) => {
     setExpandedSection((prev) => (prev === section ? null : section));
   };
 
-  // Derive effective context — after booking confirmed, treat as interview
-  const effectiveContext = bookingStep === "confirmed" ? "interview" : context;
+  // Derive effective context — override after confirmed bookings
+  const effectiveContext =
+    bookingStep === "confirmed"      ? "interview" :
+    bookingStep === "next-confirmed" ? "interview-second-booked" :
+    context;
 
-  // When closing after a confirmed booking, notify parent to move Sara to Interview
+  // Score is 95 (and has increase indicator) after AI interview complete
+  const showScoreIncrease = effectiveContext === "interview-ai-complete"
+    || effectiveContext === "interview-second-booked"
+    || effectiveContext === "interview-add-feedback";
+  const displayScore = showScoreIncrease ? 95 : profile.score;
+
+  // When closing after a confirmed booking, notify parent
   const handleClose = () => {
     if (bookingStep === "confirmed") {
       onBookInterview?.();
+    } else if (bookingStep === "next-confirmed") {
+      onBookNextInterview?.();
     }
     onClose();
   };
@@ -1878,9 +1910,117 @@ function CandidateProfileModal({
           )}
 
           {/* ══════════════════════════════════════════════════════════════════
-               NORMAL PROFILE VIEW (bookingStep !== "booking")
+               BOOK NEXT INTERVIEW VIEW (bookingStep === "booking-next")  Figma 7383:40086
           ══════════════════════════════════════════════════════════════════ */}
-          {bookingStep !== "booking" && (
+          {bookingStep === "booking-next" && (
+            <>
+              <div className="flex flex-col flex-1 min-h-0 overflow-y-auto p-8 gap-6">
+                {/* Row 1: Back + Close */}
+                <div className="flex items-center justify-between flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setBookingStep("profile")}
+                    className="flex items-center justify-center hover:bg-white/10 transition-colors"
+                    style={{ width: 40, height: 40, background: "rgba(255,255,255,0.05)", borderRadius: 4 }}
+                  >
+                    <ChevronLeft size={22} className="text-white" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleClose}
+                    className="flex items-center justify-center hover:bg-white/10 transition-colors"
+                    style={{ width: 40, height: 40, background: "rgba(255,255,255,0.05)", borderRadius: 4 }}
+                  >
+                    <X size={20} className="text-white" />
+                  </button>
+                </div>
+
+                {/* Title */}
+                <p className="text-[32px] font-semibold text-white leading-10 flex-shrink-0">Book Next Interview</p>
+
+                {/* Green info banner */}
+                <div
+                  className="flex items-start rounded-xl overflow-hidden flex-shrink-0"
+                  style={{ background: "rgba(119,220,155,0.05)", border: "1px solid #4ad179" }}
+                >
+                  <div style={{ width: 8, background: "#4ad179", alignSelf: "stretch", flexShrink: 0 }} />
+                  <div className="flex items-start gap-2 p-4 flex-1">
+                    <Sparkles size={20} className="flex-shrink-0 mt-0.5" style={{ color: "#4ad179" }} />
+                    <p className="text-sm leading-5" style={{ color: "#d2f3de" }}>
+                      trAIn found a suitable time based on your settings and the candidate&apos;s schedule. You can book this time or choose another slot.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Candidate card with score 95 + up arrow */}
+                <div
+                  className="flex items-center gap-3 p-4 rounded-xl flex-shrink-0"
+                  style={{ background: "rgba(255,255,255,0.05)" }}
+                >
+                  <div
+                    className="overflow-hidden flex-shrink-0"
+                    style={{ width: 44, height: 44, borderRadius: "50%", background: "#ffdabf" }}
+                  >
+                    <img
+                      src={profile.avatar || "/sara-khalid.png"}
+                      alt={profile.name}
+                      className="w-full h-full object-cover object-top"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-base font-normal text-[#fafafa] leading-6">{profile.name}</p>
+                    <p className="text-sm text-[#d4d4d8] leading-5">{profile.role}</p>
+                  </div>
+                  <ScoreCircle score={95} scoreIncreased={true} />
+                </div>
+
+                {/* Interview details — time + attendees with edit icon */}
+                <div
+                  className="rounded-xl p-4 flex-shrink-0"
+                  style={{ background: "rgba(255,255,255,0.05)" }}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex flex-col gap-1">
+                      <p className="text-base font-semibold text-white leading-6">1:00pm Tomorrow</p>
+                      <div className="flex items-center gap-3">
+                        <span className="text-base text-[#d4d4d8]">Remote</span>
+                        <div className="rounded-full flex-shrink-0" style={{ width: 4, height: 4, background: "#d4d4d8" }} />
+                        <span className="text-base text-[#d4d4d8]">Arabic</span>
+                        <div className="rounded-full flex-shrink-0" style={{ width: 4, height: 4, background: "#d4d4d8" }} />
+                        <span className="text-base text-[#d4d4d8]">Omar S, Ahmed W.</span>
+                      </div>
+                    </div>
+                    <Pencil size={20} className="flex-shrink-0 mt-1" style={{ color: "#d4d4d8" }} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="flex flex-col gap-4 flex-shrink-0 p-8 pt-4" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                <button
+                  type="button"
+                  onClick={() => setBookingStep("next-confirmed")}
+                  className="w-full flex items-center justify-center text-base font-normal transition-all hover:brightness-110 active:scale-[0.98]"
+                  style={{ padding: "8px 24px", background: "#1dc558", color: "#18181b", borderRadius: 4, lineHeight: "24px" }}
+                >
+                  Confirm Booking
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBookingStep("profile")}
+                  className="w-full flex items-center justify-center text-base font-normal text-white transition-colors hover:bg-white/10"
+                  style={{ padding: "8px 24px", background: "rgba(255,255,255,0.05)", borderRadius: 4, lineHeight: "24px" }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* ══════════════════════════════════════════════════════════════════
+               NORMAL PROFILE VIEW (bookingStep !== "booking" and !== "booking-next")
+          ══════════════════════════════════════════════════════════════════ */}
+          {bookingStep !== "booking" && bookingStep !== "booking-next" && (
           <>
           {/* ── Scrollable content area ── */}
           <div className="flex flex-col flex-1 min-h-0 overflow-y-auto p-8 gap-6">
@@ -1984,8 +2124,8 @@ function CandidateProfileModal({
               </div>
             </div>
 
-            {/* ── Row 3: Banner — blue for invited talentPool or interview-confirmed, green otherwise ── */}
-            {(effectiveContext === "interview") ? (
+            {/* ── Row 3: Banner — varies by effectiveContext ── */}
+            {effectiveContext === "interview" ? (
               /* Blue "You have requested Sara completes an AI interview" banner */
               <div
                 className="flex items-start rounded-xl overflow-hidden flex-shrink-0"
@@ -2010,7 +2150,32 @@ function CandidateProfileModal({
                   </p>
                 </div>
               </div>
-            ) : (effectiveContext === "talentPool" && isInvited) ? (
+            ) : effectiveContext === "interview-ai-complete" ? (
+              /* Green "Sara's excelled in her AI-facilitated interview" banner (Figma 6819:48765) */
+              <div
+                className="flex items-start rounded-xl overflow-hidden flex-shrink-0"
+                style={{
+                  background: "rgba(119,220,155,0.05)",
+                  border: "1px solid #4ad179",
+                }}
+              >
+                <div style={{ width: 8, background: "#4ad179", alignSelf: "stretch", flexShrink: 0 }} />
+                <div className="flex items-start gap-2 p-4 flex-1">
+                  <Sparkles size={20} className="flex-shrink-0 mt-0.5" style={{ color: "#4ad179" }} />
+                  <p className="text-base leading-6" style={{ color: "#d2f3de" }}>
+                    <span className="font-semibold">
+                      Sara&apos;s excelled in her AI-facilitated interview.{" "}
+                    </span>
+                    <span className="font-normal">
+                      Her performance suggests her Generative AI skills are stronger than first thought.
+                    </span>
+                  </p>
+                </div>
+              </div>
+            ) : effectiveContext === "interview-second-booked" || effectiveContext === "interview-add-feedback" ? (
+              /* No banner for these states */
+              null
+            ) : effectiveContext === "talentPool" && isInvited ? (
               /* Blue "You have invited Sara" banner */
               <div
                 className="flex items-start rounded-xl overflow-hidden flex-shrink-0"
@@ -2070,7 +2235,7 @@ function CandidateProfileModal({
                   className="w-full flex items-center gap-4 p-4"
                 >
                   {/* SVG score ring — 44px, text white, Figma Skill Score % */}
-                  <ScoreCircle score={profile.score} size={44} textColor="white" />
+                  <ScoreCircle score={displayScore} size={44} textColor="white" scoreIncreased={showScoreIncrease} />
 
                   <div className="flex-1 text-left min-w-0">
                     {/* Label row: "Match score" + info icon */}
@@ -2280,6 +2445,80 @@ function CandidateProfileModal({
                   )}
                 </AnimatePresence>
               </div>
+
+              {/* ── AI Interview row — shown for interview-ai-complete and later states (Figma 6819:50425) ── */}
+              {showScoreIncrease && (
+                <div
+                  className="flex gap-4 items-start p-4 rounded-xl"
+                  style={{ background: "rgba(255,255,255,0.05)" }}
+                >
+                  <div
+                    className="flex items-center justify-center flex-shrink-0 rounded-full"
+                    style={{ width: 44, height: 44, background: "rgba(255,255,255,0.05)" }}
+                  >
+                    <User size={22} style={{ color: "#f4f4f5" }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-[#f4f4f5]" style={{ lineHeight: "20px" }}>AI Interview</p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-base font-semibold" style={{ color: "#1dc558", lineHeight: "24px" }}>Strong Yes</p>
+                      <span
+                        className="text-sm underline cursor-pointer"
+                        style={{ color: "#f4f4f5", lineHeight: "16px", textDecoration: "underline" }}
+                      >
+                        View Feedback Summary
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Second Round Interview section — for interview-second-booked and interview-add-feedback ── */}
+              {(effectiveContext === "interview-second-booked") && (
+                <div
+                  className="flex flex-col gap-4 p-4 rounded-xl"
+                  style={{ background: "rgba(255,255,255,0.05)" }}
+                >
+                  <div className="flex items-start justify-between">
+                    <p className="text-sm text-white" style={{ lineHeight: "20px" }}>Second Round Interview</p>
+                    <Pencil size={20} className="flex-shrink-0" style={{ color: "#d4d4d8" }} />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <p className="text-base font-semibold text-[#fafafa] leading-6">1:00pm Tomorrow</p>
+                    <div className="flex items-center gap-3">
+                      <span className="text-base text-[#d4d4d8]">Remote</span>
+                      <div className="rounded-full flex-shrink-0" style={{ width: 4, height: 4, background: "#d4d4d8" }} />
+                      <span className="text-base text-[#d4d4d8]">Omar S, Ahmed W.</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {effectiveContext === "interview-add-feedback" && (
+                <div
+                  className="flex items-center gap-4 p-4 rounded-xl"
+                  style={{ background: "rgba(255,255,255,0.05)" }}
+                >
+                  <div
+                    className="flex items-center justify-center flex-shrink-0 rounded-full"
+                    style={{ width: 44, height: 44, background: "rgba(255,255,255,0.05)" }}
+                  >
+                    <User size={22} style={{ color: "#f4f4f5" }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-[#f4f4f5]" style={{ lineHeight: "20px" }}>Second Round Interview</p>
+                    <p className="text-base font-semibold text-[#f4f4f5] leading-6">Today at 1:00pm</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="flex items-center justify-center text-base font-normal transition-all hover:brightness-110 active:scale-[0.98] flex-shrink-0"
+                    style={{ padding: "8px 24px", background: "#1dc558", color: "#18181b", borderRadius: 4, lineHeight: "24px" }}
+                  >
+                    Add Feedback
+                  </button>
+                </div>
+              )}
+
             </div>
 
           </div>
@@ -2327,6 +2566,16 @@ function CandidateProfileModal({
                 <Sparkles size={20} className="flex-shrink-0" />
               </button>
             )}
+            {effectiveContext === "interview-ai-complete" && (
+              <button
+                type="button"
+                onClick={() => setBookingStep("booking-next")}
+                className="flex-1 flex items-center justify-center gap-2 text-base font-normal transition-all hover:brightness-110 active:scale-[0.98]"
+                style={{ padding: "8px 24px", background: "#1dc558", color: "#18181b", borderRadius: 4, lineHeight: "24px" }}
+              >
+                Book Next Interview
+              </button>
+            )}
             {effectiveContext === "talentPool" && !isInvited && (
               <button
                 type="button"
@@ -2338,7 +2587,7 @@ function CandidateProfileModal({
                 <Mail size={20} className="flex-shrink-0" />
               </button>
             )}
-            {/* interview context: no second button — "View full profile" takes full width */}
+            {/* interview / interview-second-booked / interview-add-feedback: no second button */}
           </div>
           </>
           )}
@@ -2623,7 +2872,45 @@ export function JobPostingTemplate({
   const [inviteCandidate,     setInviteCandidate]     = useState<ShortlistCandidate | null>(null);
   const [invitedCandidates,   setInvitedCandidates]   = useState<Record<string, boolean>>({});
   const [selectedProfile,     setSelectedProfile]     = useState<CandidateProfileData | null>(null);
-  const [selectedProfileContext, setSelectedProfileContext] = useState<"talentPool" | "screening" | "shortlist" | "interview">("talentPool");
+  const [selectedProfileContext, setSelectedProfileContext] = useState<"talentPool" | "screening" | "shortlist" | "interview" | "interview-ai-complete" | "interview-second-booked" | "interview-add-feedback">("talentPool");
+
+  // Sara's interview progression state — drives 5s and 7s timed transitions
+  type SaraInterviewState = "none" | "ai_booked" | "ai_feedback" | "second_booked" | "awaiting_feedback";
+  const [saraInterviewState, setSaraInterviewState] = useState<SaraInterviewState>("none");
+
+  // After AI booking: 5 s → ai_feedback (Sara's score 95, "AI Feedback available")
+  useEffect(() => {
+    if (saraInterviewState !== "ai_booked") return;
+    const t = setTimeout(() => {
+      setSaraInterviewState("ai_feedback");
+      setKanban((prev) => ({
+        ...prev,
+        interview: prev.interview.map((c) =>
+          c.id === "tp1"
+            ? { ...c, score: 95, scoreIncreased: true, interviewBadges: { count: "1 of 2", status: "AI Feedback available", statusVariant: "green" } }
+            : c
+        ),
+      }));
+    }, 5000);
+    return () => clearTimeout(t);
+  }, [saraInterviewState]);
+
+  // After second booking: 7 s → awaiting_feedback ("Awaiting Feedback")
+  useEffect(() => {
+    if (saraInterviewState !== "second_booked") return;
+    const t = setTimeout(() => {
+      setSaraInterviewState("awaiting_feedback");
+      setKanban((prev) => ({
+        ...prev,
+        interview: prev.interview.map((c) =>
+          c.id === "tp1"
+            ? { ...c, interviewBadges: { count: "2 of 2", status: "Awaiting Feedback", statusVariant: "default" } }
+            : c
+        ),
+      }));
+    }, 7000);
+    return () => clearTimeout(t);
+  }, [saraInterviewState]);
 
   /* ── hire state ─────────────────────────────────────────────────────── */
   // No hire decisions yet — candidates reach Hire tab after second round completes
@@ -3050,14 +3337,22 @@ export function JobPostingTemplate({
                         onCardClick={(c) => {
                           if (c.id === "tp1") {
                             setSelectedProfile(SARA_PROFILE_DATA);
-                            // Context determined by which column the card lives in
-                            const ctxMap: Record<KanbanCol, "screening" | "shortlist" | "interview" | "talentPool"> = {
-                              screening: "screening",
-                              shortlist: "shortlist",
-                              interview: "interview",
-                              hire:      "interview",
-                            };
-                            setSelectedProfileContext(ctxMap[col]);
+                            // Context determined by column + Sara's current interview progression
+                            if (col === "screening") {
+                              setSelectedProfileContext("screening");
+                            } else if (col === "shortlist") {
+                              setSelectedProfileContext("shortlist");
+                            } else {
+                              // Interview / hire column — use saraInterviewState
+                              const interviewCtxMap: Record<typeof saraInterviewState, typeof selectedProfileContext> = {
+                                none:             "interview",
+                                ai_booked:        "interview",
+                                ai_feedback:      "interview-ai-complete",
+                                second_booked:    "interview-second-booked",
+                                awaiting_feedback:"interview-add-feedback",
+                              };
+                              setSelectedProfileContext(interviewCtxMap[saraInterviewState]);
+                            }
                           }
                         }}
                       />
@@ -3300,7 +3595,7 @@ export function JobPostingTemplate({
             setSelectedProfile(null);
           }}
           onBookInterview={() => {
-            // Move Sara from Shortlist → Interview (after booking confirmed + drawer closed)
+            // Move Sara from Shortlist → Interview (after AI booking confirmed + drawer closed)
             setKanban((prev) => ({
               ...prev,
               shortlist: prev.shortlist.filter((c) => c.id !== selectedProfile.id),
@@ -3316,6 +3611,22 @@ export function JobPostingTemplate({
                 ...prev.interview,
               ].sort((a, b) => b.score - a.score),
             }));
+            // Start 5-second timer to advance to AI feedback state
+            setSaraInterviewState("ai_booked");
+            setSelectedProfile(null);
+          }}
+          onBookNextInterview={() => {
+            // After second round booking confirmed + drawer closed: update Sara's badge to "2 of 2 / 1:00pm Tomorrow"
+            setKanban((prev) => ({
+              ...prev,
+              interview: prev.interview.map((c) =>
+                c.id === selectedProfile.id
+                  ? { ...c, score: 95, scoreIncreased: true, interviewBadges: { count: "2 of 2", status: "1:00pm Tomorrow" } }
+                  : c
+              ),
+            }));
+            // Start 7-second timer to advance to awaiting feedback state
+            setSaraInterviewState("second_booked");
             setSelectedProfile(null);
           }}
         />
