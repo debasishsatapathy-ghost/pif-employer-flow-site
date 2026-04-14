@@ -1543,16 +1543,14 @@ function ScoreCircle({ score, size = 44, fontSize, textColor, scoreIncreased }: 
       <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
         <span style={{ fontSize: numSize, fontWeight: 700, color: numColor }}>{score}</span>
       </div>
-      {/* Score increase indicator — Figma SkillScoreChangeIndicator: 16×16 green circle at top-left */}
+      {/* Score increase indicator — two green upward chevrons, transparent bg (Figma 6657:30508) */}
       {scoreIncreased && (
         <div style={{
           position: "absolute", top: -8, left: -8,
           width: 16, height: 16,
-          borderRadius: "50%",
-          background: "#1dc558",
           display: "flex", alignItems: "center", justifyContent: "center",
         }}>
-          <ChevronsUp size={10} color="white" strokeWidth={2.5} />
+          <ChevronsUp size={14} color="#1dc558" strokeWidth={3} />
         </div>
       )}
     </div>
@@ -1724,7 +1722,7 @@ function CandidateProfileModal({
   onAddFeedback,
 }: {
   profile: CandidateProfileData;
-  context: "talentPool" | "screening" | "shortlist" | "interview" | "interview-ai-complete" | "interview-second-booked" | "interview-add-feedback";
+  context: "talentPool" | "screening" | "shortlist" | "interview" | "interview-ai-complete" | "interview-second-booked" | "interview-add-feedback" | "interview-feedback-captured";
   isInvited: boolean;
   onClose: () => void;
   onInvite: () => void;
@@ -1751,7 +1749,8 @@ function CandidateProfileModal({
   // Score is 95 (and has increase indicator) after AI interview complete
   const showScoreIncrease = effectiveContext === "interview-ai-complete"
     || effectiveContext === "interview-second-booked"
-    || effectiveContext === "interview-add-feedback";
+    || effectiveContext === "interview-add-feedback"
+    || effectiveContext === "interview-feedback-captured";
   const displayScore = showScoreIncrease ? 95 : profile.score;
 
   // When closing after a confirmed booking, notify parent
@@ -2174,7 +2173,8 @@ function CandidateProfileModal({
                   </p>
                 </div>
               </div>
-            ) : effectiveContext === "interview-second-booked" || effectiveContext === "interview-add-feedback" ? (
+            ) : effectiveContext === "interview-second-booked" || effectiveContext === "interview-add-feedback"
+              || effectiveContext === "interview-feedback-captured" ? (
               /* No banner for these states */
               null
             ) : effectiveContext === "talentPool" && isInvited ? (
@@ -2476,7 +2476,7 @@ function CandidateProfileModal({
               </div>
 
               {/* ── AI Interview row — shown for interview-ai-complete and later states (Figma 6819:50425) ── */}
-              {showScoreIncrease && (
+              {showScoreIncrease && effectiveContext !== "interview-feedback-captured" && (
                 <div
                   className="flex gap-4 items-start p-4 rounded-xl"
                   style={{ background: "rgba(255,255,255,0.05)" }}
@@ -2549,6 +2549,36 @@ function CandidateProfileModal({
                 </div>
               )}
 
+              {/* ── Feedback-captured state: both interviews show Strong Yes + View Feedback Summary (Figma 7475:43594, 7475:43667) ── */}
+              {effectiveContext === "interview-feedback-captured" && (
+                <>
+                  <div className="flex items-start gap-4 p-4 rounded-xl" style={{ background: "rgba(255,255,255,0.05)" }}>
+                    <div className="flex items-center justify-center flex-shrink-0 rounded-full" style={{ width: 44, height: 44, background: "rgba(255,255,255,0.05)" }}>
+                      <User size={22} style={{ color: "#f4f4f5" }} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-[#f4f4f5]" style={{ lineHeight: "20px" }}>AI Interview</p>
+                      <div className="flex items-center justify-between">
+                        <p className="text-base font-semibold" style={{ color: "#1dc558", lineHeight: "24px" }}>Strong Yes</p>
+                        <span className="text-sm underline cursor-pointer" style={{ color: "#f4f4f5", lineHeight: "16px", textDecoration: "underline" }}>View Feedback Summary</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4 p-4 rounded-xl" style={{ background: "rgba(255,255,255,0.05)" }}>
+                    <div className="flex items-center justify-center flex-shrink-0 rounded-full" style={{ width: 44, height: 44, background: "rgba(255,255,255,0.05)" }}>
+                      <User size={22} style={{ color: "#f4f4f5" }} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-[#f4f4f5]" style={{ lineHeight: "20px" }}>Second Interview</p>
+                      <div className="flex items-center justify-between">
+                        <p className="text-base font-semibold" style={{ color: "#1dc558", lineHeight: "24px" }}>Strong Yes</p>
+                        <span className="text-sm underline cursor-pointer" style={{ color: "#f4f4f5", lineHeight: "16px", textDecoration: "underline" }}>View Feedback Summary</span>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+
             </div>
 
           </div>
@@ -2615,6 +2645,15 @@ function CandidateProfileModal({
               >
                 Invite to apply
                 <Mail size={20} className="flex-shrink-0" />
+              </button>
+            )}
+            {effectiveContext === "interview-feedback-captured" && (
+              <button
+                type="button"
+                className="flex-1 flex items-center justify-center gap-2 text-base font-normal transition-all hover:brightness-110 active:scale-[0.98]"
+                style={{ padding: "8px 24px", background: "#1dc558", color: "#18181b", borderRadius: 4, lineHeight: "24px" }}
+              >
+                Make Hiring Decision
               </button>
             )}
             {/* interview / interview-second-booked / interview-add-feedback: no second button */}
@@ -2902,11 +2941,14 @@ export function JobPostingTemplate({
   const [inviteCandidate,     setInviteCandidate]     = useState<ShortlistCandidate | null>(null);
   const [invitedCandidates,   setInvitedCandidates]   = useState<Record<string, boolean>>({});
   const [selectedProfile,     setSelectedProfile]     = useState<CandidateProfileData | null>(null);
-  const [selectedProfileContext, setSelectedProfileContext] = useState<"talentPool" | "screening" | "shortlist" | "interview" | "interview-ai-complete" | "interview-second-booked" | "interview-add-feedback">("talentPool");
+  const [selectedProfileContext, setSelectedProfileContext] = useState<"talentPool" | "screening" | "shortlist" | "interview" | "interview-ai-complete" | "interview-second-booked" | "interview-add-feedback" | "interview-feedback-captured">("talentPool");
   const [showFeedbackModal,   setShowFeedbackModal]   = useState(false);
+  const [hireCompareMode,     setHireCompareMode]     = useState(false);
+  const [hireCompareSelected, setHireCompareSelected] = useState<Record<string, boolean>>({});
+  const [showCompareModal,    setShowCompareModal]    = useState(false);
 
   // Sara's interview progression state — drives 5s and 7s timed transitions
-  type SaraInterviewState = "none" | "ai_booked" | "ai_feedback" | "second_booked" | "awaiting_feedback";
+  type SaraInterviewState = "none" | "ai_booked" | "ai_feedback" | "second_booked" | "awaiting_feedback" | "feedback_captured" | "hire";
   const [saraInterviewState, setSaraInterviewState] = useState<SaraInterviewState>("none");
 
   // After AI booking: 5 s → ai_feedback (Sara's score 95, "AI Feedback available")
@@ -3355,7 +3397,117 @@ export function JobPostingTemplate({
 
                   {/* Kanban board — 4 equal columns */}
                   <div className="flex gap-4 flex-1 min-h-0">
-                    {(["screening", "shortlist", "interview", "hire"] as KanbanCol[]).map((col) => (
+                    {(["screening", "shortlist", "interview", "hire"] as KanbanCol[]).map((col) => {
+                      if (col === "hire" && saraInterviewState === "hire") {
+                        // Hire column with custom Compare UI
+                        const hireCandidates = kanban.hire;
+                        const selectedCount = Object.values(hireCompareSelected).filter(Boolean).length;
+                        const canCompare = selectedCount >= 2;
+                        return (
+                          <div
+                            key="hire"
+                            className="flex-1 flex flex-col gap-3 p-4 rounded-xl min-w-0"
+                            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+                          >
+                            <div className="flex-shrink-0">
+                              <span className="inline-block px-3 py-1 rounded-full text-sm" style={{ background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.9)" }}>
+                                Hire
+                              </span>
+                            </div>
+                            <div className="flex flex-col gap-2">
+                              {hireCandidates.map((c) => (
+                                <div
+                                  key={c.id}
+                                  className="flex flex-col gap-0 rounded-xl overflow-hidden"
+                                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer" }}
+                                  onClick={() => {
+                                    if (!hireCompareMode && c.id === "tp1") {
+                                      setSelectedProfile(SARA_PROFILE_DATA);
+                                      setSelectedProfileContext("interview-feedback-captured");
+                                    }
+                                  }}
+                                >
+                                  <div className="flex items-center gap-3 p-4">
+                                    <CandidateAvatar name={c.name} avatar={c.avatar} />
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-semibold text-white leading-tight truncate">{c.name}</p>
+                                      <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>{c.role}</p>
+                                    </div>
+                                    <ScoreCircle score={c.score} scoreIncreased={c.scoreIncreased} />
+                                  </div>
+                                  {hireCompareMode && (
+                                    <div
+                                      className="flex items-center gap-2 px-4 pb-3"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setHireCompareSelected((prev) => ({ ...prev, [c.id]: !prev[c.id] }));
+                                      }}
+                                    >
+                                      <div style={{
+                                        width: 16, height: 16, borderRadius: 4, flexShrink: 0, cursor: "pointer",
+                                        background: hireCompareSelected[c.id] ? "#1dc558" : "transparent",
+                                        border: hireCompareSelected[c.id] ? "1px solid #1dc558" : "1px solid rgba(255,255,255,0.35)",
+                                        display: "flex", alignItems: "center", justifyContent: "center",
+                                      }}>
+                                        {hireCompareSelected[c.id] && (
+                                          <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                                            <path d="M1 4L3.5 6.5L9 1" stroke="#18181b" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                          </svg>
+                                        )}
+                                      </div>
+                                      <span className="text-sm" style={{ color: "rgba(255,255,255,0.7)" }}>Select to compare</span>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                            {/* Compare controls */}
+                            {!hireCompareMode ? (
+                              <button
+                                className="mt-auto w-full py-2 rounded-xl text-sm font-normal transition-colors hover:bg-white/10"
+                                style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.9)", border: "1px solid rgba(255,255,255,0.08)" }}
+                                onClick={() => {
+                                  setHireCompareMode(true);
+                                  setHireCompareSelected({});
+                                }}
+                              >
+                                Compare
+                              </button>
+                            ) : (
+                              <div className="mt-auto flex flex-col gap-2">
+                                <button
+                                  disabled={!canCompare}
+                                  onClick={() => {
+                                    if (canCompare) {
+                                      setShowCompareModal(true);
+                                    }
+                                  }}
+                                  className="w-full py-2 rounded-xl text-sm font-semibold transition-all"
+                                  style={{
+                                    background: canCompare ? "#1dc558" : "rgba(29,197,88,0.2)",
+                                    color: canCompare ? "#18181b" : "rgba(29,197,88,0.5)",
+                                    cursor: canCompare ? "pointer" : "not-allowed",
+                                    border: "none",
+                                  }}
+                                >
+                                  Compare candidates
+                                </button>
+                                <button
+                                  className="w-full py-2 rounded-xl text-sm font-normal transition-colors hover:bg-white/10"
+                                  style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.9)", border: "1px solid rgba(255,255,255,0.08)" }}
+                                  onClick={() => {
+                                    setHireCompareMode(false);
+                                    setHireCompareSelected({});
+                                  }}
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      }
+                      return (
                       <KanbanColumnPanel
                         key={col}
                         col={col}
@@ -3376,18 +3528,21 @@ export function JobPostingTemplate({
                             } else {
                               // Interview / hire column — use saraInterviewState
                               const interviewCtxMap: Record<typeof saraInterviewState, typeof selectedProfileContext> = {
-                                none:             "interview",
-                                ai_booked:        "interview",
-                                ai_feedback:      "interview-ai-complete",
-                                second_booked:    "interview-second-booked",
-                                awaiting_feedback:"interview-add-feedback",
+                                none:               "interview",
+                                ai_booked:          "interview",
+                                ai_feedback:        "interview-ai-complete",
+                                second_booked:      "interview-second-booked",
+                                awaiting_feedback:  "interview-add-feedback",
+                                feedback_captured:  "interview-feedback-captured",
+                                hire:               "interview-feedback-captured",
                               };
                               setSelectedProfileContext(interviewCtxMap[saraInterviewState]);
                             }
                           }
                         }}
                       />
-                    ))}
+                      );
+                    })}
                   </div>
                 </>
               )}
@@ -3603,7 +3758,33 @@ export function JobPostingTemplate({
           profile={selectedProfile}
           context={selectedProfileContext}
           isInvited={talentPool.find((c) => c.id === selectedProfile.id)?.invited || false}
-          onClose={() => setSelectedProfile(null)}
+          onClose={() => {
+            if (selectedProfileContext === "interview-feedback-captured" && saraInterviewState === "feedback_captured") {
+              // Flow 1: Close after feedback submitted → move Sara + Omar to Hire, update Faris badge
+              setSaraInterviewState("hire");
+              setKanban((prev) => {
+                const sara = prev.interview.find((c) => c.id === "tp1");
+                const omar = prev.interview.find((c) => c.id === "k4");
+                const restInterview = prev.interview.filter(
+                  (c) => c.id !== "tp1" && c.id !== "k4"
+                ).map((c) =>
+                  c.name === "Faris Saleh"
+                    ? { ...c, interviewBadges: { count: "2 of 2", status: "10:00am Friday" } }
+                    : c
+                );
+                const newHire: KCandidate[] = [
+                  sara ? { ...sara, interviewBadges: undefined } : null,
+                  omar ? { ...omar, interviewBadges: undefined } : null,
+                ].filter(Boolean) as KCandidate[];
+                return {
+                  ...prev,
+                  interview: restInterview,
+                  hire: [...newHire, ...prev.hire].sort((a, b) => b.score - a.score),
+                };
+              });
+            }
+            setSelectedProfile(null);
+          }}
           onInvite={() => {
             handleTalentInvite(selectedProfile.id);
           }}
@@ -3663,11 +3844,35 @@ export function JobPostingTemplate({
           onAddFeedback={() => setShowFeedbackModal(true)}
         />
       )}
+      {/* Candidate Comparison Modal — opens when "Compare candidates" is clicked in Hire column */}
+      {showCompareModal && (
+        <CandidateComparisonModal
+          key="comparison-modal"
+          onClose={() => { setShowCompareModal(false); setHireCompareMode(false); setHireCompareSelected({}); }}
+          onViewSara={() => { setShowCompareModal(false); setHireCompareMode(false); setSelectedProfile(SARA_PROFILE_DATA); setSelectedProfileContext("interview-feedback-captured"); }}
+          onViewOmar={() => { setShowCompareModal(false); setHireCompareMode(false); }}
+        />
+      )}
       {/* Interview Feedback Modal — opens when "Add Feedback" is clicked */}
       {showFeedbackModal && (
         <FeedbackModal
           key="feedback-modal"
           onClose={() => setShowFeedbackModal(false)}
+          onSubmit={() => {
+            // Simultaneously: update Sara's kanban badge to "Feedback Captured" + open her profile
+            setSaraInterviewState("feedback_captured");
+            setKanban((prev) => ({
+              ...prev,
+              interview: prev.interview.map((c) =>
+                c.id === "tp1"
+                  ? { ...c, interviewBadges: { count: "2 of 2", status: "Feedback Captured", statusVariant: "blue" } }
+                  : c
+              ),
+            }));
+            setSelectedProfile(SARA_PROFILE_DATA);
+            setSelectedProfileContext("interview-feedback-captured");
+            setShowFeedbackModal(false);
+          }}
         />
       )}
     </AnimatePresence>
@@ -3706,7 +3911,7 @@ function FeedbackSectionHead({ title }: { title: string }) {
   return <p style={{ color: "white", fontWeight: 600, fontSize: 16, lineHeight: "24px", marginBottom: 4, marginTop: 8 }}>{title}</p>;
 }
 
-function FeedbackModal({ onClose }: { onClose: () => void }) {
+function FeedbackModal({ onClose, onSubmit }: { onClose: () => void; onSubmit?: () => void }) {
   const [activeTab, setActiveTab] = useState<FeedbackTab>("overview");
   const [notes, setNotes]               = useState("");
   const [recommendation, setRecommendation] = useState<string | null>(null);
@@ -3749,7 +3954,7 @@ function FeedbackModal({ onClose }: { onClose: () => void }) {
           borderRadius: 16,
           border: "1px solid rgba(255,255,255,0.08)",
           width: "100%",
-          maxWidth: 1354,
+          maxWidth: 920,
           display: "flex",
           flexDirection: "column",
           gap: 32,
@@ -4003,7 +4208,7 @@ function FeedbackModal({ onClose }: { onClose: () => void }) {
           </div>
 
           {/* RIGHT: Panel Status + Your Assessment */}
-          <div style={{ width: 380, flexShrink: 0, display: "flex", flexDirection: "column", gap: 24 }}>
+          <div style={{ width: 300, flexShrink: 0, display: "flex", flexDirection: "column", gap: 24 }}>
 
             {/* Panel Status card */}
             <div style={{
@@ -4117,7 +4322,7 @@ function FeedbackModal({ onClose }: { onClose: () => void }) {
               <div style={{ display: "flex", justifyContent: "flex-end" }}>
                 <button
                   disabled={!canSubmit}
-                  onClick={() => canSubmit && onClose()}
+                  onClick={() => { if (canSubmit) { onSubmit?.(); onClose(); } }}
                   style={{
                     padding: "10px 24px", borderRadius: 100,
                     background: canSubmit ? "#1dc558" : "rgba(29,197,88,0.5)",
@@ -4133,6 +4338,257 @@ function FeedbackModal({ onClose }: { onClose: () => void }) {
               </div>
             </div>
           </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   CANDIDATE COMPARISON MODAL  (Figma 8272:26610)
+   Tabs: Recommendation | Differentiators | Skill Comparison | Behavioural Analysis
+══════════════════════════════════════════════════════════════════════════ */
+type CompareTab = "recommendation" | "differentiators" | "skill" | "behavioural";
+
+function CandidateComparisonModal({ onClose, onViewSara, onViewOmar }: {
+  onClose: () => void;
+  onViewSara: () => void;
+  onViewOmar: () => void;
+}) {
+  const [activeTab, setActiveTab] = useState<CompareTab>("recommendation");
+
+  const tabs: { key: CompareTab; label: string }[] = [
+    { key: "recommendation", label: "Reccommendation" },
+    { key: "differentiators", label: "Differentiators" },
+    { key: "skill", label: "Skill Comparison" },
+    { key: "behavioural", label: "Behavioural Analysis" },
+  ];
+
+  function VerdictPill({ label, strong }: { label: string; strong?: boolean }) {
+    return (
+      <span style={{
+        background: strong ? "rgba(29,197,88,0.15)" : "rgba(29,197,88,0.05)",
+        color: "#1dc558", fontSize: 14, lineHeight: "20px",
+        padding: "4px 12px", borderRadius: 8, whiteSpace: "nowrap",
+      }}>{label}</span>
+    );
+  }
+
+  return (
+    <motion.div
+      key="compare-modal-overlay"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+      style={{
+        position: "fixed", inset: 0, zIndex: 200,
+        background: "rgba(0,0,0,0.75)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: 24, overflowY: "auto",
+      }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.97 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.97 }}
+        transition={{ duration: 0.2 }}
+        style={{
+          background: "rgba(255,255,255,0.05)",
+          backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
+          borderRadius: 16, border: "1px solid rgba(255,255,255,0.08)",
+          width: "100%", maxWidth: 760,
+          display: "flex", flexDirection: "column", gap: 32,
+          padding: 32, flexShrink: 0,
+        }}
+      >
+        {/* ── Header ── */}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+            {/* Two overlapping avatars */}
+            <div style={{ position: "relative", width: 88, height: 52, flexShrink: 0 }}>
+              <div style={{
+                position: "absolute", left: 36, top: 0,
+                width: 52, height: 52, borderRadius: "50%", background: "#afd0ff", overflow: "hidden",
+                border: "2px solid rgba(255,255,255,0.1)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <User size={24} color="#0c2f66" />
+              </div>
+              <div style={{
+                position: "absolute", left: 0, top: 0,
+                width: 52, height: 52, borderRadius: "50%", background: "#ffdabf", overflow: "hidden",
+                border: "2px solid rgba(255,255,255,0.1)",
+              }}>
+                <img src="/sara-khalid.png" alt="Sara" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }} />
+              </div>
+            </div>
+            <div>
+              <p style={{ fontSize: 24, fontWeight: 600, color: "white", lineHeight: "28px" }}>Candidate Comparison</p>
+              <p style={{ fontSize: 14, color: "#d4d4d8", lineHeight: "20px", marginTop: 4 }}>Senior AI Developer</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            style={{ width: 40, height: 40, borderRadius: 4, background: "rgba(255,255,255,0.05)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+          >
+            <X size={20} color="white" />
+          </button>
+        </div>
+
+        {/* ── Main panel (tabs + content) ── */}
+        <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 16, padding: 24, display: "flex", flexDirection: "column", gap: 24 }}>
+          {/* Tabs */}
+          <div style={{ display: "flex", gap: 24, borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: 0 }}>
+            {tabs.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setActiveTab(t.key)}
+                style={{
+                  background: "none", border: "none", cursor: "pointer", padding: "0 0 13px 0",
+                  fontSize: 16, fontWeight: 400, lineHeight: "24px",
+                  color: activeTab === t.key ? "white" : "rgba(255,255,255,0.5)",
+                  borderBottom: activeTab === t.key ? "3px solid #fafafa" : "3px solid transparent",
+                  transition: "all 0.15s",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Tab content */}
+          {activeTab === "recommendation" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+              {/* Panel Verdict */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <p style={{ fontSize: 16, fontWeight: 600, color: "white", lineHeight: "24px" }}>Panel Verdict</p>
+                <div style={{ display: "flex", gap: 16 }}>
+                  {/* Sara card */}
+                  <div style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: 17, display: "flex", flexDirection: "column", gap: 24 }}>
+                    <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                      <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#ffdabf", flexShrink: 0, overflow: "hidden" }}>
+                        <img src="/sara-khalid.png" alt="Sara" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ fontSize: 16, fontWeight: 600, color: "#fafafa", lineHeight: "24px" }}>Sara Khalid</p>
+                        <p style={{ fontSize: 14, color: "#d4d4d8", lineHeight: "20px" }}>AI Practitioner</p>
+                      </div>
+                      <ScoreCircle score={95} scoreIncreased size={44} />
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      {[["AI Facilitator", "Strong Yes", true], ["Ahmed W", "Strong Yes", true], ["Omar S.", "Strong Yes", true]].map(([name, verdict, strong]) => (
+                        <div key={String(name)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", height: 28 }}>
+                          <span style={{ fontSize: 16, color: "#d4d4d8", lineHeight: "24px" }}>{String(name)}</span>
+                          <VerdictPill label={String(verdict)} strong={!!strong} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Omar card */}
+                  <div style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: 17, display: "flex", flexDirection: "column", gap: 24 }}>
+                    <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                      <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#afd0ff", flexShrink: 0, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <User size={22} color="#0c2f66" />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ fontSize: 16, fontWeight: 600, color: "#fafafa", lineHeight: "24px" }}>Omar Abdul</p>
+                        <p style={{ fontSize: 14, color: "#d4d4d8", lineHeight: "20px" }}>AI Engineer</p>
+                      </div>
+                      <ScoreCircle score={88} size={44} />
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      {[["AI Facilitator", "Yes"], ["Ahmed W", "Yes"], ["Omar S.", "Yes"]].map(([name, verdict]) => (
+                        <div key={String(name)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", height: 28 }}>
+                          <span style={{ fontSize: 16, color: "#d4d4d8", lineHeight: "24px" }}>{String(name)}</span>
+                          <VerdictPill label={String(verdict)} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* AI Recommendation */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                  <p style={{ fontSize: 16, fontWeight: 600, color: "white", lineHeight: "24px" }}>AI Recommendation</p>
+                  <Sparkles size={17} color="#1dc558" />
+                </div>
+                <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: 17 }}>
+                  <p style={{ fontSize: 16, color: "#d4d4d8", lineHeight: "24px" }}>
+                    <strong style={{ color: "#fafafa" }}>trAIn recommends Sara Khalid</strong>
+                    {" "}for the Senior AI Developer role. Her published research in Prompt Engineering and a Gen AI score of 97 — the highest across all 54 applicants — directly address the role's primary requirements.
+                  </p>
+                  <p style={{ fontSize: 16, color: "#d4d4d8", lineHeight: "24px", marginTop: 16 }}>
+                    Omar is the stronger candidate on system architecture and production deployment. If the team's near-term roadmap is infrastructure-heavy, he warrants serious consideration. Both are strong hires; this is a marginal call.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "differentiators" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+              {/* Key Strengths */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <p style={{ fontSize: 16, fontWeight: 600, color: "white", lineHeight: "24px" }}>Key Strengths</p>
+                <div style={{ display: "flex", gap: 16 }}>
+                  <div style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: 17 }}>
+                    <p style={{ fontSize: 11, fontWeight: 600, color: "#1dc558", letterSpacing: "0.08em", lineHeight: "16px", marginBottom: 12 }}>SARA'S EDGE</p>
+                    <p style={{ fontSize: 14, color: "#d4d4d8", lineHeight: "20px" }}>Published Prompt Engineering research. Gen AI score of 85 — highest of all applicants for this role.</p>
+                  </div>
+                  <div style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: 17 }}>
+                    <p style={{ fontSize: 11, fontWeight: 600, color: "#5ea1ff", letterSpacing: "0.08em", lineHeight: "16px", marginBottom: 12 }}>OMAR'S EDGE</p>
+                    <p style={{ fontSize: 14, color: "#d4d4d8", lineHeight: "20px" }}>Stronger on system architecture and production deployment — better fit if the roadmap is infrastructure-heavy.</p>
+                  </div>
+                </div>
+              </div>
+              {/* Development Areas */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <p style={{ fontSize: 16, fontWeight: 600, color: "white", lineHeight: "24px" }}>Development Areas</p>
+                <div style={{ display: "flex", gap: 16 }}>
+                  <div style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: 17 }}>
+                    <p style={{ fontSize: 11, fontWeight: 600, color: "#9f9fa9", letterSpacing: "0.08em", lineHeight: "16px", marginBottom: 12 }}>SARA — WATCH</p>
+                    <p style={{ fontSize: 14, color: "#d4d4d8", lineHeight: "20px" }}>MLOps depth was light in both sessions. Will need early mentoring or pairing on CI/CD pipelines.</p>
+                  </div>
+                  <div style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: 17 }}>
+                    <p style={{ fontSize: 11, fontWeight: 600, color: "#9f9fa9", letterSpacing: "0.08em", lineHeight: "16px", marginBottom: 12 }}>OMAR — WATCH</p>
+                    <p style={{ fontSize: 14, color: "#d4d4d8", lineHeight: "20px" }}>Higher stress markers (31 vs 18) and reduced fluency when switching topics rapidly under pressure.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {(activeTab === "skill" || activeTab === "behavioural") && (
+            <div style={{ minHeight: 300, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 14 }}>Content coming soon</p>
+            </div>
+          )}
+        </div>
+
+        {/* ── Footer ── */}
+        <div style={{ display: "flex", gap: 16, alignItems: "center", justifyContent: "flex-end" }}>
+          <button
+            onClick={() => { onViewSara(); }}
+            style={{ padding: "8px 24px", background: "rgba(255,255,255,0.05)", color: "white", borderRadius: 4, border: "none", cursor: "pointer", fontSize: 16, lineHeight: "24px" }}
+          >
+            View Sara's Profile
+          </button>
+          <button
+            onClick={() => { onViewOmar(); }}
+            style={{ padding: "8px 24px", background: "rgba(255,255,255,0.05)", color: "white", borderRadius: 4, border: "none", cursor: "pointer", fontSize: 16, lineHeight: "24px" }}
+          >
+            View Omar's Profile
+          </button>
+          <button
+            style={{ padding: "8px 24px", background: "#1dc558", color: "#18181b", borderRadius: 4, border: "none", cursor: "pointer", fontSize: 16, lineHeight: "24px", fontWeight: 400 }}
+          >
+            Make Hiring Decision
+          </button>
         </div>
       </motion.div>
     </motion.div>
