@@ -3437,16 +3437,17 @@ export function JobPostingTemplate({
                                   </div>
                                   {hireCompareMode && (
                                     <div
-                                      className="flex items-center gap-2 px-4 pb-3"
+                                      className="flex items-center justify-end gap-3 px-4 pb-3"
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         setHireCompareSelected((prev) => ({ ...prev, [c.id]: !prev[c.id] }));
                                       }}
                                     >
+                                      <span className="text-sm" style={{ color: "rgba(255,255,255,0.7)" }}>Select to compare</span>
                                       <div style={{
-                                        width: 16, height: 16, borderRadius: 4, flexShrink: 0, cursor: "pointer",
+                                        width: 18, height: 18, borderRadius: 3, flexShrink: 0, cursor: "pointer",
                                         background: hireCompareSelected[c.id] ? "#1dc558" : "transparent",
-                                        border: hireCompareSelected[c.id] ? "1px solid #1dc558" : "1px solid rgba(255,255,255,0.35)",
+                                        border: hireCompareSelected[c.id] ? "1px solid #1dc558" : "1.5px solid rgba(255,255,255,0.5)",
                                         display: "flex", alignItems: "center", justifyContent: "center",
                                       }}>
                                         {hireCompareSelected[c.id] && (
@@ -3455,7 +3456,6 @@ export function JobPostingTemplate({
                                           </svg>
                                         )}
                                       </div>
-                                      <span className="text-sm" style={{ color: "rgba(255,255,255,0.7)" }}>Select to compare</span>
                                     </div>
                                   )}
                                 </div>
@@ -3954,12 +3954,12 @@ function FeedbackModal({ onClose, onSubmit }: { onClose: () => void; onSubmit?: 
           borderRadius: 16,
           border: "1px solid rgba(255,255,255,0.08)",
           width: "100%",
-          maxWidth: 920,
+          maxWidth: 1060,
+          maxHeight: "88vh",
           display: "flex",
           flexDirection: "column",
-          gap: 32,
+          gap: 24,
           padding: 32,
-          flexShrink: 0,
         }}
       >
         {/* ── Header ── */}
@@ -3999,7 +3999,7 @@ function FeedbackModal({ onClose, onSubmit }: { onClose: () => void; onSubmit?: 
         </div>
 
         {/* ── Two-column body ── */}
-        <div style={{ display: "flex", gap: 24, alignItems: "flex-start" }}>
+        <div style={{ display: "flex", gap: 24, flex: 1, minHeight: 0, overflow: "hidden" }}>
 
           {/* LEFT: Interview Synthesis panel */}
           <div style={{
@@ -4010,7 +4010,7 @@ function FeedbackModal({ onClose, onSubmit }: { onClose: () => void; onSubmit?: 
             display: "flex",
             flexDirection: "column",
             gap: 24,
-            overflow: "hidden",
+            overflowY: "auto",
           }}>
             {/* Header row: title + AI badge */}
             <div style={{ display: "flex", alignItems: "center", gap: 24, flexShrink: 0 }}>
@@ -4208,7 +4208,7 @@ function FeedbackModal({ onClose, onSubmit }: { onClose: () => void; onSubmit?: 
           </div>
 
           {/* RIGHT: Panel Status + Your Assessment */}
-          <div style={{ width: 300, flexShrink: 0, display: "flex", flexDirection: "column", gap: 24 }}>
+          <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 16, overflowY: "auto" }}>
 
             {/* Panel Status card */}
             <div style={{
@@ -4263,21 +4263,20 @@ function FeedbackModal({ onClose, onSubmit }: { onClose: () => void; onSubmit?: 
             <div style={{
               background: "rgba(255,255,255,0.05)",
               borderRadius: 16, padding: 24,
-              display: "flex", flexDirection: "column", gap: 24,
-              flex: 1,
+              display: "flex", flexDirection: "column", gap: 20,
             }}>
               <p style={{ fontSize: 20, fontWeight: 600, color: "white", lineHeight: "24px" }}>Your assessment</p>
 
               {/* Notes */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 <p style={{ fontSize: 16, fontWeight: 600, color: "white", lineHeight: "24px" }}>Notes</p>
-                <div style={{ position: "relative", flex: 1 }}>
+                <div style={{ position: "relative" }}>
                   <textarea
                     value={notes}
                     onChange={(e) => setNotes(e.target.value.slice(0, 500))}
                     placeholder="Add your notes: observations, concerns, or anything the AI summary missed..."
                     style={{
-                      width: "100%", minHeight: 180, resize: "vertical",
+                      width: "100%", height: 160, resize: "none",
                       background: "rgba(255,255,255,0.04)",
                       border: "1px solid rgba(255,255,255,0.08)",
                       borderRadius: 10, padding: 17,
@@ -4412,9 +4411,8 @@ function CandidateComparisonModal({ onClose, onViewSara, onViewOmar }: {
                 position: "absolute", left: 36, top: 0,
                 width: 52, height: 52, borderRadius: "50%", background: "#afd0ff", overflow: "hidden",
                 border: "2px solid rgba(255,255,255,0.1)",
-                display: "flex", alignItems: "center", justifyContent: "center",
               }}>
-                <User size={24} color="#0c2f66" />
+                <img src="/candidates/omar-abdul.png" alt="Omar Abdul" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }} />
               </div>
               <div style={{
                 position: "absolute", left: 0, top: 0,
@@ -4490,8 +4488,8 @@ function CandidateComparisonModal({ onClose, onViewSara, onViewOmar }: {
                   {/* Omar card */}
                   <div style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: 17, display: "flex", flexDirection: "column", gap: 24 }}>
                     <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-                      <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#afd0ff", flexShrink: 0, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <User size={22} color="#0c2f66" />
+                      <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#afd0ff", flexShrink: 0, overflow: "hidden" }}>
+                        <img src="/candidates/omar-abdul.png" alt="Omar Abdul" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }} />
                       </div>
                       <div style={{ flex: 1 }}>
                         <p style={{ fontSize: 16, fontWeight: 600, color: "#fafafa", lineHeight: "24px" }}>Omar Abdul</p>
