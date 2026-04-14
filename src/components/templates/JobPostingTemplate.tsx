@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef, type ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  ChevronRight, ChevronDown, Star, Sparkles, MessageCircle, X, Pencil,
+  ChevronRight, ChevronDown, ChevronLeft, Star, Sparkles, MessageCircle, X, Pencil,
   TrendingUp, Calendar, CheckCircle, ClipboardList, AlertCircle,
   ArrowUpDown, ListFilter, Mail, Briefcase, GraduationCap, Info, User,
 } from "lucide-react";
@@ -181,7 +181,14 @@ const MOCK_JOB_POSTING: JobPosting = {
 type MainTab   = "applicants" | "talentPool" | "jobDetails";
 type KanbanCol = "screening" | "shortlist" | "interview" | "hire";
 
-interface KCandidate { id: string; name: string; role: string; score: number; avatar?: string }
+interface KCandidate {
+  id: string;
+  name: string;
+  role: string;
+  score: number;
+  avatar?: string;
+  interviewBadges?: { count: string; status: string };
+}
 interface TalentCandidate { id: string; name: string; role: string; score: number; invited?: boolean; avatar?: string }
 
 interface CandidateProfileData {
@@ -207,16 +214,29 @@ const KANBAN_EMPTY: Record<KanbanCol, string> = {
   hire:      "Drag candidates here\nto compare and hire",
 };
 
-// All 8 screened candidates (used in both screening and shortlisted stages)
+// Screening + Shortlist candidates (Figma-accurate scores and real profile photos)
+const SCREENING_CANDIDATES: KCandidate[] = [
+  { id: "k1", name: "Waleed Jaber", role: "ML Specialist",   score: 88, avatar: "/candidates/waleed-jaber.png" },
+  { id: "k2", name: "Lina Faraj",   role: "AI Practitioner", score: 86, avatar: "/candidates/lina-faraj.png"  },
+  { id: "k3", name: "Yousef Rayan", role: "ML Engineer",     score: 86, avatar: "/candidates/yousef-rayan.png"},
+];
+const SHORTLIST_INIT_CANDIDATES: KCandidate[] = [
+  { id: "k6", name: "Ahmed Saad",   role: "ML Specialist",   score: 89, avatar: "/candidates/ahmed-saad.png"  },
+  { id: "k7", name: "Lama Abdul",   role: "AI Developer",    score: 88, avatar: "/candidates/lama-abdul.png"  },
+  { id: "k8", name: "Tariq Nasser", role: "ML Practitioner", score: 87, avatar: "/candidates/tariq-nasser.png"},
+];
+// Omar & Faris are pre-placed in Interview (Figma image 1 state)
+const INTERVIEW_INIT_CANDIDATES: KCandidate[] = [
+  { id: "k4", name: "Omar Abdul",  role: "AI Engineer",  score: 88, avatar: "/candidates/omar-abdul.png",
+    interviewBadges: { count: "2 of 2", status: "3:00pm Wednesday" } },
+  { id: "k5", name: "Faris Saleh", role: "AI Developer", score: 85, avatar: "/candidates/faris-saleh.png",
+    interviewBadges: { count: "1 of 2", status: "AI Interview booked" } },
+];
+// All screened (used for ALL-in-screening "screening" progression stage)
 const ALL_SCREENED_CANDIDATES: KCandidate[] = [
-  { id: "k6", name: "Ahmed Saad",   role: "ML Specialist",   score: 89, avatar: "https://i.pravatar.cc/88?u=ahmed_saad_train" },
-  { id: "k4", name: "Omar Abdul",   role: "AI Engineer",     score: 88, avatar: "https://i.pravatar.cc/88?u=omar_abdul_train" },
-  { id: "k1", name: "Waleed Jaber", role: "ML Specialist",   score: 87, avatar: "https://i.pravatar.cc/88?u=waleed_jaber_train" },
-  { id: "k7", name: "Lama Abdul",   role: "AI Developer",    score: 87, avatar: "https://i.pravatar.cc/88?u=lama_abdul_train" },
-  { id: "k3", name: "Yousef Rayan", role: "ML Engineer",     score: 86, avatar: "https://i.pravatar.cc/88?u=yousef_rayan_train" },
-  { id: "k8", name: "Tariq Nasser", role: "ML Practitioner", score: 86, avatar: "https://i.pravatar.cc/88?u=tariq_nasser_train" },
-  { id: "k2", name: "Lina Faraj",   role: "AI Practitioner", score: 85, avatar: "https://i.pravatar.cc/88?u=lina_faraj_train" },
-  { id: "k5", name: "Faris Saleh",  role: "AI Developer",    score: 85, avatar: "https://i.pravatar.cc/88?u=faris_saleh_train" },
+  ...SHORTLIST_INIT_CANDIDATES,
+  ...SCREENING_CANDIDATES,
+  ...INTERVIEW_INIT_CANDIDATES,
 ];
 
 // Kanban presets — used for non-"Senior AI Developer" jobs (static default)
@@ -1533,7 +1553,7 @@ function CandidateAvatar({ name, size = 44, avatar }: { name: string; size?: num
       <img
         src={avatar}
         alt={name}
-        className="rounded-full flex-shrink-0 object-cover"
+        className="rounded-full flex-shrink-0 object-cover object-top"
         style={{ width: size, height: size, border: "1.5px solid rgba(255,255,255,0.12)" }}
       />
     );
@@ -1564,19 +1584,38 @@ function KanbanCardItem({ candidate, onDragStart, onClick }: {
       draggable
       onDragStart={onDragStart}
       onClick={onClick}
-      className="flex items-center gap-3 p-4 rounded-xl select-none transition-colors hover:bg-white/10"
+      className="flex flex-col gap-3 p-4 rounded-xl select-none transition-colors hover:bg-white/10"
       style={{
         background: "rgba(255,255,255,0.05)",
         border: "1px solid rgba(255,255,255,0.08)",
         cursor: onClick ? "pointer" : "grab",
       }}
     >
-      <CandidateAvatar name={candidate.name} avatar={candidate.avatar} />
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-white leading-tight truncate">{candidate.name}</p>
-        <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>{candidate.role}</p>
+      <div className="flex items-center gap-3">
+        <CandidateAvatar name={candidate.name} avatar={candidate.avatar} />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-white leading-tight truncate">{candidate.name}</p>
+          <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>{candidate.role}</p>
+        </div>
+        <ScoreCircle score={candidate.score} />
       </div>
-      <ScoreCircle score={candidate.score} />
+      {/* Interview sub-badges — "2 of 2" + "3:00pm Wednesday" */}
+      {candidate.interviewBadges && (
+        <div className="flex gap-2">
+          <span
+            className="text-xs px-2 py-1 rounded-lg text-white/90"
+            style={{ background: "rgba(255,255,255,0.05)" }}
+          >
+            {candidate.interviewBadges.count}
+          </span>
+          <span
+            className="text-xs px-2 py-1 rounded-lg text-white/90"
+            style={{ background: "rgba(255,255,255,0.05)" }}
+          >
+            {candidate.interviewBadges.status}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
@@ -1650,7 +1689,10 @@ function KanbanColumnPanel({
   );
 }
 
-/** Candidate Profile Peek Drawer — talentPool context (Figma 6684:36457) or screening context (Figma 6684:36458) */
+/** Candidate Profile Peek Drawer
+ *  contexts: talentPool | screening (Figma 6684:36457/36458)
+ *            shortlist   (Figma 6684:36455)  → "Book AI Interview" CTA
+ *            interview   (Figma 6810:48688)  → blue banner, "View full profile" only */
 function CandidateProfileModal({
   profile,
   context,
@@ -1658,33 +1700,47 @@ function CandidateProfileModal({
   onClose,
   onInvite,
   onAddToShortlist,
+  onBookInterview,
 }: {
   profile: CandidateProfileData;
-  context: "talentPool" | "screening";
+  context: "talentPool" | "screening" | "shortlist" | "interview";
   isInvited: boolean;
   onClose: () => void;
   onInvite: () => void;
   onAddToShortlist?: () => void;
+  onBookInterview?: () => void;
 }) {
   // Only one accordion open at a time
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
+  // Book AI Interview flow: "profile" → "booking" → "confirmed"
+  const [bookingStep, setBookingStep] = useState<"profile" | "booking" | "confirmed">("profile");
 
   const toggleSection = (section: string) => {
     setExpandedSection((prev) => (prev === section ? null : section));
   };
 
+  // Derive effective context — after booking confirmed, treat as interview
+  const effectiveContext = bookingStep === "confirmed" ? "interview" : context;
+
+  // When closing after a confirmed booking, notify parent to move Sara to Interview
+  const handleClose = () => {
+    if (bookingStep === "confirmed") {
+      onBookInterview?.();
+    }
+    onClose();
+  };
+
   return (
-    <AnimatePresence>
-      <motion.div
-        key="peek-backdrop"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.2 }}
-        className="fixed inset-0 z-50 flex items-center justify-end"
-        style={{ background: "rgba(0,0,0,0.45)" }}
-        onClick={onClose}
-      >
+    <motion.div
+      key="peek-backdrop"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+      className="fixed inset-0 z-50 flex items-center justify-end"
+      style={{ background: "rgba(0,0,0,0.45)" }}
+      onClick={handleClose}
+    >
         {/* ── Peek Drawer panel — w=512px, all-corner rounded-[16px], glassmorphic ── */}
         <motion.div
           key="peek-panel"
@@ -1704,6 +1760,128 @@ function CandidateProfileModal({
             marginRight: 16,
           }}
         >
+          {/* ══════════════════════════════════════════════════════════════════
+               BOOK AI INTERVIEW VIEW (bookingStep === "booking")
+          ══════════════════════════════════════════════════════════════════ */}
+          {bookingStep === "booking" && (
+            <>
+              <div className="flex flex-col flex-1 min-h-0 overflow-y-auto p-8 gap-6">
+                {/* Row 1: Back + Close */}
+                <div className="flex items-center justify-between flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setBookingStep("profile")}
+                    className="flex items-center justify-center hover:bg-white/10 transition-colors"
+                    style={{ width: 40, height: 40, background: "rgba(255,255,255,0.05)", borderRadius: 4 }}
+                  >
+                    <ChevronLeft size={22} className="text-white" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleClose}
+                    className="flex items-center justify-center hover:bg-white/10 transition-colors"
+                    style={{ width: 40, height: 40, background: "rgba(255,255,255,0.05)", borderRadius: 4 }}
+                  >
+                    <X size={20} className="text-white" />
+                  </button>
+                </div>
+
+                {/* Title */}
+                <p className="text-[32px] font-semibold text-white leading-10 flex-shrink-0">Book AI Interview</p>
+
+                {/* Green info banner */}
+                <div
+                  className="flex items-start rounded-xl overflow-hidden flex-shrink-0"
+                  style={{ background: "rgba(119,220,155,0.05)", border: "1px solid #4ad179" }}
+                >
+                  <div style={{ width: 8, background: "#4ad179", alignSelf: "stretch", flexShrink: 0 }} />
+                  <div className="flex items-start gap-2 p-4 flex-1">
+                    <Sparkles size={20} className="flex-shrink-0 mt-0.5" style={{ color: "#4ad179" }} />
+                    <div>
+                      <p className="text-sm leading-5 mb-2" style={{ color: "#d2f3de" }}>
+                        trAIn will invite the candidate to complete an AI-facilitated interview over the next 48 hours.
+                      </p>
+                      <p className="text-sm leading-5" style={{ color: "#d2f3de" }}>
+                        trAIn will automatically score the interview and share a summary once completed.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Candidate card */}
+                <div
+                  className="flex items-center gap-3 p-4 rounded-xl flex-shrink-0"
+                  style={{ background: "rgba(255,255,255,0.05)" }}
+                >
+                  <div
+                    className="overflow-hidden flex-shrink-0"
+                    style={{ width: 44, height: 44, borderRadius: "50%", background: "#ffdabf" }}
+                  >
+                    <img
+                      src={profile.avatar || "/sara-khalid.png"}
+                      alt={profile.name}
+                      className="w-full h-full object-cover object-top"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-base font-normal text-[#fafafa] leading-6">{profile.name}</p>
+                    <p className="text-sm text-[#d4d4d8] leading-5">{profile.role}</p>
+                  </div>
+                  <ScoreCircle score={profile.score} />
+                </div>
+
+                {/* Interview details */}
+                <div
+                  className="rounded-xl p-4 flex-shrink-0"
+                  style={{ background: "rgba(255,255,255,0.05)" }}
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="flex flex-col gap-3 flex-1">
+                      <p className="text-base leading-6" style={{ color: "#fafafa" }}>
+                        <span style={{ color: "#d4d4d8" }}>Deadline: </span>
+                        <span className="font-medium">5:00pm Monday</span>
+                      </p>
+                      <p className="text-base leading-6" style={{ color: "#fafafa" }}>
+                        <span style={{ color: "#d4d4d8" }}>Focus: </span>
+                        <span className="font-medium">Technical skills</span>
+                      </p>
+                      <p className="text-base leading-6" style={{ color: "#fafafa" }}>
+                        <span style={{ color: "#d4d4d8" }}>Language: </span>
+                        <span className="font-medium">Candidate preference (English/Arabic)</span>
+                      </p>
+                    </div>
+                    <Pencil size={20} className="flex-shrink-0 mt-1" style={{ color: "#d4d4d8" }} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="flex flex-col gap-4 flex-shrink-0 p-8 pt-4" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                <button
+                  type="button"
+                  onClick={() => setBookingStep("confirmed")}
+                  className="w-full flex items-center justify-center text-base font-normal transition-all hover:brightness-110 active:scale-[0.98]"
+                  style={{ padding: "8px 24px", background: "#1dc558", color: "#18181b", borderRadius: 4, lineHeight: "24px" }}
+                >
+                  Confirm Booking
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBookingStep("profile")}
+                  className="w-full flex items-center justify-center text-base font-normal text-white transition-colors hover:bg-white/10"
+                  style={{ padding: "8px 24px", background: "rgba(255,255,255,0.05)", borderRadius: 4, lineHeight: "24px" }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* ══════════════════════════════════════════════════════════════════
+               NORMAL PROFILE VIEW (bookingStep !== "booking")
+          ══════════════════════════════════════════════════════════════════ */}
+          {bookingStep !== "booking" && (
+          <>
           {/* ── Scrollable content area ── */}
           <div className="flex flex-col flex-1 min-h-0 overflow-y-auto p-8 gap-6">
 
@@ -1721,7 +1899,7 @@ function CandidateProfileModal({
                 <img
                   src={profile.avatar || "/sara-khalid.png"}
                   alt={profile.name}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover object-top"
                   onError={(e) => { e.currentTarget.src = "/sara-khalid.png"; }}
                 />
               </div>
@@ -1729,7 +1907,7 @@ function CandidateProfileModal({
               {/* Close button — Figma: bg-rgba(255,255,255,0.05), 40×40, rounded-[4px] */}
               <button
                 type="button"
-                onClick={onClose}
+                onClick={handleClose}
                 className="flex items-center justify-center flex-shrink-0 transition-colors hover:bg-white/10"
                 style={{
                   width: 40, height: 40,
@@ -1752,30 +1930,43 @@ function CandidateProfileModal({
                   {profile.name}
                 </h2>
 
-                {/* Tag — "Talent Pool" / "Invitation Sent" (talentPool) or "Screening ▾" (screening) */}
-                <div
-                  className="flex items-center gap-1 flex-shrink-0"
-                  style={{
-                    paddingLeft: 12,
-                    paddingRight: context === "screening" ? 8 : 10,
-                    paddingTop: 4, paddingBottom: 4,
-                    borderRadius: 100,
-                    background: context === "talentPool" && isInvited ? "#a5e8bc" : "rgba(255,255,255,0.05)",
-                  }}
-                >
-                  <span
-                    className="text-base font-normal whitespace-nowrap"
+                {/* Tag — varies by effectiveContext */}
+                {effectiveContext === "talentPool" ? (
+                  <div
+                    className="flex items-center gap-1 flex-shrink-0"
                     style={{
-                      lineHeight: "24px",
-                      color: context === "talentPool" && isInvited ? "#18181b" : "#f4f4f5",
+                      paddingLeft: 12, paddingRight: 10, paddingTop: 4, paddingBottom: 4,
+                      borderRadius: 100,
+                      background: isInvited ? "#a5e8bc" : "rgba(255,255,255,0.05)",
                     }}
                   >
-                    {context === "screening" ? "Screening" : isInvited ? "Invitation Sent" : "Talent Pool"}
-                  </span>
-                  {context === "screening" && (
+                    <span
+                      className="text-base font-normal whitespace-nowrap"
+                      style={{ lineHeight: "24px", color: isInvited ? "#18181b" : "#f4f4f5" }}
+                    >
+                      {isInvited ? "Invitation Sent" : "Talent Pool"}
+                    </span>
+                  </div>
+                ) : (
+                  <div
+                    className="flex items-center gap-1 flex-shrink-0"
+                    style={{
+                      paddingLeft: 12, paddingRight: 8, paddingTop: 4, paddingBottom: 4,
+                      borderRadius: 100,
+                      background: "rgba(255,255,255,0.05)",
+                    }}
+                  >
+                    <span
+                      className="text-base font-normal whitespace-nowrap"
+                      style={{ lineHeight: "24px", color: "#f4f4f5" }}
+                    >
+                      {effectiveContext === "screening" ? "Screening"
+                        : effectiveContext === "shortlist" ? "Shortlist"
+                        : "Interview"}
+                    </span>
                     <ChevronDown size={20} style={{ color: "#f4f4f5", flexShrink: 0 }} />
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
 
               {/* Subtitle — "AI Practitioner • Jeddah" in #d4d4d8 */}
@@ -1793,8 +1984,33 @@ function CandidateProfileModal({
               </div>
             </div>
 
-            {/* ── Row 3: Banner — blue for invited talentPool, green for everything else ── */}
-            {context === "talentPool" && isInvited ? (
+            {/* ── Row 3: Banner — blue for invited talentPool or interview-confirmed, green otherwise ── */}
+            {(effectiveContext === "interview") ? (
+              /* Blue "You have requested Sara completes an AI interview" banner */
+              <div
+                className="flex items-start rounded-xl overflow-hidden flex-shrink-0"
+                style={{
+                  background: "rgba(54,137,255,0.05)",
+                  border: "1px solid #5ea1ff",
+                }}
+              >
+                <div style={{ width: 8, background: "#5ea1ff", alignSelf: "stretch", flexShrink: 0 }} />
+                <div className="flex items-start gap-2 p-4 flex-1">
+                  <Info size={20} className="flex-shrink-0 mt-0.5" style={{ color: "#5ea1ff" }} />
+                  <p className="text-base leading-6" style={{ color: "#d7e7ff" }}>
+                    <span className="font-semibold">
+                      You have requested {profile.name.split(" ")[0]} completes an AI interview.{" "}
+                    </span>
+                    <span className="font-normal">
+                      trAIn will automatically share feedback with you once the interview is completed.
+                    </span>
+                    <br />
+                    <span className="font-semibold">Deadline: </span>
+                    <span className="font-normal">5pm Monday.</span>
+                  </p>
+                </div>
+              </div>
+            ) : (effectiveContext === "talentPool" && isInvited) ? (
               /* Blue "You have invited Sara" banner */
               <div
                 className="flex items-start rounded-xl overflow-hidden flex-shrink-0"
@@ -2088,44 +2304,46 @@ function CandidateProfileModal({
               <User size={20} className="text-white flex-shrink-0" />
             </button>
 
-            {/* Action button — "Add to shortlist" for screening, "Invite to apply" for talent pool (pre-invite) */}
-            {context === "screening" ? (
+            {/* Action button — varies by effectiveContext */}
+            {effectiveContext === "screening" && (
               <button
                 type="button"
                 onClick={onAddToShortlist}
                 className="flex-1 flex items-center justify-center gap-2 text-base font-normal transition-all hover:brightness-110 active:scale-[0.98]"
-                style={{
-                  padding: "8px 24px",
-                  background: "#1dc558",
-                  color: "#18181b",
-                  borderRadius: 4,
-                  lineHeight: "24px",
-                }}
+                style={{ padding: "8px 24px", background: "#1dc558", color: "#18181b", borderRadius: 4, lineHeight: "24px" }}
               >
                 Add to shortlist
                 <Star size={20} className="flex-shrink-0" />
               </button>
-            ) : !isInvited ? (
+            )}
+            {effectiveContext === "shortlist" && (
+              <button
+                type="button"
+                onClick={() => setBookingStep("booking")}
+                className="flex-1 flex items-center justify-center gap-2 text-base font-normal transition-all hover:brightness-110 active:scale-[0.98]"
+                style={{ padding: "8px 24px", background: "#1dc558", color: "#18181b", borderRadius: 4, lineHeight: "24px" }}
+              >
+                Book AI Interview
+                <Sparkles size={20} className="flex-shrink-0" />
+              </button>
+            )}
+            {effectiveContext === "talentPool" && !isInvited && (
               <button
                 type="button"
                 onClick={onInvite}
                 className="flex-1 flex items-center justify-center gap-2 text-base font-normal transition-all hover:brightness-110 active:scale-[0.98]"
-                style={{
-                  padding: "8px 24px",
-                  background: "#1dc558",
-                  color: "#18181b",
-                  borderRadius: 4,
-                  lineHeight: "24px",
-                }}
+                style={{ padding: "8px 24px", background: "#1dc558", color: "#18181b", borderRadius: 4, lineHeight: "24px" }}
               >
                 Invite to apply
                 <Mail size={20} className="flex-shrink-0" />
               </button>
-            ) : null}
+            )}
+            {/* interview context: no second button — "View full profile" takes full width */}
           </div>
+          </>
+          )}
         </motion.div>
-      </motion.div>
-    </AnimatePresence>
+    </motion.div>
   );
 }
 
@@ -2264,7 +2482,15 @@ export function JobPostingTemplate({
 
   // Get persisted state from Zustand or initialize with defaults
   const persistedState = getJobDetailState(effectivePostingId);
-  const defaultKanban = jobPosting?.title && /ai\s*developer/i.test(jobPosting.title) ? KANBAN_CANDIDATES_EMPTY : KANBAN_INIT;
+  // "Senior AI Developer" starts with the Figma-accurate state (Waleed/Lina/Yousef in Screening,
+  // Ahmed/Lama/Tariq in Shortlist, Omar/Faris pre-placed in Interview with badges)
+  const SENIOR_AI_DEV_KANBAN: Record<KanbanCol, KCandidate[]> = {
+    screening: SCREENING_CANDIDATES,
+    shortlist: SHORTLIST_INIT_CANDIDATES,
+    interview: INTERVIEW_INIT_CANDIDATES,
+    hire:      [],
+  };
+  const defaultKanban = jobPosting?.title && /ai\s*developer/i.test(jobPosting.title) ? SENIOR_AI_DEV_KANBAN : KANBAN_INIT;
 
   // Initialize local state from Zustand or defaults
   const [mainTab, setMainTabLocal] = useState<MainTab>(persistedState?.mainTab || "applicants");
@@ -2397,7 +2623,7 @@ export function JobPostingTemplate({
   const [inviteCandidate,     setInviteCandidate]     = useState<ShortlistCandidate | null>(null);
   const [invitedCandidates,   setInvitedCandidates]   = useState<Record<string, boolean>>({});
   const [selectedProfile,     setSelectedProfile]     = useState<CandidateProfileData | null>(null);
-  const [selectedProfileContext, setSelectedProfileContext] = useState<"talentPool" | "screening">("talentPool");
+  const [selectedProfileContext, setSelectedProfileContext] = useState<"talentPool" | "screening" | "shortlist" | "interview">("talentPool");
 
   /* ── hire state ─────────────────────────────────────────────────────── */
   // No hire decisions yet — candidates reach Hire tab after second round completes
@@ -2470,7 +2696,7 @@ export function JobPostingTemplate({
     }
 
     if (progression.stage === 'screening') {
-      // Stage 1: all 8 candidates appear in screening
+      // Stage 1: all candidates in screening (Omar/Faris included with badges)
       setKanban({
         screening: ALL_SCREENED_CANDIDATES,
         shortlist: [],
@@ -2481,13 +2707,13 @@ export function JobPostingTemplate({
     }
 
     if (progression.stage === 'shortlisted') {
-      // Stage 2: first 3 stay in screening, last 5 move to shortlist
-      // ALL_SCREENED_CANDIDATES is already sorted by score descending, so slice preserves order
+      // Stage 2: Figma-accurate layout — Waleed/Lina/Yousef in Screening,
+      // Ahmed/Lama/Tariq in Shortlist, Omar/Faris pre-placed in Interview
       setKanban({
-        screening: ALL_SCREENED_CANDIDATES.slice(0, 3),
-        shortlist: ALL_SCREENED_CANDIDATES.slice(3),
-        interview: [],
-        hire: [],
+        screening: SCREENING_CANDIDATES,
+        shortlist: SHORTLIST_INIT_CANDIDATES,
+        interview: INTERVIEW_INIT_CANDIDATES,
+        hire:      [],
       });
     }
   }, [posting.title, progression, effectivePostingId, getJobDetailState]);
@@ -2824,7 +3050,14 @@ export function JobPostingTemplate({
                         onCardClick={(c) => {
                           if (c.id === "tp1") {
                             setSelectedProfile(SARA_PROFILE_DATA);
-                            setSelectedProfileContext("screening");
+                            // Context determined by which column the card lives in
+                            const ctxMap: Record<KanbanCol, "screening" | "shortlist" | "interview" | "talentPool"> = {
+                              screening: "screening",
+                              shortlist: "shortlist",
+                              interview: "interview",
+                              hire:      "interview",
+                            };
+                            setSelectedProfileContext(ctxMap[col]);
                           }
                         }}
                       />
@@ -3037,34 +3270,57 @@ export function JobPostingTemplate({
     </AnimatePresence>
 
     {/* ── Candidate Profile Modal ──────────────────────────────────────── */}
-    {selectedProfile && (
-      <CandidateProfileModal
-        profile={selectedProfile}
-        context={selectedProfileContext}
-        isInvited={talentPool.find((c) => c.id === selectedProfile.id)?.invited || false}
-        onClose={() => setSelectedProfile(null)}
-        onInvite={() => {
-          handleTalentInvite(selectedProfile.id);
-        }}
-        onAddToShortlist={() => {
-          setKanban((prev) => ({
-            ...prev,
-            screening: prev.screening.filter((c) => c.id !== selectedProfile.id),
-            shortlist: [
-              ...prev.shortlist,
-              {
-                id:     selectedProfile.id,
-                name:   selectedProfile.name,
-                role:   selectedProfile.role,
-                score:  selectedProfile.score,
-                avatar: selectedProfile.avatar,
-              },
-            ].sort((a, b) => b.score - a.score),
-          }));
-          setSelectedProfile(null);
-        }}
-      />
-    )}
+    <AnimatePresence>
+      {selectedProfile && (
+        <CandidateProfileModal
+          key="candidate-profile-modal"
+          profile={selectedProfile}
+          context={selectedProfileContext}
+          isInvited={talentPool.find((c) => c.id === selectedProfile.id)?.invited || false}
+          onClose={() => setSelectedProfile(null)}
+          onInvite={() => {
+            handleTalentInvite(selectedProfile.id);
+          }}
+          onAddToShortlist={() => {
+            // Move Sara from Screening → Shortlist
+            setKanban((prev) => ({
+              ...prev,
+              screening: prev.screening.filter((c) => c.id !== selectedProfile.id),
+              shortlist: [
+                ...prev.shortlist,
+                {
+                  id:     selectedProfile.id,
+                  name:   selectedProfile.name,
+                  role:   selectedProfile.role,
+                  score:  selectedProfile.score,
+                  avatar: selectedProfile.avatar,
+                },
+              ].sort((a, b) => b.score - a.score),
+            }));
+            setSelectedProfile(null);
+          }}
+          onBookInterview={() => {
+            // Move Sara from Shortlist → Interview (after booking confirmed + drawer closed)
+            setKanban((prev) => ({
+              ...prev,
+              shortlist: prev.shortlist.filter((c) => c.id !== selectedProfile.id),
+              interview: [
+                {
+                  id:     selectedProfile.id,
+                  name:   selectedProfile.name,
+                  role:   selectedProfile.role,
+                  score:  selectedProfile.score,
+                  avatar: selectedProfile.avatar,
+                  interviewBadges: { count: "1 of 2", status: "AI Interview booked" },
+                },
+                ...prev.interview,
+              ].sort((a, b) => b.score - a.score),
+            }));
+            setSelectedProfile(null);
+          }}
+        />
+      )}
+    </AnimatePresence>
     </>
   );
 }
