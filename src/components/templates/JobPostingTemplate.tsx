@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronRight, ChevronDown, Star, Sparkles, MessageCircle, X, Pencil,
   TrendingUp, Calendar, CheckCircle, ClipboardList, AlertCircle,
-  ArrowUpDown, ListFilter, Mail,
+  ArrowUpDown, ListFilter, Mail, Briefcase, GraduationCap, Info, User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { JobCandidateView, type ApplicantWithScore } from "@/components/templates/JobCandidateView";
@@ -1497,28 +1497,30 @@ function ApplicantCard({ applicant, delay = 0, compact = false, starred = false,
 ══════════════════════════════════════════════════════════════════════════ */
 
 /** SVG circular progress score ring — matches Figma Skill Score component */
-function ScoreCircle({ score, size = 44 }: { score: number; size?: number }) {
+function ScoreCircle({ score, size = 44, fontSize, textColor }: { score: number; size?: number; fontSize?: number; textColor?: string }) {
   const r   = (size - 5) / 2;
   const c   = size / 2;
   const circ = 2 * Math.PI * r;
   const dash = circ * (1 - score / 100);
   
   // Quality-based color: green>=80%, yellow>=60%, red<60%
-  const color = score >= 80 ? "#1dc558" : score >= 60 ? "#f59e0b" : "#f87171";
+  const arcColor = score >= 80 ? "#1dc558" : score >= 60 ? "#f59e0b" : "#f87171";
+  const numColor = textColor ?? arcColor;
+  const numSize  = fontSize ?? (size <= 36 ? 11 : size <= 48 ? 14 : 16);
   
   return (
     <div style={{ width: size, height: size, position: "relative", flexShrink: 0 }}>
       <svg width={size} height={size} style={{ transform: "rotate(-90deg) scaleY(-1)" }}>
         <circle cx={c} cy={c} r={r} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth={2.5} />
         <circle cx={c} cy={c} r={r} fill="none"
-          stroke={color} strokeWidth={2.5}
+          stroke={arcColor} strokeWidth={2.5}
           strokeDasharray={circ}
           strokeDashoffset={dash}
           strokeLinecap="round"
         />
       </svg>
       <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <span style={{ fontSize: 12, fontWeight: 700, color }}>{score}</span>
+        <span style={{ fontSize: numSize, fontWeight: 700, color: numColor }}>{score}</span>
       </div>
     </div>
   );
@@ -1644,7 +1646,8 @@ function KanbanColumnPanel({
   );
 }
 
-/** Candidate Profile Modal - shows detailed profile information */
+/** Candidate Profile Peek Drawer — Figma node 6684:36457 (Talent Pool / Not Invited)
+ *  and node 6684:36xxx (Invited state) */
 function CandidateProfileModal({
   profile,
   isInvited,
@@ -1656,6 +1659,7 @@ function CandidateProfileModal({
   onClose: () => void;
   onInvite: () => void;
 }) {
+  // Only one accordion open at a time
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
 
   const toggleSection = (section: string) => {
@@ -1665,144 +1669,219 @@ function CandidateProfileModal({
   return (
     <AnimatePresence>
       <motion.div
+        key="peek-backdrop"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/60 z-50 flex items-center justify-end"
+        transition={{ duration: 0.2 }}
+        className="fixed inset-0 z-50 flex items-center justify-end"
+        style={{ background: "rgba(0,0,0,0.45)" }}
         onClick={onClose}
       >
+        {/* ── Peek Drawer panel — w=512px, all-corner rounded-[16px], glassmorphic ── */}
         <motion.div
-          initial={{ x: "100%" }}
-          animate={{ x: 0 }}
-          exit={{ x: "100%" }}
-          transition={{ type: "spring", damping: 30, stiffness: 300 }}
+          key="peek-panel"
+          initial={{ x: "100%", opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          exit={{ x: "100%", opacity: 0 }}
+          transition={{ type: "spring", damping: 32, stiffness: 320 }}
           onClick={(e) => e.stopPropagation()}
-          className="h-full w-full max-w-md overflow-y-auto"
+          className="h-[calc(100vh-32px)] flex flex-col overflow-hidden"
           style={{
-            background: "rgba(15, 20, 28, 0.98)",
-            borderLeft: "1px solid rgba(255,255,255,0.1)",
+            width: 512,
+            borderRadius: 16,
+            background: "rgba(255,255,255,0.05)",
+            backdropFilter: "blur(32px)",
+            WebkitBackdropFilter: "blur(32px)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            marginRight: 16,
           }}
         >
-          {/* Header */}
-          <div className="p-6 pb-0 flex items-start justify-between">
-            <div className="flex items-center gap-3 flex-1">
-              <CandidateAvatar name={profile.name} size={64} avatar={profile.avatar} />
-              <div className="flex-1">
-                <h2 className="text-xl font-semibold text-white">{profile.name}</h2>
-                <p className="text-sm text-white/60 mt-0.5">
-                  {profile.role} · {profile.location}
-                </p>
+          {/* ── Scrollable content area ── */}
+          <div className="flex flex-col flex-1 min-h-0 overflow-y-auto p-8 gap-6">
+
+            {/* ── Row 1: Avatar (80px) + Close button ── */}
+            <div className="flex items-start justify-between flex-shrink-0">
+              {/* Avatar — matches Figma rounded-[133px] ≈ full circle */}
+              <div
+                className="overflow-hidden flex-shrink-0"
+                style={{
+                  width: 80, height: 80,
+                  borderRadius: "50%",
+                  background: "#ffdabf",
+                }}
+              >
+                <img
+                  src={profile.avatar || "/sara-khalid.png"}
+                  alt={profile.name}
+                  className="w-full h-full object-cover"
+                  onError={(e) => { e.currentTarget.src = "/sara-khalid.png"; }}
+                />
               </div>
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-              {isInvited && (
-                <span
-                  className="px-3 py-1 rounded-full text-xs font-medium"
-                  style={{ background: "rgba(29,197,88,0.15)", color: "#1ed25e" }}
-                >
-                  Invitation Sent
-                </span>
-              )}
-              <span
-                className="px-3 py-1 rounded-full text-xs font-medium"
-                style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.7)" }}
-              >
-                Talent Pool
-              </span>
+
+              {/* Close button — Figma: bg-rgba(255,255,255,0.05), 40×40, rounded-[4px] */}
               <button
+                type="button"
                 onClick={onClose}
-                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors text-white/60 hover:text-white"
+                className="flex items-center justify-center flex-shrink-0 transition-colors hover:bg-white/10"
+                style={{
+                  width: 40, height: 40,
+                  background: "rgba(255,255,255,0.05)",
+                  borderRadius: 4,
+                }}
               >
-                <X size={18} />
+                <X size={20} className="text-white" />
               </button>
             </div>
-          </div>
 
-          {/* Content */}
-          <div className="p-6 space-y-4">
-            {/* Invitation Info Message */}
-            {isInvited && (
+            {/* ── Row 2: Name + Tag pill ── */}
+            <div className="flex flex-col gap-2 flex-shrink-0">
+              {/* Name row */}
+              <div className="flex items-center justify-between">
+                <h2
+                  className="font-semibold text-white whitespace-nowrap"
+                  style={{ fontSize: 32, lineHeight: "40px" }}
+                >
+                  {profile.name}
+                </h2>
+
+                {/* Tag — "Talent Pool" glass pill or "Invitation Sent" green pill */}
+                <div
+                  className="flex items-center flex-shrink-0"
+                  style={{
+                    paddingLeft: 12, paddingRight: 10, paddingTop: 4, paddingBottom: 4,
+                    borderRadius: 100,
+                    background: isInvited ? "#a5e8bc" : "rgba(255,255,255,0.05)",
+                  }}
+                >
+                  <span
+                    className="text-base font-normal whitespace-nowrap"
+                    style={{ lineHeight: "24px", color: isInvited ? "#18181b" : "#f4f4f5" }}
+                  >
+                    {isInvited ? "Invitation Sent" : "Talent Pool"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Subtitle — "AI Practitioner • Jeddah" in #d4d4d8 */}
+              <div className="flex items-center gap-3">
+                <span className="text-base text-[#d4d4d8]" style={{ lineHeight: "24px" }}>
+                  {profile.role}
+                </span>
+                <div
+                  className="rounded-full flex-shrink-0"
+                  style={{ width: 4, height: 4, background: "#d4d4d8" }}
+                />
+                <span className="text-base text-[#d4d4d8]" style={{ lineHeight: "24px" }}>
+                  {profile.location}
+                </span>
+              </div>
+            </div>
+
+            {/* ── Row 3: Banner (AI match OR Invitation info) ── */}
+            {isInvited ? (
+              /* Blue "You have invited Sara" banner */
               <div
-                className="rounded-xl p-4 flex items-start gap-3"
-                style={{ background: "rgba(54,137,255,0.08)", border: "1px solid rgba(54,137,255,0.2)" }}
+                className="flex items-start rounded-xl overflow-hidden flex-shrink-0"
+                style={{
+                  background: "rgba(54,137,255,0.08)",
+                  border: "1px solid rgba(54,137,255,0.35)",
+                }}
               >
-                <AlertCircle size={16} className="flex-shrink-0 mt-0.5" style={{ color: "#51a2ff" }} />
-                <div className="flex-1">
-                  <p className="text-sm text-white/80">
-                    <span className="font-semibold">You have invited {profile.name.split(" ")[0]} to apply for this role.</span>{" "}
-                    {profile.name.split(" ")[0]} will appear as a screened applicant if she decides to submit an application.
+                <div style={{ width: 8, background: "#3689ff", alignSelf: "stretch", flexShrink: 0 }} />
+                <div className="flex items-start gap-2 p-4 flex-1">
+                  <Info size={20} className="flex-shrink-0 mt-0.5" style={{ color: "#3689ff" }} />
+                  <p className="text-base leading-6" style={{ color: "#d7e7ff" }}>
+                    <span className="font-semibold">
+                      You have invited {profile.name.split(" ")[0]} to apply for this role.{" "}
+                    </span>
+                    <span className="font-normal">
+                      {profile.name.split(" ")[0]} will appear as a screened applicant if she decides to submit an application.
+                    </span>
+                  </p>
+                </div>
+              </div>
+            ) : (
+              /* Green AI match banner — Figma: bg rgba(119,220,155,0.05), border #4ad179, 8px left bar */
+              <div
+                className="flex items-start rounded-xl overflow-hidden flex-shrink-0"
+                style={{
+                  background: "rgba(119,220,155,0.05)",
+                  border: "1px solid #4ad179",
+                }}
+              >
+                <div style={{ width: 8, background: "#4ad179", alignSelf: "stretch", flexShrink: 0 }} />
+                <div className="flex items-start gap-2 p-4 flex-1">
+                  <Sparkles size={20} className="flex-shrink-0 mt-0.5" style={{ color: "#4ad179" }} />
+                  <p className="text-base leading-6" style={{ color: "#d2f3de" }}>
+                    <span className="font-semibold">
+                      {profile.name.split(" ")[0]}&apos;s profile is an excellent match.{" "}
+                    </span>
+                    <span className="font-normal">
+                      Her 4 years of hands-on Generative AI experience directly covers your top requirement, and her published research on Prompt Engineering is rare at this level.
+                    </span>
                   </p>
                 </div>
               </div>
             )}
 
-            {/* Match Insight */}
-            <div
-              className="rounded-xl p-4 flex items-start gap-3"
-              style={{ background: "rgba(29,197,88,0.08)", border: "1px solid rgba(29,197,88,0.2)" }}
-            >
-              <Sparkles size={16} className="flex-shrink-0 mt-0.5" style={{ color: "#1ed25e" }} />
-              <p className="text-sm text-white/80 leading-relaxed">
-                <span className="font-semibold" style={{ color: "#1ed25e" }}>
-                  {profile.name.split(" ")[0]}'s profile is an excellent match.
-                </span>{" "}
-                {profile.matchInsight.split(". ").slice(1).join(". ")}
-              </p>
-            </div>
+            {/* ── Row 4: Accordion sections ── */}
+            <div className="flex flex-col gap-4 flex-shrink-0">
 
-            {/* Match Score */}
-            <div
-              className="rounded-xl overflow-hidden"
-              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
-            >
-              <button
-                onClick={() => toggleSection("score")}
-                className="w-full p-4 flex items-center gap-3 hover:bg-white/5 transition-colors"
+              {/* — Match Score accordion — */}
+              <div
+                className="rounded-[12px] overflow-hidden"
+                style={{ background: "rgba(255,255,255,0.05)" }}
               >
-                <ScoreCircle score={profile.score} size={40} />
-                <div className="flex-1 text-left">
-                  <p className="text-xs text-white/50">Match score</p>
-                  <p className="text-sm font-medium text-white mt-0.5">Strong match for this role.</p>
-                </div>
-                <ChevronDown
-                  size={16}
-                  className="text-white/40 transition-transform"
-                  style={{ transform: expandedSection === "score" ? "rotate(180deg)" : "none" }}
-                />
-              </button>
-              {expandedSection === "score" && (
-                <div className="px-4 pb-4 space-y-2">
-                  <div
-                    className="rounded-lg p-3 text-xs"
-                    style={{ background: "rgba(255,255,255,0.05)" }}
-                  >
-                    <p className="text-white/50 mb-2">HOW THIS SCORE IS CALCULATED</p>
-                    <p className="text-white/70 leading-relaxed">
-                      Skills: 60% · Experience: 26% · Certifications: 15%
-                      <br />
-                      Skills are weighted by how closely a candidate matches your role requirements. 
-                      Scores above 85 indicate a strong fit.
+                <button
+                  type="button"
+                  onClick={() => toggleSection("score")}
+                  className="w-full flex items-center gap-4 p-4"
+                >
+                  {/* SVG score ring — 44px, text white, Figma Skill Score % */}
+                  <ScoreCircle score={profile.score} size={44} textColor="white" />
+
+                  <div className="flex-1 text-left min-w-0">
+                    {/* Label row: "Match score" + info icon */}
+                    <div className="flex items-center gap-1 mb-0.5">
+                      <span className="text-sm text-[#f4f4f5]" style={{ lineHeight: "20px" }}>Match score</span>
+                      <Info size={14} style={{ color: "rgba(244,244,245,0.6)", flexShrink: 0 }} />
+                    </div>
+                    <p className="text-base text-[#f4f4f5]" style={{ lineHeight: "24px" }}>
+                      <span className="font-semibold">Strong match </span>
+                      <span className="font-normal">for this role.</span>
                     </p>
                   </div>
-                  <div className="space-y-2">
+
+                  <ChevronDown
+                    size={24}
+                    className="text-white/60 flex-shrink-0 transition-transform duration-200"
+                    style={{ transform: expandedSection === "score" ? "rotate(180deg)" : "none" }}
+                  />
+                </button>
+
+                {/* Expanded: skill list with check icons + level badges */}
+                {expandedSection === "score" && (
+                  <div className="px-4 pb-4 flex flex-col gap-3">
                     {profile.skills.map((skill, idx) => (
-                      <div key={idx} className="flex items-center justify-between text-xs">
-                        <span className="text-white/70">{skill.name}</span>
+                      <div key={idx} className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle
+                            size={20}
+                            style={{
+                              color: skill.level === "Novice" ? "#ffc940" : "#1dc558",
+                              flexShrink: 0,
+                            }}
+                          />
+                          <span className="text-base text-[#f4f4f5]">{skill.name}</span>
+                        </div>
                         <span
-                          className="px-2 py-0.5 rounded-full"
+                          className="text-sm px-2 py-0.5 rounded-full whitespace-nowrap"
                           style={{
-                            background:
-                              skill.level === "Advanced"
-                                ? "rgba(29,197,88,0.15)"
-                                : skill.level === "Intermediate"
-                                ? "rgba(54,137,255,0.15)"
-                                : "rgba(255,159,64,0.15)",
-                            color:
-                              skill.level === "Advanced"
-                                ? "#1ed25e"
-                                : skill.level === "Intermediate"
-                                ? "#51a2ff"
-                                : "#ff9f40",
+                            background: skill.level === "Novice"
+                              ? "rgba(255,201,64,0.15)"
+                              : "rgba(29,213,94,0.15)",
+                            color: skill.level === "Novice" ? "#ffc940" : "#1ed25e",
                           }}
                         >
                           {skill.level}
@@ -1810,112 +1889,173 @@ function CandidateProfileModal({
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
+                )}
+              </div>
+
+              {/* — Work Experience accordion — */}
+              <div
+                className="rounded-[12px] overflow-hidden"
+                style={{ background: "rgba(255,255,255,0.05)" }}
+              >
+                <button
+                  type="button"
+                  onClick={() => toggleSection("experience")}
+                  className="w-full flex items-center gap-4 p-4"
+                >
+                  {/* Icon pill — bg rgba(255,255,255,0.05), 44×44 circle */}
+                  <div
+                    className="flex items-center justify-center flex-shrink-0 rounded-full"
+                    style={{ width: 44, height: 44, background: "rgba(255,255,255,0.05)" }}
+                  >
+                    <Briefcase size={22} style={{ color: "#f4f4f5" }} />
+                  </div>
+
+                  <div className="flex-1 text-left min-w-0">
+                    <p className="text-sm text-[#f4f4f5]" style={{ lineHeight: "20px" }}>Work Experience</p>
+                    <p className="text-base text-[#f4f4f5]" style={{ lineHeight: "24px" }}>
+                      <span className="font-semibold">Above average </span>
+                      <span className="font-normal">at this level.</span>
+                    </p>
+                  </div>
+
+                  <ChevronDown
+                    size={24}
+                    className="text-white/60 flex-shrink-0 transition-transform duration-200"
+                    style={{ transform: expandedSection === "experience" ? "rotate(180deg)" : "none" }}
+                  />
+                </button>
+
+                {/* Expanded: blue-bar timeline */}
+                {expandedSection === "experience" && (
+                  <div className="px-4 pb-4 flex flex-col gap-3">
+                    {profile.workExperience.map((exp, idx) => (
+                      <div key={idx} className="flex gap-3 items-stretch">
+                        <div
+                          className="rounded-full flex-shrink-0"
+                          style={{ width: 6, background: "#3689ff", borderRadius: "9999px" }}
+                        />
+                        <div>
+                          <p className="text-base font-semibold text-white leading-6">{exp.title}</p>
+                          <p className="text-base font-normal text-white leading-6">
+                            {exp.company} · {exp.period}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* — Certifications accordion — */}
+              <div
+                className="rounded-[12px] overflow-hidden"
+                style={{ background: "rgba(255,255,255,0.05)" }}
+              >
+                <button
+                  type="button"
+                  onClick={() => toggleSection("certifications")}
+                  className="w-full flex items-center gap-4 p-4"
+                >
+                  {/* Icon pill */}
+                  <div
+                    className="flex items-center justify-center flex-shrink-0 rounded-full"
+                    style={{ width: 44, height: 44, background: "rgba(255,255,255,0.05)" }}
+                  >
+                    <GraduationCap size={22} style={{ color: "#f4f4f5" }} />
+                  </div>
+
+                  <div className="flex-1 text-left min-w-0">
+                    <p className="text-sm text-[#f4f4f5]" style={{ lineHeight: "20px" }}>Certifications</p>
+                    <p className="text-base text-[#f4f4f5]" style={{ lineHeight: "24px" }}>
+                      <span className="font-semibold">Highly relevant </span>
+                      <span className="font-normal">for this industry.</span>
+                    </p>
+                  </div>
+
+                  <ChevronDown
+                    size={24}
+                    className="text-white/60 flex-shrink-0 transition-transform duration-200"
+                    style={{ transform: expandedSection === "certifications" ? "rotate(180deg)" : "none" }}
+                  />
+                </button>
+
+                {/* Expanded: cert logo + name + issuer */}
+                {expandedSection === "certifications" && (
+                  <div className="px-4 pb-4 flex flex-col gap-3">
+                    {profile.certifications.map((cert, idx) => (
+                      <div key={idx} className="flex items-center gap-3">
+                        {/* Logo tile — 44×44, rounded-[11px] */}
+                        <div
+                          className="flex-shrink-0 flex items-center justify-center"
+                          style={{
+                            width: 44, height: 44, borderRadius: 11,
+                            background: "rgba(255,255,255,0.1)",
+                            overflow: "hidden",
+                          }}
+                        >
+                          {cert.logo ? (
+                            <img
+                              src={cert.logo}
+                              alt={cert.issuer}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-xs font-bold text-white/60">
+                              {cert.issuer.slice(0, 2).toUpperCase()}
+                            </span>
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-base font-semibold text-white leading-6">{cert.name}</p>
+                          <p className="text-base font-normal text-white leading-6">
+                            {cert.issuer} · {cert.year}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Work Experience */}
-            <div
-              className="rounded-xl overflow-hidden"
-              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
-            >
-              <button
-                onClick={() => toggleSection("experience")}
-                className="w-full p-4 flex items-center gap-3 hover:bg-white/5 transition-colors"
-              >
-                <ClipboardList size={20} className="text-white/40" />
-                <div className="flex-1 text-left">
-                  <p className="text-xs text-white/50">Work Experience</p>
-                  <p className="text-sm font-medium text-white mt-0.5">Above average at this level.</p>
-                </div>
-                <ChevronDown
-                  size={16}
-                  className="text-white/40 transition-transform"
-                  style={{ transform: expandedSection === "experience" ? "rotate(180deg)" : "none" }}
-                />
-              </button>
-              {expandedSection === "experience" && (
-                <div className="px-4 pb-4 space-y-3">
-                  {profile.workExperience.map((exp, idx) => (
-                    <div
-                      key={idx}
-                      className="flex gap-3 p-3 rounded-lg"
-                      style={{ background: "rgba(255,255,255,0.05)", borderLeft: "2px solid #51a2ff" }}
-                    >
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-white">{exp.title}</p>
-                        <p className="text-xs text-white/60 mt-0.5">{exp.company}</p>
-                        <p className="text-xs text-white/40 mt-1">{exp.period}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Certifications */}
-            <div
-              className="rounded-xl overflow-hidden"
-              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
-            >
-              <button
-                onClick={() => toggleSection("certifications")}
-                className="w-full p-4 flex items-center gap-3 hover:bg-white/5 transition-colors"
-              >
-                <CheckCircle size={20} className="text-white/40" />
-                <div className="flex-1 text-left">
-                  <p className="text-xs text-white/50">Certifications</p>
-                  <p className="text-sm font-medium text-white mt-0.5">Highly relevant for this industry.</p>
-                </div>
-                <ChevronDown
-                  size={16}
-                  className="text-white/40 transition-transform"
-                  style={{ transform: expandedSection === "certifications" ? "rotate(180deg)" : "none" }}
-                />
-              </button>
-              {expandedSection === "certifications" && (
-                <div className="px-4 pb-4 space-y-2">
-                  {profile.certifications.map((cert, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-center gap-3 p-3 rounded-lg"
-                      style={{ background: "rgba(255,255,255,0.05)" }}
-                    >
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-white">{cert.name}</p>
-                        <p className="text-xs text-white/60 mt-0.5">
-                          {cert.issuer} · {cert.year}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
           </div>
 
-          {/* Bottom Actions */}
-          <div className="p-6 pt-0 flex gap-3 sticky bottom-0 bg-gradient-to-t from-[rgba(15,20,28,1)] via-[rgba(15,20,28,0.98)] to-transparent pt-4">
+          {/* ── Sticky footer: View full profile + Invite to apply ── */}
+          <div
+            className="flex gap-4 flex-shrink-0 p-8 pt-4"
+            style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
+          >
+            {/* View full profile — Figma: bg rgba(255,255,255,0.05), rounded-[4px] */}
             <button
               type="button"
-              className="flex-1 py-3 rounded-xl text-sm font-medium transition-all hover:brightness-110"
+              className="flex-1 flex items-center justify-center gap-2 text-base text-white font-normal transition-colors hover:bg-white/10"
               style={{
-                background: "rgba(255,255,255,0.07)",
-                border: "1px solid rgba(255,255,255,0.1)",
-                color: "rgba(255,255,255,0.8)",
+                padding: "8px 24px",
+                background: "rgba(255,255,255,0.05)",
+                borderRadius: 4,
+                lineHeight: "24px",
               }}
             >
               View full profile
+              <User size={20} className="text-white flex-shrink-0" />
             </button>
+
+            {/* Invite to apply — green button, hidden once invited */}
             {!isInvited && (
               <button
                 type="button"
                 onClick={onInvite}
-                className="flex-1 py-3 rounded-xl text-sm font-semibold transition-all hover:brightness-110 active:scale-[0.98] flex items-center justify-center gap-2"
-                style={{ background: "#1dc558", color: "#09090b" }}
+                className="flex-1 flex items-center justify-center gap-2 text-base font-normal transition-all hover:brightness-110 active:scale-[0.98]"
+                style={{
+                  padding: "8px 24px",
+                  background: "#1dc558",
+                  color: "#18181b",
+                  borderRadius: 4,
+                  lineHeight: "24px",
+                }}
               >
-                <Mail size={16} />
                 Invite to apply
+                <Mail size={20} className="flex-shrink-0" />
               </button>
             )}
           </div>
