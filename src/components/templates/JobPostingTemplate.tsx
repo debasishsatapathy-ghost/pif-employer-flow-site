@@ -1554,19 +1554,21 @@ function CandidateAvatar({ name, size = 44, avatar }: { name: string; size?: num
 }
 
 /** Single draggable card inside the Kanban board */
-function KanbanCardItem({ candidate, onDragStart }: {
+function KanbanCardItem({ candidate, onDragStart, onClick }: {
   candidate: KCandidate;
   onDragStart: (e: React.DragEvent) => void;
+  onClick?: () => void;
 }) {
   return (
     <div
       draggable
       onDragStart={onDragStart}
-      className="flex items-center gap-3 p-4 rounded-xl select-none"
+      onClick={onClick}
+      className="flex items-center gap-3 p-4 rounded-xl select-none transition-colors hover:bg-white/10"
       style={{
         background: "rgba(255,255,255,0.05)",
         border: "1px solid rgba(255,255,255,0.08)",
-        cursor: "grab",
+        cursor: onClick ? "pointer" : "grab",
       }}
     >
       <CandidateAvatar name={candidate.name} avatar={candidate.avatar} />
@@ -1582,7 +1584,7 @@ function KanbanCardItem({ candidate, onDragStart }: {
 /** One column of the Kanban board — handles drag-over visual + drop */
 function KanbanColumnPanel({
   col, candidates, isDragOver,
-  onDragOver, onDragLeave, onDrop, onCandidateDragStart,
+  onDragOver, onDragLeave, onDrop, onCandidateDragStart, onCardClick,
 }: {
   col:                  KanbanCol;
   candidates:           KCandidate[];
@@ -1591,6 +1593,7 @@ function KanbanColumnPanel({
   onDragLeave:          (e: React.DragEvent) => void;
   onDrop:               (e: React.DragEvent) => void;
   onCandidateDragStart: (e: React.DragEvent, c: KCandidate) => void;
+  onCardClick?:         (c: KCandidate) => void;
 }) {
   return (
     <div
@@ -1623,6 +1626,7 @@ function KanbanColumnPanel({
               key={c.id}
               candidate={c}
               onDragStart={(e) => onCandidateDragStart(e, c)}
+              onClick={onCardClick ? () => onCardClick(c) : undefined}
             />
           ))}
         </div>
@@ -1646,18 +1650,21 @@ function KanbanColumnPanel({
   );
 }
 
-/** Candidate Profile Peek Drawer — Figma node 6684:36457 (Talent Pool / Not Invited)
- *  and node 6684:36xxx (Invited state) */
+/** Candidate Profile Peek Drawer — talentPool context (Figma 6684:36457) or screening context (Figma 6684:36458) */
 function CandidateProfileModal({
   profile,
+  context,
   isInvited,
   onClose,
   onInvite,
+  onAddToShortlist,
 }: {
   profile: CandidateProfileData;
+  context: "talentPool" | "screening";
   isInvited: boolean;
   onClose: () => void;
   onInvite: () => void;
+  onAddToShortlist?: () => void;
 }) {
   // Only one accordion open at a time
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
@@ -1745,21 +1752,29 @@ function CandidateProfileModal({
                   {profile.name}
                 </h2>
 
-                {/* Tag — "Talent Pool" glass pill or "Invitation Sent" green pill */}
+                {/* Tag — "Talent Pool" / "Invitation Sent" (talentPool) or "Screening ▾" (screening) */}
                 <div
-                  className="flex items-center flex-shrink-0"
+                  className="flex items-center gap-1 flex-shrink-0"
                   style={{
-                    paddingLeft: 12, paddingRight: 10, paddingTop: 4, paddingBottom: 4,
+                    paddingLeft: 12,
+                    paddingRight: context === "screening" ? 8 : 10,
+                    paddingTop: 4, paddingBottom: 4,
                     borderRadius: 100,
-                    background: isInvited ? "#a5e8bc" : "rgba(255,255,255,0.05)",
+                    background: context === "talentPool" && isInvited ? "#a5e8bc" : "rgba(255,255,255,0.05)",
                   }}
                 >
                   <span
                     className="text-base font-normal whitespace-nowrap"
-                    style={{ lineHeight: "24px", color: isInvited ? "#18181b" : "#f4f4f5" }}
+                    style={{
+                      lineHeight: "24px",
+                      color: context === "talentPool" && isInvited ? "#18181b" : "#f4f4f5",
+                    }}
                   >
-                    {isInvited ? "Invitation Sent" : "Talent Pool"}
+                    {context === "screening" ? "Screening" : isInvited ? "Invitation Sent" : "Talent Pool"}
                   </span>
+                  {context === "screening" && (
+                    <ChevronDown size={20} style={{ color: "#f4f4f5", flexShrink: 0 }} />
+                  )}
                 </div>
               </div>
 
@@ -1778,8 +1793,8 @@ function CandidateProfileModal({
               </div>
             </div>
 
-            {/* ── Row 3: Banner (AI match OR Invitation info) ── */}
-            {isInvited ? (
+            {/* ── Row 3: Banner — blue for invited talentPool, green for everything else ── */}
+            {context === "talentPool" && isInvited ? (
               /* Blue "You have invited Sara" banner */
               <div
                 className="flex items-start rounded-xl overflow-hidden flex-shrink-0"
@@ -1802,7 +1817,7 @@ function CandidateProfileModal({
                 </div>
               </div>
             ) : (
-              /* Green AI match banner — Figma: bg rgba(119,220,155,0.05), border #4ad179, 8px left bar */
+              /* Green AI match banner — shown for talent pool (not yet invited) and screening */
               <div
                 className="flex items-start rounded-xl overflow-hidden flex-shrink-0"
                 style={{
@@ -1861,35 +1876,46 @@ function CandidateProfileModal({
                 </button>
 
                 {/* Expanded: skill list with check icons + level badges */}
-                {expandedSection === "score" && (
-                  <div className="px-4 pb-4 flex flex-col gap-3">
-                    {profile.skills.map((skill, idx) => (
-                      <div key={idx} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <CheckCircle
-                            size={20}
-                            style={{
-                              color: skill.level === "Novice" ? "#ffc940" : "#1dc558",
-                              flexShrink: 0,
-                            }}
-                          />
-                          <span className="text-base text-[#f4f4f5]">{skill.name}</span>
-                        </div>
-                        <span
-                          className="text-sm px-2 py-0.5 rounded-full whitespace-nowrap"
-                          style={{
-                            background: skill.level === "Novice"
-                              ? "rgba(255,201,64,0.15)"
-                              : "rgba(29,213,94,0.15)",
-                            color: skill.level === "Novice" ? "#ffc940" : "#1ed25e",
-                          }}
-                        >
-                          {skill.level}
-                        </span>
+                <AnimatePresence initial={false}>
+                  {expandedSection === "score" && (
+                    <motion.div
+                      key="score-content"
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+                      style={{ overflow: "hidden" }}
+                    >
+                      <div className="px-4 pb-4 flex flex-col gap-3">
+                        {profile.skills.map((skill, idx) => (
+                          <div key={idx} className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <CheckCircle
+                                size={20}
+                                style={{
+                                  color: skill.level === "Novice" ? "#ffc940" : "#1dc558",
+                                  flexShrink: 0,
+                                }}
+                              />
+                              <span className="text-base text-[#f4f4f5]">{skill.name}</span>
+                            </div>
+                            <span
+                              className="text-sm px-2 py-0.5 rounded-full whitespace-nowrap"
+                              style={{
+                                background: skill.level === "Novice"
+                                  ? "rgba(255,201,64,0.15)"
+                                  : "rgba(29,213,94,0.15)",
+                                color: skill.level === "Novice" ? "#ffc940" : "#1ed25e",
+                              }}
+                            >
+                              {skill.level}
+                            </span>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               {/* — Work Experience accordion — */}
@@ -1926,24 +1952,35 @@ function CandidateProfileModal({
                 </button>
 
                 {/* Expanded: blue-bar timeline */}
-                {expandedSection === "experience" && (
-                  <div className="px-4 pb-4 flex flex-col gap-3">
-                    {profile.workExperience.map((exp, idx) => (
-                      <div key={idx} className="flex gap-3 items-stretch">
-                        <div
-                          className="rounded-full flex-shrink-0"
-                          style={{ width: 6, background: "#3689ff", borderRadius: "9999px" }}
-                        />
-                        <div>
-                          <p className="text-base font-semibold text-white leading-6">{exp.title}</p>
-                          <p className="text-base font-normal text-white leading-6">
-                            {exp.company} · {exp.period}
-                          </p>
-                        </div>
+                <AnimatePresence initial={false}>
+                  {expandedSection === "experience" && (
+                    <motion.div
+                      key="experience-content"
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+                      style={{ overflow: "hidden" }}
+                    >
+                      <div className="px-4 pb-4 flex flex-col gap-3">
+                        {profile.workExperience.map((exp, idx) => (
+                          <div key={idx} className="flex gap-3 items-stretch">
+                            <div
+                              className="rounded-full flex-shrink-0"
+                              style={{ width: 6, background: "#3689ff", borderRadius: "9999px" }}
+                            />
+                            <div>
+                              <p className="text-base font-semibold text-white leading-6">{exp.title}</p>
+                              <p className="text-base font-normal text-white leading-6">
+                                {exp.company} · {exp.period}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               {/* — Certifications accordion — */}
@@ -1980,41 +2017,52 @@ function CandidateProfileModal({
                 </button>
 
                 {/* Expanded: cert logo + name + issuer */}
-                {expandedSection === "certifications" && (
-                  <div className="px-4 pb-4 flex flex-col gap-3">
-                    {profile.certifications.map((cert, idx) => (
-                      <div key={idx} className="flex items-center gap-3">
-                        {/* Logo tile — 44×44, rounded-[11px] */}
-                        <div
-                          className="flex-shrink-0 flex items-center justify-center"
-                          style={{
-                            width: 44, height: 44, borderRadius: 11,
-                            background: "rgba(255,255,255,0.1)",
-                            overflow: "hidden",
-                          }}
-                        >
-                          {cert.logo ? (
-                            <img
-                              src={cert.logo}
-                              alt={cert.issuer}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <span className="text-xs font-bold text-white/60">
-                              {cert.issuer.slice(0, 2).toUpperCase()}
-                            </span>
-                          )}
-                        </div>
-                        <div>
-                          <p className="text-base font-semibold text-white leading-6">{cert.name}</p>
-                          <p className="text-base font-normal text-white leading-6">
-                            {cert.issuer} · {cert.year}
-                          </p>
-                        </div>
+                <AnimatePresence initial={false}>
+                  {expandedSection === "certifications" && (
+                    <motion.div
+                      key="certifications-content"
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+                      style={{ overflow: "hidden" }}
+                    >
+                      <div className="px-4 pb-4 flex flex-col gap-3">
+                        {profile.certifications.map((cert, idx) => (
+                          <div key={idx} className="flex items-center gap-3">
+                            {/* Logo tile — 44×44, rounded-[11px] */}
+                            <div
+                              className="flex-shrink-0 flex items-center justify-center"
+                              style={{
+                                width: 44, height: 44, borderRadius: 11,
+                                background: "rgba(255,255,255,0.1)",
+                                overflow: "hidden",
+                              }}
+                            >
+                              {cert.logo ? (
+                                <img
+                                  src={cert.logo}
+                                  alt={cert.issuer}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <span className="text-xs font-bold text-white/60">
+                                  {cert.issuer.slice(0, 2).toUpperCase()}
+                                </span>
+                              )}
+                            </div>
+                            <div>
+                              <p className="text-base font-semibold text-white leading-6">{cert.name}</p>
+                              <p className="text-base font-normal text-white leading-6">
+                                {cert.issuer} · {cert.year}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
 
@@ -2040,8 +2088,24 @@ function CandidateProfileModal({
               <User size={20} className="text-white flex-shrink-0" />
             </button>
 
-            {/* Invite to apply — green button, hidden once invited */}
-            {!isInvited && (
+            {/* Action button — "Add to shortlist" for screening, "Invite to apply" for talent pool (pre-invite) */}
+            {context === "screening" ? (
+              <button
+                type="button"
+                onClick={onAddToShortlist}
+                className="flex-1 flex items-center justify-center gap-2 text-base font-normal transition-all hover:brightness-110 active:scale-[0.98]"
+                style={{
+                  padding: "8px 24px",
+                  background: "#1dc558",
+                  color: "#18181b",
+                  borderRadius: 4,
+                  lineHeight: "24px",
+                }}
+              >
+                Add to shortlist
+                <Star size={20} className="flex-shrink-0" />
+              </button>
+            ) : !isInvited ? (
               <button
                 type="button"
                 onClick={onInvite}
@@ -2057,7 +2121,7 @@ function CandidateProfileModal({
                 Invite to apply
                 <Mail size={20} className="flex-shrink-0" />
               </button>
-            )}
+            ) : null}
           </div>
         </motion.div>
       </motion.div>
@@ -2333,6 +2397,7 @@ export function JobPostingTemplate({
   const [inviteCandidate,     setInviteCandidate]     = useState<ShortlistCandidate | null>(null);
   const [invitedCandidates,   setInvitedCandidates]   = useState<Record<string, boolean>>({});
   const [selectedProfile,     setSelectedProfile]     = useState<CandidateProfileData | null>(null);
+  const [selectedProfileContext, setSelectedProfileContext] = useState<"talentPool" | "screening">("talentPool");
 
   /* ── hire state ─────────────────────────────────────────────────────── */
   // No hire decisions yet — candidates reach Hire tab after second round completes
@@ -2756,6 +2821,12 @@ export function JobPostingTemplate({
                         onDragLeave={handleKanbanDragLeave}
                         onDrop={(e) => handleKanbanDrop(e, col)}
                         onCandidateDragStart={(e, c) => handleKanbanDragStart(e, c, col)}
+                        onCardClick={(c) => {
+                          if (c.id === "tp1") {
+                            setSelectedProfile(SARA_PROFILE_DATA);
+                            setSelectedProfileContext("screening");
+                          }
+                        }}
                       />
                     ))}
                   </div>
@@ -2794,9 +2865,9 @@ export function JobPostingTemplate({
                         candidate={c}
                         onInvite={() => handleTalentInvite(c.id)}
                         onClick={() => {
-                          // Open profile modal for Sara Khalid
                           if (c.id === "tp1") {
                             setSelectedProfile(SARA_PROFILE_DATA);
+                            setSelectedProfileContext("talentPool");
                           }
                         }}
                       />
@@ -2969,10 +3040,27 @@ export function JobPostingTemplate({
     {selectedProfile && (
       <CandidateProfileModal
         profile={selectedProfile}
+        context={selectedProfileContext}
         isInvited={talentPool.find((c) => c.id === selectedProfile.id)?.invited || false}
         onClose={() => setSelectedProfile(null)}
         onInvite={() => {
           handleTalentInvite(selectedProfile.id);
+        }}
+        onAddToShortlist={() => {
+          setKanban((prev) => ({
+            ...prev,
+            screening: prev.screening.filter((c) => c.id !== selectedProfile.id),
+            shortlist: [
+              ...prev.shortlist,
+              {
+                id:     selectedProfile.id,
+                name:   selectedProfile.name,
+                role:   selectedProfile.role,
+                score:  selectedProfile.score,
+                avatar: selectedProfile.avatar,
+              },
+            ].sort((a, b) => b.score - a.score),
+          }));
           setSelectedProfile(null);
         }}
       />
