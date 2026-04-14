@@ -3,132 +3,60 @@
 # Changes pushed to your repo will auto-apply to your dashboard.
 # See public/tele-options.yaml for all valid provider/model values.
 #
-# All fields are optional. Only include what you want to configure.
-# Fields not present here will keep their dashboard values.
-#
 # Docs: https://docs.mobeus.ai/tele-yaml
 
 version: 1
-
-# ─── Site Settings ──────────────────────────────────────
 site:
-  # name: "My Business"      # Display name shown in dashboard
-  # active: true              # Whether the website is active
-  # greeting: "Welcome!"      # Greeting shown in the widget
-
-# ─── Widget Appearance ──────────────────────────────────
+  name: Employer-II
+  active: true
 widget:
-  position: bottom-right      # bottom-right | bottom-left | top-right | top-left
-  primaryColor: "#000000"     # Hex color for widget accent
-
-# ─── Voice Session Defaults ────────────────────────────
+  position: bottom-right
+  primaryColor: '#000000'
 defaults:
   avatarEnabled: false
   avatarVisible: true
   micMuted: false
   volumeMuted: false
-
-# ─── Agent / Voice Configuration ────────────────────────
-# These settings control the voice agent assigned to this website.
 agent:
-  # greeting: "Hi there!"     # What the agent says first
-
   llm:
-    provider: openai           # See tele-options.yaml for all providers
-    model: gpt-4o              # See tele-options.yaml for all models
-    temperature: 0.7           # 0.0 (deterministic) to 2.0 (creative)
-
+    provider: openai
+    model: gpt-4o
+    temperature: 0.7
   voice:
-    provider: elevenlabs       # elevenlabs | cartesia | openai
-    # voiceId: ""              # Provider-specific voice ID
-    # voiceName: ""            # Human-readable voice name
-    # model: ""                # TTS model (e.g. eleven_flash_v2_5)
-
+    provider: elevenlabs
   stt:
-    provider: deepgram         # deepgram | openai | assemblyai
-    language: en               # Language code (e.g. en, es, fr)
-
+    provider: deepgram
+    language: en
+  vad:
+    provider: silero
   behavior:
     allowInterruptions: true
-    interruptionThreshold: 0.5 # 0.0 to 1.0
-
+    interruptionThreshold: 0.5
   avatar:
     enabled: false
-    # provider: liveavatar
-    # avatarId: ""
-
-# ─── Scene / UI Engine ─────────────────────────────────
+    provider: liveavatar
 sceneGeneration:
-  brainMode: ONE_BRAIN         # ONE_BRAIN | TWO_BRAIN
+  brainMode: ONE_BRAIN
   uiEngine:
     enabled: false
-    # model: gpt-4.1-nano      # LLM for UI generation (TWO_BRAIN only)
-    knowledgeMode: SEARCH      # SEARCH | CONTEXT
+    knowledgeMode: SEARCH
   contextSharing:
-    shareVoiceContext: true     # Speak LLM shares with Show LLM (TWO_BRAIN only)
-    shareSceneContext: true     # Show LLM shares with Speak LLM (TWO_BRAIN only)
-
-# ─── Tool Announcements ────────────────────────────────
+    shareVoiceContext: true
+    shareSceneContext: true
 toolAnnouncement:
-  mode: SPEECH                 # SILENT | SPEECH
-  # phrases:                   # Custom announcement phrases
-  #   - "Let me look that up..."
-  #   - "One moment..."
-
-# ─── System Tool Overrides ─────────────────────────────
-# Override descriptions for built-in tools (changes how the agent uses them)
-# systemToolOverrides:
-#   search_knowledge:
-#     description: "Search the product catalog"
-
-# ─── Prompt File Paths (relative to repo root) ─────────
+  mode: SPEECH
 prompts:
   speakLlm: public/prompts/speak-llm-system-prompt.md
   showLlm: public/prompts/show-llm-system-prompt.md
-
-# ─── Knowledge Bases ────────────────────────────────────
-# KBs listed here are auto-created if they don't exist.
-# Put document files in a folder and set documentsPath.
-# On first deploy: KB created + files ingested automatically.
-# On subsequent deploys: if files changed, update is staged
-# and must be manually approved in the dashboard.
-# knowledgeBases:
-#   - name: "Product FAQ"
-#     slug: "product-faq"
-#     description: "Product documentation and FAQ"
-#     searchTopK: 5
-#     searchScoreThreshold: 0.3
-#     documentsPath: knowledge/product-faq/
-#   - name: "Company Info"
-#     slug: "company-info"
-#     documentsPath: knowledge/company-info/
-
-# ─── MCP Servers ────────────────────────────────────────
-# If an MCP server listed here doesn't exist in your account,
-# it will be auto-created. Existing servers are reconciled.
-# mcpServers:
-#   - name: "my-api-server"
-#     description: "My custom API"
-#     transportType: HTTP         # HTTP | SSE | STDIO
-#     url: "https://api.example.com/mcp"
-#     headers:
-#       Authorization: "Bearer sk-..."
-#     # allowedTools: ["tool1", "tool2"]
-#   - name: "local-tool"
-#     transportType: STDIO
-#     command: "npx"
-#     args: ["-y", "my-mcp-server"]
-#     env:
-#       API_KEY: "sk-..."
-#     # cwd: "/app"
-
-# ─── File Paths (defaults shown) ───────────────────────
+mcpServers:
+  - name: MCP Server
+    description: trAIn MCP Servers
+    transportType: SSE
+    url: https://train-v1.rapidprototype.ai/mcp/sse
 paths:
   siteFunctions: src/site-functions/register.ts
   teleComponents: src/components/tele-components/component-registry.ts
-
-# ─── Read-only Info (ignored on import) ─────────────────
-# _info:
-#   siteUrl: ""
-#   subdomain: ""
-#   githubRepo: ""
+_info:
+  siteUrl: https://53wyntkt.sites.mobeus.ai
+  subdomain: 53wyntkt
+  githubRepo: debasishsatapathy-ghost/employer-ii-site
