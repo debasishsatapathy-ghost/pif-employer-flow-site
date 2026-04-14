@@ -1,0 +1,348 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  /* Scene card font families */
+  --font-data: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --font-voice: 'Instrument Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-hero: 'Outfit', ui-sans-serif, system-ui, sans-serif;
+  /* Accent color */
+  --color-amber: var(--amber);
+}
+
+:root {
+  --background: oklch(0.145 0.01 256);
+  --foreground: oklch(0.93 0 0);
+  --card: oklch(0.17 0.01 256);
+  --card-foreground: oklch(0.93 0 0);
+  --popover: oklch(0.17 0.01 256);
+  --popover-foreground: oklch(0.93 0 0);
+  --primary: oklch(0.85 0.15 195);
+  --primary-foreground: oklch(0.145 0.01 256);
+  --secondary: oklch(0.22 0.01 256);
+  --secondary-foreground: oklch(0.93 0 0);
+  --muted: oklch(0.22 0.01 256);
+  --muted-foreground: oklch(0.65 0 0);
+  --accent: oklch(0.22 0.01 256);
+  --accent-foreground: oklch(0.93 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.3 0.01 256);
+  --input: oklch(0.3 0.01 256);
+  --ring: oklch(0.75 0.15 195);
+  --radius: 0.625rem;
+
+  /* ── Color Palette ── */
+  --color-midnight: #0a0e14;
+  --amber: #00e5ff;
+
+  /* ── Scene Card Theme — Dark ── */
+  --theme-chart-line: rgba(255, 255, 255, 0.92);
+  --theme-card-data: rgba(255, 255, 255, 0.92);
+  --theme-card-voice: rgba(255, 255, 255, 0.80);
+  --theme-card-bg: rgba(255, 255, 255, 0.10);
+  --theme-card-border: rgba(255, 255, 255, 0.12);
+  --theme-card-blur: 4px;
+  --theme-card-title: #ffffff;
+
+  /* Scene page-level */
+  --theme-scene-bg: rgba(5, 5, 8, 0.95);
+  --theme-scene-text: #ffffff;
+  --theme-scene-text-muted: #94a3b8;
+  --theme-scene-badge-bg: rgba(255, 255, 255, 0.1);
+  --theme-scene-badge-text: rgba(255, 255, 255, 0.7);
+  --theme-scene-footer: rgba(255, 255, 255, 0.6);
+
+  /* Action buttons */
+  --theme-action-btn: rgba(255, 255, 255, 0.5);
+  --theme-action-btn-hover: rgba(255, 255, 255, 0.8);
+
+  /* Chat bubbles */
+  --theme-chat-bubble: rgba(12, 14, 18, 0.85);
+  --theme-chat-text: #e0e0e0;
+  --theme-chat-placeholder: rgba(255, 255, 255, 0.3);
+
+  /* Video filter */
+  --theme-video-brightness: 0.72;
+  --theme-video-saturate: 0.9;
+
+  /* KPI & badges */
+  --theme-kpi-text: #ffffff;
+  --theme-badge-bg: rgba(255, 255, 255, 0.85);
+  --theme-badge-text: #ffffff;
+  --theme-footer-text: rgba(255, 255, 255, 0.6);
+}
+
+/* ── Body background ── */
+body {
+  background-color: #0a0e14;
+  color: #e0e0e0;
+  transition: background-color 0.6s ease, color 0.6s ease;
+}
+
+/* ── Scene Card Animations ── */
+@keyframes blink-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   IMMERSIVE LAYOUT — Glass Chat Panel, Squeeze, Sleep, Pulse
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Glass Chat Width ── */
+:root {
+  --glass-chat-width: 18rem;
+}
+@media (max-width: 1279px) {
+  :root { --glass-chat-width: 100vw; }
+}
+
+/* ── Desktop Overflow Lock ── */
+@media (min-width: 1024px) {
+  html, body { height: 100dvh; overflow: hidden; }
+}
+
+/* ── Squeeze Layout (chat open → content shrinks) ── */
+.chat-squeezed #scene-root {
+  max-width: calc(100vw - var(--glass-chat-width));
+  transition: max-width 0.5s ease-out;
+  overflow-x: hidden;
+}
+
+/* ── Font utility classes ── */
+.font-hero { font-family: var(--font-hero); }
+.font-voice { font-family: var(--font-voice); }
+.font-data { font-family: var(--font-data); }
+
+/* Scale titles down when chat squeezes */
+.chat-squeezed #scene-root .font-hero,
+.chat-squeezed #scene-root .font-voice {
+  transform: scale(0.85);
+  transform-origin: top left;
+  transition: transform 0.5s ease-out;
+}
+
+/* ── Chat Bubble Animations ── */
+@keyframes chat-bubble-enter {
+  0% { opacity: 0; transform: translateY(30px) scale(0.95); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-chat-bubble-enter {
+  animation: chat-bubble-enter 0.4s ease-out forwards;
+}
+
+/* ── Sleep Mode (dim after mouse idle) ── */
+.telelabor-panel .chat-message-bubble,
+.telelabor-panel .chat-avatar,
+.telelabor-panel .chat-icon { transition: opacity 800ms ease; }
+.chat-sleeping .chat-message-bubble { opacity: 0.2 !important; }
+.chat-sleeping .chat-avatar,
+.chat-sleeping .chat-icon { opacity: 0.4 !important; }
+.chat-sleeping .telelabor-panel > :last-child { opacity: 0.2 !important; transition: opacity 800ms ease; }
+.telelabor-panel > :last-child { transition: opacity 800ms ease; }
+
+/* ── Chat Messages Scroll + Fade ── */
+.chat-messages-container {
+  overflow-y: auto;
+  scrollbar-width: none;
+  mask-image: linear-gradient(to bottom, transparent 0%, transparent 70px, black 170px);
+}
+.chat-messages-container::-webkit-scrollbar { display: none; }
+
+/* ── Hero Pulse Animation (connecting/thinking) ── */
+@keyframes hero-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.7; }
+}
+.hero-pulse-overlay {
+  animation: hero-pulse 2s ease-in-out infinite;
+}
+
+/* ── Button Styles ── */
+.btn-action {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0.75rem 2rem;
+  background: #00e5ff;
+  color: #0a0e14;
+  font-family: var(--font-data);
+  font-size: 0.875rem; font-weight: 700;
+  letter-spacing: 0.05em; text-transform: uppercase;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+.btn-action:hover { transform: translateY(-1px); background: #33ebff; }
+
+.start-button {
+  background: #00e5ff; color: #0a0e14;
+  font-family: var(--font-data);
+  font-size: 0.875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;
+  padding: 0.75rem 1.5rem;
+  border: none; cursor: pointer;
+  transition: all 0.3s ease;
+}
+.start-button:hover { transform: translateY(-1px); background: #33ebff; }
+
+/* ── Connecting Pulse (ripple effect while connecting) ── */
+@keyframes connecting-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(0, 229, 255, 0.4); }
+  70% { box-shadow: 0 0 0 12px rgba(0, 229, 255, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 229, 255, 0); }
+}
+.connecting-pulse {
+  animation: connecting-pulse 1.5s ease-in-out infinite;
+}
+
+/* ── Slide Action Icons Shift ── */
+.slide-action-icons {
+  transition: right 0.5s ease-out, opacity 0.3s ease;
+}
+@media (min-width: 1280px) {
+  .chat-squeezed .slide-action-icons {
+    right: calc(var(--glass-chat-width) + 2rem) !important;
+  }
+}
+@media (max-width: 1279px) {
+  .chat-squeezed .slide-action-icons {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
+/* On mobile: chat panel at z-60 (full-screen overlay) */
+@media (max-width: 1279px) {
+  .chat-squeezed .telelabor-panel {
+    z-index: 60;
+  }
+}
+
+/* ── Container Queries for Grid ── */
+.grid-container { container-type: inline-size; }
+@container (max-width: 900px) {
+  .grid-container .lg\:grid-cols-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+/* ── Loading Ring Animation (avatar thumbnail) ── */
+@keyframes loading-ring-spin {
+  to { transform: rotate(360deg); }
+}
+.loading-ring {
+  animation: loading-ring-spin 1.5s linear infinite;
+}
+
+/* ── Slide In From Left (WelcomeLanding) ── */
+@keyframes slide-in-from-left {
+  0% { opacity: 0; transform: translateX(-30px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+.animate-slide-in-left {
+  animation: slide-in-from-left 0.6s ease-out forwards;
+  opacity: 0;
+}
+
+/* ── Card Enter Animation ── */
+@keyframes card-enter {
+  0% { opacity: 0; transform: scale(0.96) translateY(8px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+.animate-card-enter {
+  animation: card-enter 0.5s ease-out forwards;
+  opacity: 0;
+}
+
+/* ── Screenshot Mode (force opaque for html2canvas) ── */
+.screenshot-mode .card-glass {
+  background: var(--theme-card-bg) !important;
+  backdrop-filter: none !important;
+}
+
+/* ── Card Glass (theme-aware) ── */
+.card-glass {
+  background: var(--theme-card-bg);
+  border: 1px solid var(--theme-card-border);
+  backdrop-filter: blur(var(--theme-card-blur));
+  border-radius: 0.75rem;
+  padding: 1rem 1.25rem;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  container-type: inline-size;
+}
+
+/* ── Skeleton Bounce ── */
+@keyframes skeleton-bounce {
+  0%   { transform: translateY(0px) scale(1);     opacity: 0.55; }
+  30%  { transform: translateY(-5px) scale(1.01); opacity: 0.75; }
+  60%  { transform: translateY(2px) scale(0.99);  opacity: 0.60; }
+  80%  { transform: translateY(-2px) scale(1.005);opacity: 0.70; }
+  100% { transform: translateY(0px) scale(1);     opacity: 0.55; }
+}
+@keyframes skeleton-shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.animate-skeleton-bounce {
+  animation: skeleton-bounce 1.8s ease-in-out infinite;
+}
+.skeleton-shimmer-bg {
+  background: linear-gradient(
+    90deg,
+    var(--theme-card-bg, rgba(255,255,255,0.05)) 0%,
+    rgba(255,255,255,0.10) 40%,
+    rgba(255,255,255,0.18) 50%,
+    rgba(255,255,255,0.10) 60%,
+    var(--theme-card-bg, rgba(255,255,255,0.05)) 100%
+  );
+  background-size: 800px 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+/* ── Nav-pending skeleton overlay ──
+   Always in DOM at opacity:0. When body.tele-nav-pending is set,
+   it snaps to opacity:1 with no React render cycle. */
+.nav-skeleton-overlay {
+  opacity: 0;
+  transition: opacity 0.12s ease-in;
+  pointer-events: none;
+  background: var(--color-midnight, #0a0e14);
+}
+body.tele-nav-pending .nav-skeleton-overlay {
+  opacity: 1;
+  transition: none;
+}
+
+/* ── Scrollbar Hide ── */
+.scrollbar-hide { scrollbar-width: none; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+
+/* ── Scene overlay gradient (avatar shows on right) ── */
+.scene-gradient-overlay {
+  background: linear-gradient(
+    to right,
+    var(--theme-scene-bg) 0%,
+    var(--theme-scene-bg) 60%,
+    color-mix(in srgb, var(--theme-scene-bg) 70%, transparent) 80%,
+    color-mix(in srgb, var(--theme-scene-bg) 40%, transparent) 100%
+  );
+}

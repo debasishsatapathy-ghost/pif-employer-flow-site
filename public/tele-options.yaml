@@ -1,0 +1,195 @@
+# tele-options.yaml — Valid configuration values for tele.yaml
+# Reference this file when editing tele.yaml to see all available options.
+# This file is informational only — do not edit it.
+# Last updated: 2026-04-06
+
+# ─── Voice / TTS Providers ──────────────────────────────
+
+voice_providers:
+  - id: elevenlabs
+    name: ElevenLabs
+    models:
+      - id: eleven_flash_v2_5
+        name: Flash v2.5 (Fastest, Multilingual)
+      - id: eleven_turbo_v2_5
+        name: Turbo v2.5 (Balanced, Multilingual)
+      - id: eleven_multilingual_v2
+        name: Multilingual v2 (High quality)
+      - id: eleven_v3
+        name: v3 (Latest generation)
+
+  - id: cartesia
+    name: Cartesia
+    models:
+      - id: sonic-2
+        name: Sonic 2 (Default)
+
+  - id: openai
+    name: OpenAI TTS
+    models:
+      - id: tts-1
+        name: TTS-1 (Default, faster)
+      - id: tts-1-hd
+        name: TTS-1 HD (Higher quality)
+
+# ─── LLM Providers ─────────────────────────────────────
+
+llm_providers:
+  - id: openai
+    name: OpenAI
+    models:
+      - { id: gpt-4.1-nano, name: "GPT-4.1 Nano (Fastest)" }
+      - { id: gpt-4.1-mini, name: "GPT-4.1 Mini" }
+      - { id: gpt-4.1, name: "GPT-4.1" }
+      - { id: gpt-4o-mini, name: "GPT-4o Mini" }
+      - { id: gpt-4o, name: "GPT-4o" }
+      - { id: gpt-5-nano, name: "GPT-5 Nano" }
+      - { id: gpt-5-mini, name: "GPT-5 Mini" }
+      - { id: gpt-5, name: "GPT-5 (Thinking - higher latency)" }
+      - { id: gpt-5.2, name: "GPT-5.2" }
+      - { id: gpt-5.4, name: "GPT-5.4" }
+      - { id: gpt-realtime-1.5, name: "Realtime 1.5 (Voice-to-Voice, Latest)" }
+      - { id: gpt-realtime, name: "Realtime (Voice-to-Voice)" }
+      - { id: gpt-realtime-mini, name: "Realtime Mini (Cost-efficient)" }
+      - { id: gpt-realtime-1.5-half-cascade, name: "Realtime 1.5 Half Cascade" }
+      - { id: gpt-realtime-half-cascade, name: "Realtime Half Cascade" }
+      - { id: gpt-realtime-mini-half-cascade, name: "Realtime Mini Half Cascade" }
+
+  - id: groq
+    name: Groq
+    models:
+      - { id: llama-3.3-70b-versatile, name: "Llama 3.3 70B" }
+      - { id: llama-3.1-8b-instant, name: "Llama 3.1 8B (Fastest)" }
+      - { id: llama-3.1-70b-versatile, name: "Llama 3.1 70B" }
+
+  - id: cerebras
+    name: Cerebras
+    models:
+      - { id: llama3.1-8b, name: "Llama 3.1 8B (Fastest)" }
+      - { id: llama-3.3-70b, name: "Llama 3.3 70B" }
+
+  - id: together
+    name: Together AI
+    models:
+      - { id: "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo", name: "Llama 3.1 8B Turbo (Fastest)" }
+      - { id: "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo", name: "Llama 3.1 70B Turbo" }
+      - { id: "meta-llama/Meta-Llama-3.3-70B-Instruct-Turbo", name: "Llama 3.3 70B Turbo" }
+
+  - id: fireworks
+    name: Fireworks AI
+    models:
+      - { id: "accounts/fireworks/models/llama-v3p3-70b-instruct", name: "Llama 3.3 70B" }
+
+  - id: deepseek
+    name: DeepSeek
+    models:
+      - { id: deepseek-chat, name: "DeepSeek Chat" }
+
+  - id: anthropic
+    name: Anthropic
+    note: Use Anthropic model IDs (e.g. claude-sonnet-4-6)
+    models: []
+
+# ─── STT Providers ──────────────────────────────────────
+
+stt_providers:
+  - { id: deepgram, name: "Deepgram (Default)" }
+  - { id: openai, name: "OpenAI Whisper" }
+  - { id: assemblyai, name: "AssemblyAI" }
+
+# ─── Avatar Providers ───────────────────────────────────
+
+avatar_providers:
+  - { id: liveavatar, name: "LiveAvatar (Active)" }
+  - { id: hedra, name: "Hedra (Coming soon)" }
+  - { id: tavus, name: "Tavus (Coming soon)" }
+
+# ─── Enum Values ────────────────────────────────────────
+
+enums:
+  brainMode:
+    - ONE_BRAIN    # Voice agent LLM generates scenes directly
+    - TWO_BRAIN    # Separate UI Engine generates scenes (default)
+
+  toolAnnouncementMode:
+    - SILENT       # No output when tools are called
+    - SPEECH       # Agent announces tool calls (default)
+
+  uiEngineKnowledgeMode:
+    - SEARCH       # search_knowledge tool per request (default, handles large KBs)
+    - CONTEXT      # Load all KB content into context window (fast, limited size)
+
+  widgetPosition:
+    - bottom-right # Default
+    - bottom-left
+    - top-right
+    - top-left
+
+  mcpTransportType:
+    - HTTP          # Streamable HTTP (most common for remote servers)
+    - SSE           # Server-Sent Events
+    - STDIO         # Local process (command + args)
+
+# ─── MCP Server Fields ─────────────────────────────────
+# Servers listed in tele.yaml are auto-created if they don't exist.
+# Sensitive fields (headers, env vars) must be set in the dashboard.
+
+mcp_server_fields:
+  name: "Required. Server name (must be unique per client)."
+  description: "Optional. Human-readable description."
+  transportType: "Required for auto-creation. HTTP | SSE | STDIO."
+  url: "HTTP/SSE only. The MCP server endpoint URL."
+  headers: "HTTP/SSE only. Auth headers as key-value pairs (e.g. Authorization: Bearer ...)."
+  command: "STDIO only. The command to run (e.g. 'npx', 'python')."
+  args: "STDIO only. Array of arguments (e.g. ['-y', 'my-server'])."
+  env: "STDIO only. Environment variables as key-value pairs (e.g. API_KEY: sk-...)."
+  cwd: "STDIO only. Working directory for the command."
+  allowedTools: "Optional. Array of tool names to expose (null = all tools)."
+
+# ─── UI Engine Models ───────────────────────────────────
+
+ui_engine_models:
+  - { id: gpt-4.1-nano, name: "GPT-4.1 Nano (Default, fastest)" }
+  - { id: gpt-4o-mini, name: "GPT-4o Mini" }
+  - { id: gpt-4o, name: "GPT-4o" }
+
+# ─── Realtime Voices ────────────────────────────────────
+# Only used when agent.llm.model is a gpt-realtime-* model.
+# Set agent.voice.voiceId to one of these values.
+
+realtime_voices:
+  - alloy
+  - ash
+  - ballad
+  - cedar
+  - coral
+  - echo
+  - marin        # Default for Realtime models
+  - sage
+  - shimmer
+  - verse
+
+# ─── Language Codes (common) ────────────────────────────
+# agent.stt.language accepts any valid language code.
+# Common codes (Deepgram/Whisper supported):
+
+languages:
+  - { id: en, name: English }
+  - { id: es, name: Spanish }
+  - { id: fr, name: French }
+  - { id: de, name: German }
+  - { id: pt, name: Portuguese }
+  - { id: it, name: Italian }
+  - { id: nl, name: Dutch }
+  - { id: ja, name: Japanese }
+  - { id: zh, name: Chinese }
+  - { id: ko, name: Korean }
+  - { id: ru, name: Russian }
+  - { id: ar, name: Arabic }
+  - { id: hi, name: Hindi }
+  - { id: tr, name: Turkish }
+  - { id: pl, name: Polish }
+  - { id: sv, name: Swedish }
+  - { id: da, name: Danish }
+  - { id: fi, name: Finnish }
+  - { id: "no", name: Norwegian }
