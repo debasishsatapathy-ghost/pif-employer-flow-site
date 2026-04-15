@@ -3040,16 +3040,18 @@ export function JobPostingTemplate({
     return () => clearTimeout(t);
   }, [saraInterviewState]);
 
-  // When Sara's profile is open in contract_offered state: 7s → contract_accepted
+  // 7s after contract is offered → auto-accept (fires in all offer flows)
   useEffect(() => {
-    if (saraInterviewState !== "contract_offered" || !selectedProfile || selectedProfile.id !== "tp1") return;
+    if (saraInterviewState !== "contract_offered") return;
     const t = setTimeout(() => {
       setSaraInterviewState("contract_accepted");
-      setSelectedProfileContext("hire-contract-accepted");
+      // If Sara's profile is open showing the offered state, advance it too
+      setSelectedProfileContext((prev) =>
+        prev === "hire-contract-offered" ? "hire-contract-accepted" : prev
+      );
     }, 7000);
     return () => clearTimeout(t);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [saraInterviewState, selectedProfile?.id]);
+  }, [saraInterviewState]);
 
   /* ── hire state ─────────────────────────────────────────────────────── */
   // No hire decisions yet — candidates reach Hire tab after second round completes
