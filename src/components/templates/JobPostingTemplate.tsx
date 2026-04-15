@@ -1723,7 +1723,7 @@ function CandidateProfileModal({
   onMakeHiringDecision,
 }: {
   profile: CandidateProfileData;
-  context: "talentPool" | "screening" | "shortlist" | "interview" | "interview-ai-complete" | "interview-second-booked" | "interview-add-feedback" | "interview-feedback-captured";
+  context: "talentPool" | "screening" | "shortlist" | "interview" | "interview-ai-complete" | "interview-second-booked" | "interview-add-feedback" | "interview-feedback-captured" | "hire-contract-offered" | "hire-contract-accepted";
   isInvited: boolean;
   onClose: () => void;
   onInvite: () => void;
@@ -1752,7 +1752,9 @@ function CandidateProfileModal({
   const showScoreIncrease = effectiveContext === "interview-ai-complete"
     || effectiveContext === "interview-second-booked"
     || effectiveContext === "interview-add-feedback"
-    || effectiveContext === "interview-feedback-captured";
+    || effectiveContext === "interview-feedback-captured"
+    || effectiveContext === "hire-contract-offered"
+    || effectiveContext === "hire-contract-accepted";
   const displayScore = showScoreIncrease ? 95 : profile.score;
 
   // When closing after a confirmed booking, notify parent
@@ -2105,6 +2107,7 @@ function CandidateProfileModal({
                     >
                       {effectiveContext === "screening" ? "Screening"
                         : effectiveContext === "shortlist" ? "Shortlist"
+                        : (effectiveContext === "hire-contract-offered" || effectiveContext === "hire-contract-accepted") ? "Hire"
                         : "Interview"}
                     </span>
                     <ChevronDown size={20} style={{ color: "#f4f4f5", flexShrink: 0 }} />
@@ -2179,6 +2182,39 @@ function CandidateProfileModal({
               || effectiveContext === "interview-feedback-captured" ? (
               /* No banner for these states */
               null
+            ) : effectiveContext === "hire-contract-offered" ? (
+              /* Blue "You have offered Sara a contract" banner */
+              <div
+                className="flex items-start rounded-xl overflow-hidden flex-shrink-0"
+                style={{ background: "rgba(54,137,255,0.05)", border: "1px solid #5ea1ff" }}
+              >
+                <div style={{ width: 8, background: "#5ea1ff", alignSelf: "stretch", flexShrink: 0 }} />
+                <div className="flex items-start gap-2 p-4 flex-1">
+                  <Info size={20} className="flex-shrink-0 mt-0.5" style={{ color: "#5ea1ff" }} />
+                  <p className="text-base leading-6" style={{ color: "#d7e7ff" }}>
+                    <span className="font-semibold">You have offered Sara a contract. </span>
+                    <span className="font-normal">You will be notified when Sara makes her decision.</span>
+                    <br /><br />
+                    <span className="font-semibold">Deadline: </span>
+                    <span className="font-normal">5pm Monday.</span>
+                  </p>
+                </div>
+              </div>
+            ) : effectiveContext === "hire-contract-accepted" ? (
+              /* Blue "Sarah has accepted the contract offer" banner */
+              <div
+                className="flex items-start rounded-xl overflow-hidden flex-shrink-0"
+                style={{ background: "rgba(54,137,255,0.05)", border: "1px solid #5ea1ff" }}
+              >
+                <div style={{ width: 8, background: "#5ea1ff", alignSelf: "stretch", flexShrink: 0 }} />
+                <div className="flex items-start gap-2 p-4 flex-1">
+                  <Info size={20} className="flex-shrink-0 mt-0.5" style={{ color: "#5ea1ff" }} />
+                  <p className="text-base leading-6" style={{ color: "#d7e7ff" }}>
+                    <span className="font-semibold">Sarah has accepted the contract offer. </span>
+                    <span className="font-normal">trAIn has emailed her with onboarding details.</span>
+                  </p>
+                </div>
+              </div>
             ) : effectiveContext === "talentPool" && isInvited ? (
               /* Blue "You have invited Sara" banner */
               <div
@@ -2478,7 +2514,8 @@ function CandidateProfileModal({
               </div>
 
               {/* ── AI Interview row — shown for interview-ai-complete and later states (Figma 6819:50425) ── */}
-              {showScoreIncrease && effectiveContext !== "interview-feedback-captured" && (
+              {showScoreIncrease && effectiveContext !== "interview-feedback-captured"
+                && effectiveContext !== "hire-contract-offered" && effectiveContext !== "hire-contract-accepted" && (
                 <div
                   className="flex gap-4 items-start p-4 rounded-xl"
                   style={{ background: "rgba(255,255,255,0.05)" }}
@@ -2551,8 +2588,8 @@ function CandidateProfileModal({
                 </div>
               )}
 
-              {/* ── Feedback-captured state: both interviews show Strong Yes + View Feedback Summary (Figma 7475:43594, 7475:43667) ── */}
-              {effectiveContext === "interview-feedback-captured" && (
+              {/* ── Feedback-captured / hire states: both interviews show Strong Yes + View Feedback Summary ── */}
+              {(effectiveContext === "interview-feedback-captured" || effectiveContext === "hire-contract-offered" || effectiveContext === "hire-contract-accepted") && (
                 <>
                   <div className="flex items-start gap-4 p-4 rounded-xl" style={{ background: "rgba(255,255,255,0.05)" }}>
                     <div className="flex items-center justify-center flex-shrink-0 rounded-full" style={{ width: 44, height: 44, background: "rgba(255,255,255,0.05)" }}>
@@ -2659,7 +2696,16 @@ function CandidateProfileModal({
                 Make Hiring Decision
               </button>
             )}
-            {/* interview / interview-second-booked / interview-add-feedback: no second button */}
+            {effectiveContext === "hire-contract-offered" && (
+              <button
+                type="button"
+                className="flex-1 flex items-center justify-center text-base text-white font-normal transition-colors hover:bg-white/10"
+                style={{ padding: "8px 24px", background: "rgba(255,255,255,0.05)", borderRadius: 4, lineHeight: "24px" }}
+              >
+                View Offer Details
+              </button>
+            )}
+            {/* interview / interview-second-booked / interview-add-feedback / hire-contract-accepted: no second button */}
           </div>
           </>
           )}
@@ -2944,7 +2990,7 @@ export function JobPostingTemplate({
   const [inviteCandidate,     setInviteCandidate]     = useState<ShortlistCandidate | null>(null);
   const [invitedCandidates,   setInvitedCandidates]   = useState<Record<string, boolean>>({});
   const [selectedProfile,     setSelectedProfile]     = useState<CandidateProfileData | null>(null);
-  const [selectedProfileContext, setSelectedProfileContext] = useState<"talentPool" | "screening" | "shortlist" | "interview" | "interview-ai-complete" | "interview-second-booked" | "interview-add-feedback" | "interview-feedback-captured">("talentPool");
+  const [selectedProfileContext, setSelectedProfileContext] = useState<"talentPool" | "screening" | "shortlist" | "interview" | "interview-ai-complete" | "interview-second-booked" | "interview-add-feedback" | "interview-feedback-captured" | "hire-contract-offered" | "hire-contract-accepted">("talentPool");
   const [showFeedbackModal,   setShowFeedbackModal]   = useState(false);
   const [hireCompareMode,     setHireCompareMode]     = useState(false);
   const [hireCompareSelected, setHireCompareSelected] = useState<Record<string, boolean>>({});
@@ -2957,7 +3003,7 @@ export function JobPostingTemplate({
   const [contractTab,             setContractTab]             = useState<"summary" | "salary" | "leave" | "terms">("summary");
 
   // Sara's interview progression state — drives 5s and 7s timed transitions
-  type SaraInterviewState = "none" | "ai_booked" | "ai_feedback" | "second_booked" | "awaiting_feedback" | "feedback_captured" | "hire" | "contract_offered";
+  type SaraInterviewState = "none" | "ai_booked" | "ai_feedback" | "second_booked" | "awaiting_feedback" | "feedback_captured" | "hire" | "contract_offered" | "contract_accepted";
   const [saraInterviewState, setSaraInterviewState] = useState<SaraInterviewState>("none");
 
   // After AI booking: 5 s → ai_feedback (Sara's score 95, "AI Feedback available")
@@ -2993,6 +3039,17 @@ export function JobPostingTemplate({
     }, 7000);
     return () => clearTimeout(t);
   }, [saraInterviewState]);
+
+  // When Sara's profile is open in contract_offered state: 7s → contract_accepted
+  useEffect(() => {
+    if (saraInterviewState !== "contract_offered" || !selectedProfile || selectedProfile.id !== "tp1") return;
+    const t = setTimeout(() => {
+      setSaraInterviewState("contract_accepted");
+      setSelectedProfileContext("hire-contract-accepted");
+    }, 7000);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saraInterviewState, selectedProfile?.id]);
 
   /* ── hire state ─────────────────────────────────────────────────────── */
   // No hire decisions yet — candidates reach Hire tab after second round completes
@@ -3407,7 +3464,7 @@ export function JobPostingTemplate({
                   {/* Kanban board — 4 equal columns */}
                   <div className="flex gap-4 flex-1 min-h-0">
                     {(["screening", "shortlist", "interview", "hire"] as KanbanCol[]).map((col) => {
-                      if (col === "hire" && (saraInterviewState === "hire" || saraInterviewState === "contract_offered")) {
+                      if (col === "hire" && (saraInterviewState === "hire" || saraInterviewState === "contract_offered" || saraInterviewState === "contract_accepted")) {
                         // Hire column with custom Compare UI
                         const hireCandidates = kanban.hire;
                         const selectedCount = Object.values(hireCompareSelected).filter(Boolean).length;
@@ -3432,7 +3489,12 @@ export function JobPostingTemplate({
                                   onClick={() => {
                                     if (!hireCompareMode && c.id === "tp1") {
                                       setSelectedProfile(SARA_PROFILE_DATA);
-                                      setSelectedProfileContext("interview-feedback-captured");
+                                      const hireCtxMap: Record<string, typeof selectedProfileContext> = {
+                                        hire:               "interview-feedback-captured",
+                                        contract_offered:   "hire-contract-offered",
+                                        contract_accepted:  "hire-contract-accepted",
+                                      };
+                                      setSelectedProfileContext(hireCtxMap[saraInterviewState] ?? "interview-feedback-captured");
                                     }
                                   }}
                                 >
@@ -3441,19 +3503,21 @@ export function JobPostingTemplate({
                                     <div className="flex-1 min-w-0">
                                       <p className="text-sm font-semibold text-white leading-tight truncate">{c.name}</p>
                                       <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>{c.role}</p>
-                                      {saraInterviewState === "contract_offered" && c.id === "tp1" && (
+                                      {(saraInterviewState === "contract_offered" || saraInterviewState === "contract_accepted") && c.id === "tp1" && (
                                         <span style={{
                                           display: "inline-block", marginTop: 4,
                                           background: "rgba(74,160,255,0.12)",
                                           border: "1px solid rgba(74,160,255,0.35)",
                                           color: "#4aa0ff", fontSize: 11, lineHeight: "16px",
                                           padding: "2px 8px", borderRadius: 100,
-                                        }}>Contract Offered</span>
+                                        }}>
+                                          {saraInterviewState === "contract_offered" ? "Contract Offered" : "Contract Accepted"}
+                                        </span>
                                       )}
                                     </div>
                                     <ScoreCircle score={c.score} scoreIncreased={c.scoreIncreased} />
                                   </div>
-                                  {hireCompareMode && saraInterviewState !== "contract_offered" && (
+                                  {hireCompareMode && saraInterviewState !== "contract_offered" && saraInterviewState !== "contract_accepted" && (
                                     <div
                                       className="flex items-center justify-end gap-3 px-4 pb-3"
                                       onClick={(e) => {
@@ -3479,8 +3543,8 @@ export function JobPostingTemplate({
                                 </div>
                               ))}
                             </div>
-                            {/* Compare controls — hidden after contract offered */}
-                            {saraInterviewState === "contract_offered" ? null : !hireCompareMode ? (
+                            {/* Compare controls — hidden after contract offered/accepted */}
+                            {(saraInterviewState === "contract_offered" || saraInterviewState === "contract_accepted") ? null : !hireCompareMode ? (
                               <button
                                 className="mt-auto w-full py-2 rounded-xl text-sm font-normal transition-colors hover:bg-white/10"
                                 style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.9)", border: "1px solid rgba(255,255,255,0.08)" }}
@@ -3553,7 +3617,8 @@ export function JobPostingTemplate({
                                 awaiting_feedback:  "interview-add-feedback",
                                 feedback_captured:  "interview-feedback-captured",
                                 hire:               "interview-feedback-captured",
-                                contract_offered:   "interview-feedback-captured",
+                                contract_offered:   "hire-contract-offered",
+                                contract_accepted:  "hire-contract-accepted",
                               };
                               setSelectedProfileContext(interviewCtxMap[saraInterviewState]);
                             }
