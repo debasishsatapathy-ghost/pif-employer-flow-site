@@ -3926,12 +3926,38 @@ export function JobPostingTemplate({
             setHireCompareMode(false);
             setHireCompareSelected({});
             setSaraInterviewState("contract_offered");
-            setKanban((prev) => ({
-              ...prev,
-              hire: prev.hire.map((c) =>
-                c.id === "tp1" ? { ...c, interviewBadges: undefined } : c
-              ),
-            }));
+            setKanban((prev) => {
+              const saraInInterview = prev.interview.some((c) => c.id === "tp1");
+              if (saraInInterview) {
+                // Path: feedback_captured → profile → Make Hiring Decision → Send Offer
+                // Sara + Omar are still in interview; move them to hire now
+                const sara = prev.interview.find((c) => c.id === "tp1");
+                const omar = prev.interview.find((c) => c.id === "k4");
+                const restInterview = prev.interview
+                  .filter((c) => c.id !== "tp1" && c.id !== "k4")
+                  .map((c) => c.name === "Faris Saleh"
+                    ? { ...c, interviewBadges: { count: "2 of 2", status: "10:00am Friday" } }
+                    : c);
+                const newHire: KCandidate[] = [
+                  sara ? { ...sara, interviewBadges: undefined } : null,
+                  omar ? { ...omar, interviewBadges: undefined } : null,
+                ].filter(Boolean) as KCandidate[];
+                return {
+                  ...prev,
+                  interview: restInterview,
+                  hire: [...newHire, ...prev.hire].sort((a, b) => b.score - a.score),
+                };
+              } else {
+                // Path: hire → compare → Make Hiring Decision → Send Offer
+                // Sara already in hire; just clear interviewBadges
+                return {
+                  ...prev,
+                  hire: prev.hire.map((c) =>
+                    c.id === "tp1" ? { ...c, interviewBadges: undefined } : c
+                  ),
+                };
+              }
+            });
           }}
         />
       )}
@@ -4785,7 +4811,7 @@ function HiringVerdictBadge({ label, strong }: { label: string; strong?: boolean
   );
 }
 
-function ModalOverlay({ children, onClickOutside, maxHeight, gap }: { children: React.ReactNode; onClickOutside?: () => void; maxHeight?: string; gap?: number }) {
+function ModalOverlay({ children, onClickOutside, maxHeight, gap, cardPadding }: { children: React.ReactNode; onClickOutside?: () => void; maxHeight?: string; gap?: number; cardPadding?: number }) {
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -4810,7 +4836,7 @@ function ModalOverlay({ children, onClickOutside, maxHeight, gap }: { children: 
           backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)",
           borderRadius: 16, border: "1px solid rgba(255,255,255,0.1)",
           width: "100%", maxWidth: 720,
-          display: "flex", flexDirection: "column", gap: gap ?? 32, padding: 32,
+          display: "flex", flexDirection: "column", gap: gap ?? 32, padding: cardPadding ?? 32,
           ...(maxHeight ? { maxHeight, overflow: "hidden" } : {}),
         }}
       >
@@ -5055,55 +5081,58 @@ function OfferContractModal({ activeTab, onTabChange, onBack, onClose, onSendOff
     { label: "Response deadline", value: "7 days from offer",          green: false },
   ];
 
+  // minHeight for tab content = 9 rows × 28px + 8 gaps × 3px = 252 + 24 = 276px
+  const TAB_CONTENT_MIN_H = 276;
+
   return (
-    <ModalOverlay onClickOutside={onClose} maxHeight="88vh" gap={24}>
-      {/* Header — fixed, never scrolls */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+    <ModalOverlay onClickOutside={onClose} gap={18} cardPadding={20}>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
           <IconBtn onClick={onBack}><ArrowLeft size={20} color="white" /></IconBtn>
-          <p style={{ fontSize: 24, fontWeight: 600, color: "white", lineHeight: "28px" }}>Offer Contract: Sara Khalid</p>
+          <p style={{ fontSize: 22, fontWeight: 600, color: "white", lineHeight: "28px" }}>Offer Contract: Sara Khalid</p>
         </div>
         <IconBtn onClick={onClose}><X size={20} color="white" /></IconBtn>
       </div>
 
-      {/* Body — scrollable if content overflows */}
-      <div style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", gap: 20 }}>
+      {/* Body — compact, no scrolling */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {/* Sara candidate card */}
-        <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 16, display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
-          <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#ffdabf", flexShrink: 0, overflow: "hidden" }}>
+        <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 10, padding: "10px 14px", display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#ffdabf", flexShrink: 0, overflow: "hidden" }}>
             <img src="/sara-khalid.png" alt="Sara" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }} />
           </div>
           <div style={{ flex: 1 }}>
-            <p style={{ fontSize: 16, color: "#fafafa", lineHeight: "24px" }}>Sara Khalid</p>
-            <p style={{ fontSize: 14, color: "#d4d4d8", lineHeight: "20px" }}>AI Practitioner</p>
+            <p style={{ fontSize: 15, fontWeight: 400, color: "#fafafa", lineHeight: "22px" }}>Sara Khalid</p>
+            <p style={{ fontSize: 13, color: "#d4d4d8", lineHeight: "18px" }}>AI Practitioner</p>
           </div>
-          <ScoreCircle score={95} scoreIncreased size={44} />
+          <ScoreCircle score={95} scoreIncreased size={40} />
         </div>
 
         {/* AI banner */}
-        <div style={{ display: "flex", alignItems: "stretch", background: "rgba(119,220,155,0.05)", border: "1px solid #4ad179", borderRadius: 12, overflow: "hidden", flexShrink: 0 }}>
-          <div style={{ width: 8, background: "#4ad179", flexShrink: 0 }} />
-          <div style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: 16, flex: 1 }}>
-            <Sparkles size={18} color="#4ad179" style={{ flexShrink: 0, marginTop: 2 }} />
-            <p style={{ fontSize: 14, color: "#d2f3de", lineHeight: "20px" }}>
+        <div style={{ display: "flex", alignItems: "stretch", background: "rgba(119,220,155,0.05)", border: "1px solid #4ad179", borderRadius: 10, overflow: "hidden" }}>
+          <div style={{ width: 6, background: "#4ad179", flexShrink: 0 }} />
+          <div style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: "10px 12px", flex: 1 }}>
+            <Sparkles size={16} color="#4ad179" style={{ flexShrink: 0, marginTop: 1 }} />
+            <p style={{ fontSize: 13, color: "#d2f3de", lineHeight: "18px" }}>
               trAIn has prepared the contract based on your job listing and organisation preferences. Please review and configure the contract variables before submitting your offer.
             </p>
           </div>
         </div>
 
         {/* Configure Contract */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 12, flexShrink: 0 }}>
-          <p style={{ fontSize: 16, fontWeight: 600, color: "white", lineHeight: "24px" }}>Configure Contract</p>
-          <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 16, padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <p style={{ fontSize: 14, fontWeight: 600, color: "white", lineHeight: "20px" }}>Configure Contract</p>
+          <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 14, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
             {/* Tabs */}
-            <div style={{ display: "flex", gap: 24, borderBottom: "1px solid rgba(255,255,255,0.08)", flexShrink: 0 }}>
+            <div style={{ display: "flex", gap: 18, borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
               {tabs.map((t) => (
                 <button
                   key={t.key}
                   onClick={() => onTabChange(t.key)}
                   style={{
-                    background: "none", border: "none", cursor: "pointer", padding: "0 0 13px 0",
-                    fontSize: 14, lineHeight: "20px",
+                    background: "none", border: "none", cursor: "pointer", padding: "0 0 9px 0",
+                    fontSize: 13, lineHeight: "18px",
                     color: activeTab === t.key ? "white" : "rgba(255,255,255,0.5)",
                     borderBottom: activeTab === t.key ? "2px solid #fafafa" : "2px solid transparent",
                     marginBottom: -1, whiteSpace: "nowrap", transition: "all 0.15s",
@@ -5114,36 +5143,36 @@ function OfferContractModal({ activeTab, onTabChange, onBack, onClose, onSendOff
               ))}
             </div>
 
-            {/* Tab content */}
-            {activeTab === "summary" ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {summaryRows.map(({ label, value, green }) => (
-                  <div key={label} style={{
-                    display: "flex", alignItems: "center", justifyContent: "space-between",
-                    background: "rgba(255,255,255,0.05)", borderRadius: 8, padding: "8px 12px",
-                  }}>
-                    <span style={{ fontSize: 14, color: "#a1a1aa" }}>{label}</span>
-                    <span style={{ fontSize: 14, color: green ? "#1dc558" : "white" }}>{value}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div style={{ minHeight: 160 }} />
-            )}
+            {/* Tab content — fixed height so switching tabs doesn't resize the modal */}
+            <div style={{ minHeight: TAB_CONTENT_MIN_H }}>
+              {activeTab === "summary" ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                  {summaryRows.map(({ label, value, green }) => (
+                    <div key={label} style={{
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                      background: "rgba(255,255,255,0.05)", borderRadius: 7, padding: "6px 10px",
+                    }}>
+                      <span style={{ fontSize: 13, color: "#a1a1aa" }}>{label}</span>
+                      <span style={{ fontSize: 13, color: green ? "#1dc558" : "white" }}>{value}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Footer — fixed, never scrolls */}
-      <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, flexShrink: 0 }}>
+      {/* Footer */}
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
         <button style={{
-          padding: "8px 24px", borderRadius: 4, fontSize: 16, lineHeight: "24px", fontWeight: 400,
+          padding: "8px 20px", borderRadius: 4, fontSize: 14, lineHeight: "20px", fontWeight: 400,
           background: "rgba(255,255,255,0.05)", border: "none", color: "#fafafa", cursor: "pointer",
         }}>Preview Contract</button>
         <button
           onClick={onSendOffer}
           style={{
-            padding: "8px 24px", borderRadius: 4, border: "none", fontSize: 16, lineHeight: "24px", fontWeight: 400,
+            padding: "8px 20px", borderRadius: 4, border: "none", fontSize: 14, lineHeight: "20px", fontWeight: 400,
             background: "#1dc558", color: "#18181b", cursor: "pointer",
           }}
         >Send Offer</button>
