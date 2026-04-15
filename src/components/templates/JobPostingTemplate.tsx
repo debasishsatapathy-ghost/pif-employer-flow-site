@@ -4206,7 +4206,7 @@ function FeedbackModal({ onClose, onSubmit }: { onClose: () => void; onSubmit?: 
                 padding: "4px 8px",
                 flexShrink: 0,
               }}>
-                <Sparkles size={14} color="#1dc558" />
+                <img src="/Vector.png" alt="" style={{ width: 17.5, height: 17.5, flexShrink: 0 }} />
                 <span style={{ fontSize: 14, color: "#fafafa", lineHeight: "20px", whiteSpace: "nowrap" }}>
                   AI-generated from interview transcript
                 </span>
@@ -4387,9 +4387,12 @@ function FeedbackModal({ onClose, onSubmit }: { onClose: () => void; onSubmit?: 
                     ].map((m) => (
                       <div key={m.time} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
                         <div style={{ width: 8, height: 8, borderRadius: "50%", background: m.color, flexShrink: 0, marginTop: 8 }} />
-                        <p style={{ fontSize: 14, lineHeight: "24px" }}>
-                          <span style={{ color: "#71717a" }}>{m.time}</span>
-                          <span style={{ color: "#a1a1aa" }}>{m.text}</span>
+                        <p style={{
+                          width: 570, fontFamily: "Inter", fontSize: 14, fontStyle: "normal",
+                          fontWeight: 400, lineHeight: "24px", color: "#71717a",
+                        }}>
+                          {m.time}
+                          <span style={{ fontFamily: "Inter", fontSize: 14, fontStyle: "normal", fontWeight: 400, lineHeight: "24px", color: "#a1a1aa" }}>{m.text}</span>
                         </p>
                       </div>
                     ))}
