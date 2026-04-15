@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronRight, ChevronDown, ChevronLeft, Star, Sparkles, MessageCircle, X, Pencil,
@@ -4069,7 +4070,7 @@ function FeedbackScoreRow({ label, score, color }: { label: string; score: numbe
   const badgeText = color === "green" ? "#1dc558"                 : "#f59e0b";
   const badgeLabel = color === "green" ? "Strong" : "Moderate";
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 12, height: 28 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 24, paddingRight: 15, height: 28, width: "100%" }}>
       <span style={{ color: "#d4d4d8", fontSize: 16, lineHeight: "24px", minWidth: 180, flexShrink: 0 }}>{label}</span>
       <div style={{ flex: 1, height: 8, background: "rgba(255,255,255,0.08)", borderRadius: 100, overflow: "hidden" }}>
         <div style={{ width: `${score}%`, height: "100%", background: barColor, borderRadius: 100 }} />
@@ -4102,7 +4103,9 @@ function FeedbackModal({ onClose, onSubmit }: { onClose: () => void; onSubmit?: 
   const recOptions = ["Strong No", "No", "Yes", "Strong Yes"];
   const canSubmit = recommendation !== null && notes.length > 0;
 
-  return (
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
     <motion.div
       key="feedback-modal-overlay"
       initial={{ opacity: 0 }}
@@ -4130,16 +4133,18 @@ function FeedbackModal({ onClose, onSubmit }: { onClose: () => void; onSubmit?: 
           borderRadius: 16,
           border: "1px solid rgba(255,255,255,0.08)",
           width: "100%",
-          maxWidth: 1060,
+          maxWidth: 1400,
+          height: 900,
           maxHeight: "88vh",
           display: "flex",
           flexDirection: "column",
-          gap: 24,
+          alignItems: "flex-start",
+          gap: 32,
           padding: 32,
         }}
       >
         {/* ── Header ── */}
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", width: "100%" }}>
           <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
             {/* Sara's avatar */}
             <div style={{
@@ -4175,7 +4180,7 @@ function FeedbackModal({ onClose, onSubmit }: { onClose: () => void; onSubmit?: 
         </div>
 
         {/* ── Two-column body ── */}
-        <div style={{ display: "flex", gap: 24, flex: 1, minHeight: 0, overflow: "hidden" }}>
+        <div style={{ display: "flex", gap: 24, flex: 1, minHeight: 0, overflow: "hidden", width: "100%" }}>
 
           {/* LEFT: Interview Synthesis panel */}
           <div style={{
@@ -4190,13 +4195,13 @@ function FeedbackModal({ onClose, onSubmit }: { onClose: () => void; onSubmit?: 
           }}>
             {/* Header row: title + AI badge */}
             <div style={{ display: "flex", alignItems: "center", gap: 24, flexShrink: 0 }}>
-              <p style={{ fontSize: 20, fontWeight: 600, color: "white", lineHeight: "24px", whiteSpace: "nowrap" }}>
+              <p style={{ fontFamily: "Inter", fontSize: 20, fontStyle: "normal", fontWeight: 600, color: "#FFF", lineHeight: "24px", whiteSpace: "nowrap" }}>
                 Interview Synthesis
               </p>
               <div style={{
-                display: "flex", alignItems: "center", gap: 8,
-                background: "rgba(29,197,88,0.05)",
-                border: "1px solid #1dc558",
+                display: "flex", justifyContent: "center", alignItems: "center", gap: 8,
+                background: "rgba(29, 197, 88, 0.05)",
+                border: "1px solid #1DC558",
                 borderRadius: 8,
                 padding: "4px 8px",
                 flexShrink: 0,
@@ -4208,8 +4213,8 @@ function FeedbackModal({ onClose, onSubmit }: { onClose: () => void; onSubmit?: 
               </div>
             </div>
 
-            {/* Tabs */}
-            <div style={{ display: "flex", gap: 24, borderBottom: "1px solid rgba(255,255,255,0.08)", flexShrink: 0 }}>
+            {/* Tabs row */}
+            <div style={{ display: "flex", gap: 24, height: 40, alignItems: "flex-start", flexShrink: 0 }}>
               {tabs.map((t) => (
                 <button
                   key={t.key}
@@ -4221,9 +4226,9 @@ function FeedbackModal({ onClose, onSubmit }: { onClose: () => void; onSubmit?: 
                     color: "white",
                     opacity: activeTab === t.key ? 1 : 0.5,
                     borderBottom: activeTab === t.key ? "3px solid #fafafa" : "3px solid transparent",
-                    marginBottom: -1,
                     whiteSpace: "nowrap",
                     transition: "opacity 0.15s",
+                    flexShrink: 0,
                   }}
                 >
                   {t.label}
@@ -4242,9 +4247,15 @@ function FeedbackModal({ onClose, onSubmit }: { onClose: () => void; onSubmit?: 
                     <div style={{
                       background: "rgba(255,255,255,0.04)",
                       border: "1px solid rgba(255,255,255,0.08)",
-                      borderRadius: 10, padding: 17,
+                      borderRadius: 10,
+                      padding: 16,
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "flex-start",
+                      gap: 10,
+                      alignSelf: "stretch",
                     }}>
-                      <p style={{ color: "#d4d4d8", fontSize: 16, lineHeight: "24px", whiteSpace: "pre-line" }}>
+                      <p style={{ fontFamily: "Inter", color: "#D4D4D8", fontSize: 16, fontWeight: 400, lineHeight: "24px", alignSelf: "stretch", whiteSpace: "pre-line" }}>
                         {`Sara demonstrated strong clarity of thought throughout. She structured answers using concrete examples and showed genuine enthusiasm for the role. Sara's Generative AI expertise was once again a standout - she further expanded on her previous experience in this space.\n\nPacing was confident, with minimal hesitation on core questions.\n\nOne area to probe further: her experience with production-scale model deployment was light on specifics.`}
                       </p>
                     </div>
@@ -4254,8 +4265,13 @@ function FeedbackModal({ onClose, onSubmit }: { onClose: () => void; onSubmit?: 
                     <div style={{
                       background: "rgba(255,255,255,0.04)",
                       border: "1px solid rgba(255,255,255,0.08)",
-                      borderRadius: 10, padding: 17,
-                      display: "flex", flexDirection: "column", gap: 16,
+                      borderRadius: 10,
+                      padding: 16,
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "flex-start",
+                      gap: 16,
+                      alignSelf: "stretch",
                     }}>
                       <FeedbackScoreRow label="Technical depth"     score={84} color="green" />
                       <FeedbackScoreRow label="Communication"       score={91} color="green" />
@@ -4323,11 +4339,11 @@ function FeedbackModal({ onClose, onSubmit }: { onClose: () => void; onSubmit?: 
                         background: "rgba(255,255,255,0.04)",
                         border: "1px solid rgba(255,255,255,0.08)",
                         borderRadius: 10, padding: 20,
-                        display: "flex", flexDirection: "column", gap: 8,
+                        display: "flex", flexDirection: "column",
                       }}>
-                        <p style={{ fontSize: 14, color: "#a1a1aa", lineHeight: "20px" }}>{m.label}</p>
-                        <p style={{ fontSize: 24, fontWeight: 600, color: "white", lineHeight: "32px" }}>{m.value}</p>
-                        <p style={{ fontSize: 14, color: "#a1a1aa", lineHeight: "20px" }}>{m.score} / 100</p>
+                        <p style={{ fontSize: 14, color: "#a1a1aa", lineHeight: "20px", marginBottom: 12 }}>{m.label}</p>
+                        <p style={{ fontSize: 24, fontWeight: 600, color: "white", lineHeight: "32px", marginBottom: 12 }}>{m.value}</p>
+                        <p style={{ fontSize: 14, color: "#a1a1aa", lineHeight: "20px", marginBottom: 16 }}>{m.score} / 100</p>
                         <div style={{ height: 6, background: "rgba(255,255,255,0.08)", borderRadius: 100, overflow: "hidden" }}>
                           <div style={{ width: `${m.score}%`, height: "100%", background: m.color, borderRadius: 100 }} />
                         </div>
@@ -4336,11 +4352,11 @@ function FeedbackModal({ onClose, onSubmit }: { onClose: () => void; onSubmit?: 
                   </div>
 
                   {/* Confidence signal timeline */}
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                     <p style={{ color: "white", fontWeight: 600, fontSize: 16, lineHeight: "24px" }}>
                       Confidence signal — interview timeline
                     </p>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#71717a", marginBottom: 4 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#71717a", lineHeight: "18px" }}>
                       <span>Start</span>
                       <span>45 min</span>
                     </div>
@@ -4349,7 +4365,6 @@ function FeedbackModal({ onClose, onSubmit }: { onClose: () => void; onSubmit?: 
                       height: 48, borderRadius: 100, position: "relative",
                       background: "linear-gradient(90deg, #1dc558 0%, #60c152 7%, #84bd4b 14%, #a0b843 21%, #b8b33a 29%, #cead30 36%, #e2a622 43%, #f59e0b 50%, #e2a622 57%, #cead30 64%, #b8b33a 71%, #a0b843 79%, #84bd4b 86%, #60c152 93%, #1dc558 100%)",
                     }}>
-                      {/* White tick markers */}
                       {[10, 63, 91].map((pct) => (
                         <div key={pct} style={{
                           position: "absolute", left: `${pct}%`, top: -6, width: 3, height: 60,
@@ -4357,13 +4372,13 @@ function FeedbackModal({ onClose, onSubmit }: { onClose: () => void; onSubmit?: 
                         }} />
                       ))}
                     </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#71717a" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#71717a", lineHeight: "18px" }}>
                       {["0:00", "10:00", "20:00", "30:00", "40:00", "45:00"].map((t) => <span key={t}>{t}</span>)}
                     </div>
                   </div>
 
                   {/* Key moments */}
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                     <p style={{ color: "white", fontWeight: 600, fontSize: 16, lineHeight: "24px" }}>Key moments</p>
                     {[
                       { time: "12:04", text: " Peak confidence — LLM fine-tuning explanation. Leaned forward, sustained eye contact.", color: "#1dc558" },
@@ -4372,8 +4387,9 @@ function FeedbackModal({ onClose, onSubmit }: { onClose: () => void; onSubmit?: 
                     ].map((m) => (
                       <div key={m.time} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
                         <div style={{ width: 8, height: 8, borderRadius: "50%", background: m.color, flexShrink: 0, marginTop: 8 }} />
-                        <p style={{ fontSize: 14, color: "#71717a", lineHeight: "24px" }}>
-                          <span style={{ color: "white" }}>{m.time}</span>{m.text}
+                        <p style={{ fontSize: 14, lineHeight: "24px" }}>
+                          <span style={{ color: "#71717a" }}>{m.time}</span>
+                          <span style={{ color: "#a1a1aa" }}>{m.text}</span>
                         </p>
                       </div>
                     ))}
@@ -4392,7 +4408,7 @@ function FeedbackModal({ onClose, onSubmit }: { onClose: () => void; onSubmit?: 
               borderRadius: 16, padding: 24,
               display: "flex", flexDirection: "column", gap: 24,
             }}>
-              <p style={{ fontSize: 20, fontWeight: 600, color: "white", lineHeight: "24px" }}>Panel Status</p>
+              <p style={{ fontFamily: "Inter", fontSize: 20, fontWeight: 600, color: "#FFF", lineHeight: "24px" }}>Panel Status</p>
               {/* Omar S */}
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
@@ -4439,51 +4455,50 @@ function FeedbackModal({ onClose, onSubmit }: { onClose: () => void; onSubmit?: 
             <div style={{
               background: "rgba(255,255,255,0.05)",
               borderRadius: 16, padding: 24,
-              display: "flex", flexDirection: "column", gap: 20,
+              display: "flex", flexDirection: "column", alignItems: "flex-end",
+              gap: 24, flex: "1 0 0", minHeight: 1, overflow: "hidden", width: "100%",
             }}>
-              <p style={{ fontSize: 20, fontWeight: 600, color: "white", lineHeight: "24px" }}>Your assessment</p>
+              <p style={{ fontFamily: "Inter", fontSize: 20, fontWeight: 600, color: "#FFF", lineHeight: "24px", width: "100%" }}>Your assessment</p>
 
               {/* Notes */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12, alignItems: "flex-start", flex: "1 0 0", minHeight: 1, width: "100%" }}>
                 <p style={{ fontSize: 16, fontWeight: 600, color: "white", lineHeight: "24px" }}>Notes</p>
-                <div style={{ position: "relative" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, height: 228, alignItems: "flex-end", width: "100%", flexShrink: 0 }}>
                   <textarea
                     value={notes}
                     onChange={(e) => setNotes(e.target.value.slice(0, 500))}
                     placeholder="Add your notes: observations, concerns, or anything the AI summary missed..."
                     style={{
-                      width: "100%", height: 160, resize: "none",
+                      flex: "1 0 0", minHeight: 1, resize: "none", width: "100%",
                       background: "rgba(255,255,255,0.04)",
                       border: "1px solid rgba(255,255,255,0.08)",
-                      borderRadius: 10, padding: 17,
+                      borderRadius: 10, padding: 16,
                       color: "white", fontSize: 16, lineHeight: "24px",
                       outline: "none",
                       fontFamily: "inherit",
                       boxSizing: "border-box",
                     }}
                   />
-                  <p style={{
-                    position: "absolute", bottom: 8, right: 12,
-                    fontSize: 12, color: "#9f9fa9", lineHeight: "16px",
-                  }}>
+                  <p style={{ fontSize: 12, color: "#9f9fa9", lineHeight: "16px", flexShrink: 0 }}>
                     {notes.length}/500
                   </p>
                 </div>
               </div>
 
               {/* Hiring recommendation */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 16, width: "100%", flexShrink: 0 }}>
                 <p style={{ fontSize: 16, fontWeight: 600, color: "white", lineHeight: "24px" }}>Hiring recommendation</p>
-                <div style={{ display: "flex", gap: 12 }}>
+                <div style={{ display: "flex", gap: 16 }}>
                   {recOptions.map((opt) => (
                     <button
                       key={opt}
                       onClick={() => setRecommendation(opt)}
                       style={{
-                        flex: 1, padding: "10px 4px", borderRadius: 12,
+                        flex: "1 0 0", padding: "10px 20px", borderRadius: 12,
+                        display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: 16,
                         background: recommendation === opt ? "rgba(29,197,88,0.15)" : "rgba(255,255,255,0.05)",
                         border: recommendation === opt ? "1px solid #1dc558" : "1px solid rgba(255,255,255,0.05)",
-                        color: "white", fontWeight: 600, fontSize: 14, lineHeight: "24px",
+                        color: "white", fontWeight: 600, fontSize: 16, lineHeight: "24px",
                         cursor: "pointer", transition: "all 0.15s",
                       }}
                     >
@@ -4493,29 +4508,27 @@ function FeedbackModal({ onClose, onSubmit }: { onClose: () => void; onSubmit?: 
                 </div>
               </div>
 
-              {/* Submit button */}
-              <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                <button
-                  disabled={!canSubmit}
-                  onClick={() => { if (canSubmit) { onSubmit?.(); onClose(); } }}
-                  style={{
-                    padding: "10px 24px", borderRadius: 100,
-                    background: canSubmit ? "#1dc558" : "rgba(29,197,88,0.5)",
-                    opacity: canSubmit ? 1 : 0.35,
-                    border: "none", cursor: canSubmit ? "pointer" : "not-allowed",
-                    color: "#f4f4f5", fontWeight: 600, fontSize: 16, lineHeight: "24px",
-                    transition: "all 0.15s",
-                    minWidth: 100,
-                  }}
-                >
-                  Submit
-                </button>
-              </div>
+              {/* Submit button — aligns to right via parent alignItems: flex-end */}
+              <button
+                disabled={!canSubmit}
+                onClick={() => { if (canSubmit) { onSubmit?.(); onClose(); } }}
+                style={{
+                  width: 128, height: 44, padding: "8px 16px", borderRadius: 100,
+                  background: canSubmit ? "#1dc558" : "rgba(29,197,88,0.5)",
+                  opacity: canSubmit ? 1 : 0.35,
+                  border: "none", cursor: canSubmit ? "pointer" : "not-allowed",
+                  color: "#f4f4f5", fontWeight: 600, fontSize: 16, lineHeight: "24px",
+                  transition: "all 0.15s", flexShrink: 0,
+                }}
+              >
+                Submit
+              </button>
             </div>
           </div>
         </div>
       </motion.div>
-    </motion.div>
+    </motion.div>,
+    document.body
   );
 }
 
