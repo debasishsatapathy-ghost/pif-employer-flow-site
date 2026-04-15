@@ -1720,6 +1720,7 @@ function CandidateProfileModal({
   onBookInterview,
   onBookNextInterview,
   onAddFeedback,
+  onMakeHiringDecision,
 }: {
   profile: CandidateProfileData;
   context: "talentPool" | "screening" | "shortlist" | "interview" | "interview-ai-complete" | "interview-second-booked" | "interview-add-feedback" | "interview-feedback-captured";
@@ -1730,6 +1731,7 @@ function CandidateProfileModal({
   onBookInterview?: () => void;
   onBookNextInterview?: () => void;
   onAddFeedback?: () => void;
+  onMakeHiringDecision?: () => void;
 }) {
   // Only one accordion open at a time
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
@@ -2652,6 +2654,7 @@ function CandidateProfileModal({
                 type="button"
                 className="flex-1 flex items-center justify-center gap-2 text-base font-normal transition-all hover:brightness-110 active:scale-[0.98]"
                 style={{ padding: "8px 24px", background: "#1dc558", color: "#18181b", borderRadius: 4, lineHeight: "24px" }}
+                onClick={onMakeHiringDecision}
               >
                 Make Hiring Decision
               </button>
@@ -3858,6 +3861,11 @@ export function JobPostingTemplate({
             setSelectedProfile(null);
           }}
           onAddFeedback={() => setShowFeedbackModal(true)}
+          onMakeHiringDecision={() => {
+            setSelectedProfile(null);
+            setHiringDecisionVote(null);
+            setShowHiringDecisionConfirm(true);
+          }}
         />
       )}
       {/* Candidate Comparison Modal — opens when "Compare candidates" is clicked in Hire column */}
@@ -4777,7 +4785,7 @@ function HiringVerdictBadge({ label, strong }: { label: string; strong?: boolean
   );
 }
 
-function ModalOverlay({ children, onClickOutside }: { children: React.ReactNode; onClickOutside?: () => void }) {
+function ModalOverlay({ children, onClickOutside, maxHeight, gap }: { children: React.ReactNode; onClickOutside?: () => void; maxHeight?: string; gap?: number }) {
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -4802,7 +4810,8 @@ function ModalOverlay({ children, onClickOutside }: { children: React.ReactNode;
           backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)",
           borderRadius: 16, border: "1px solid rgba(255,255,255,0.1)",
           width: "100%", maxWidth: 720,
-          display: "flex", flexDirection: "column", gap: 32, padding: 32,
+          display: "flex", flexDirection: "column", gap: gap ?? 32, padding: 32,
+          ...(maxHeight ? { maxHeight, overflow: "hidden" } : {}),
         }}
       >
         {children}
@@ -4841,11 +4850,11 @@ function HiringSelectModal({ selectedCandidate, onSelectCandidate, onBack, onClo
         onClick={() => onSelectCandidate(id)}
         style={{
           flex: 1, minWidth: 0,
-          background: "rgba(255,255,255,0.04)",
-          border: isSelected ? "1.5px solid #1dc558" : "1px solid rgba(255,255,255,0.08)",
+          background: isSelected ? "rgba(29,197,88,0.05)" : "rgba(255,255,255,0.04)",
+          border: isSelected ? "1px solid #1dc558" : "1px solid rgba(255,255,255,0.08)",
           borderRadius: 10, padding: 17, cursor: "pointer",
           display: "flex", flexDirection: "column", gap: 24,
-          transition: "border-color 0.15s",
+          transition: "border-color 0.15s, background 0.15s",
         }}
       >
         <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
@@ -5047,9 +5056,9 @@ function OfferContractModal({ activeTab, onTabChange, onBack, onClose, onSendOff
   ];
 
   return (
-    <ModalOverlay onClickOutside={onClose}>
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+    <ModalOverlay onClickOutside={onClose} maxHeight="88vh" gap={24}>
+      {/* Header — fixed, never scrolls */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
           <IconBtn onClick={onBack}><ArrowLeft size={20} color="white" /></IconBtn>
           <p style={{ fontSize: 24, fontWeight: 600, color: "white", lineHeight: "28px" }}>Offer Contract: Sara Khalid</p>
@@ -5057,10 +5066,10 @@ function OfferContractModal({ activeTab, onTabChange, onBack, onClose, onSendOff
         <IconBtn onClick={onClose}><X size={20} color="white" /></IconBtn>
       </div>
 
-      {/* Body */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      {/* Body — scrollable if content overflows */}
+      <div style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", gap: 20 }}>
         {/* Sara candidate card */}
-        <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 16, display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 16, display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
           <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#ffdabf", flexShrink: 0, overflow: "hidden" }}>
             <img src="/sara-khalid.png" alt="Sara" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }} />
           </div>
@@ -5072,7 +5081,7 @@ function OfferContractModal({ activeTab, onTabChange, onBack, onClose, onSendOff
         </div>
 
         {/* AI banner */}
-        <div style={{ display: "flex", alignItems: "stretch", background: "rgba(119,220,155,0.05)", border: "1px solid #4ad179", borderRadius: 12, overflow: "hidden" }}>
+        <div style={{ display: "flex", alignItems: "stretch", background: "rgba(119,220,155,0.05)", border: "1px solid #4ad179", borderRadius: 12, overflow: "hidden", flexShrink: 0 }}>
           <div style={{ width: 8, background: "#4ad179", flexShrink: 0 }} />
           <div style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: 16, flex: 1 }}>
             <Sparkles size={18} color="#4ad179" style={{ flexShrink: 0, marginTop: 2 }} />
@@ -5083,20 +5092,20 @@ function OfferContractModal({ activeTab, onTabChange, onBack, onClose, onSendOff
         </div>
 
         {/* Configure Contract */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, flexShrink: 0 }}>
           <p style={{ fontSize: 16, fontWeight: 600, color: "white", lineHeight: "24px" }}>Configure Contract</p>
-          <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 16, padding: 24, display: "flex", flexDirection: "column", gap: 24, overflow: "hidden" }}>
+          <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 16, padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
             {/* Tabs */}
-            <div style={{ display: "flex", gap: 24, borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+            <div style={{ display: "flex", gap: 24, borderBottom: "1px solid rgba(255,255,255,0.08)", flexShrink: 0 }}>
               {tabs.map((t) => (
                 <button
                   key={t.key}
                   onClick={() => onTabChange(t.key)}
                   style={{
                     background: "none", border: "none", cursor: "pointer", padding: "0 0 13px 0",
-                    fontSize: 16, lineHeight: "24px",
+                    fontSize: 14, lineHeight: "20px",
                     color: activeTab === t.key ? "white" : "rgba(255,255,255,0.5)",
-                    borderBottom: activeTab === t.key ? "3px solid #fafafa" : "3px solid transparent",
+                    borderBottom: activeTab === t.key ? "2px solid #fafafa" : "2px solid transparent",
                     marginBottom: -1, whiteSpace: "nowrap", transition: "all 0.15s",
                   }}
                 >
@@ -5107,7 +5116,7 @@ function OfferContractModal({ activeTab, onTabChange, onBack, onClose, onSendOff
 
             {/* Tab content */}
             {activeTab === "summary" ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {summaryRows.map(({ label, value, green }) => (
                   <div key={label} style={{
                     display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -5119,14 +5128,14 @@ function OfferContractModal({ activeTab, onTabChange, onBack, onClose, onSendOff
                 ))}
               </div>
             ) : (
-              <div style={{ minHeight: 200 }} />
+              <div style={{ minHeight: 160 }} />
             )}
           </div>
         </div>
       </div>
 
-      {/* Footer */}
-      <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
+      {/* Footer — fixed, never scrolls */}
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, flexShrink: 0 }}>
         <button style={{
           padding: "8px 24px", borderRadius: 4, fontSize: 16, lineHeight: "24px", fontWeight: 400,
           background: "rgba(255,255,255,0.05)", border: "none", color: "#fafafa", cursor: "pointer",
