@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronRight, ChevronDown, ChevronLeft, Star, Sparkles, MessageCircle, X, Pencil,
   TrendingUp, Calendar, CheckCircle, ClipboardList, AlertCircle, ChevronsUp, Circle,
-  ArrowUpDown, ListFilter, Mail, Briefcase, GraduationCap, Info, User,
+  ArrowUpDown, ListFilter, Mail, Briefcase, GraduationCap, Info, User, ArrowLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { JobCandidateView, type ApplicantWithScore } from "@/components/templates/JobCandidateView";
@@ -2946,9 +2946,15 @@ export function JobPostingTemplate({
   const [hireCompareMode,     setHireCompareMode]     = useState(false);
   const [hireCompareSelected, setHireCompareSelected] = useState<Record<string, boolean>>({});
   const [showCompareModal,    setShowCompareModal]    = useState(false);
+  const [showHiringSelectModal,   setShowHiringSelectModal]   = useState(false);
+  const [selectedHiringCandidate, setSelectedHiringCandidate] = useState<string | null>(null);
+  const [showHiringDecisionConfirm, setShowHiringDecisionConfirm] = useState(false);
+  const [hiringDecisionVote,      setHiringDecisionVote]      = useState<string | null>(null);
+  const [showOfferContractModal,  setShowOfferContractModal]  = useState(false);
+  const [contractTab,             setContractTab]             = useState<"summary" | "salary" | "leave" | "terms">("summary");
 
   // Sara's interview progression state — drives 5s and 7s timed transitions
-  type SaraInterviewState = "none" | "ai_booked" | "ai_feedback" | "second_booked" | "awaiting_feedback" | "feedback_captured" | "hire";
+  type SaraInterviewState = "none" | "ai_booked" | "ai_feedback" | "second_booked" | "awaiting_feedback" | "feedback_captured" | "hire" | "contract_offered";
   const [saraInterviewState, setSaraInterviewState] = useState<SaraInterviewState>("none");
 
   // After AI booking: 5 s → ai_feedback (Sara's score 95, "AI Feedback available")
@@ -3398,7 +3404,7 @@ export function JobPostingTemplate({
                   {/* Kanban board — 4 equal columns */}
                   <div className="flex gap-4 flex-1 min-h-0">
                     {(["screening", "shortlist", "interview", "hire"] as KanbanCol[]).map((col) => {
-                      if (col === "hire" && saraInterviewState === "hire") {
+                      if (col === "hire" && (saraInterviewState === "hire" || saraInterviewState === "contract_offered")) {
                         // Hire column with custom Compare UI
                         const hireCandidates = kanban.hire;
                         const selectedCount = Object.values(hireCompareSelected).filter(Boolean).length;
@@ -3432,10 +3438,19 @@ export function JobPostingTemplate({
                                     <div className="flex-1 min-w-0">
                                       <p className="text-sm font-semibold text-white leading-tight truncate">{c.name}</p>
                                       <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>{c.role}</p>
+                                      {saraInterviewState === "contract_offered" && c.id === "tp1" && (
+                                        <span style={{
+                                          display: "inline-block", marginTop: 4,
+                                          background: "rgba(74,160,255,0.12)",
+                                          border: "1px solid rgba(74,160,255,0.35)",
+                                          color: "#4aa0ff", fontSize: 11, lineHeight: "16px",
+                                          padding: "2px 8px", borderRadius: 100,
+                                        }}>Contract Offered</span>
+                                      )}
                                     </div>
                                     <ScoreCircle score={c.score} scoreIncreased={c.scoreIncreased} />
                                   </div>
-                                  {hireCompareMode && (
+                                  {hireCompareMode && saraInterviewState !== "contract_offered" && (
                                     <div
                                       className="flex items-center justify-end gap-3 px-4 pb-3"
                                       onClick={(e) => {
@@ -3461,8 +3476,8 @@ export function JobPostingTemplate({
                                 </div>
                               ))}
                             </div>
-                            {/* Compare controls */}
-                            {!hireCompareMode ? (
+                            {/* Compare controls — hidden after contract offered */}
+                            {saraInterviewState === "contract_offered" ? null : !hireCompareMode ? (
                               <button
                                 className="mt-auto w-full py-2 rounded-xl text-sm font-normal transition-colors hover:bg-white/10"
                                 style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.9)", border: "1px solid rgba(255,255,255,0.08)" }}
@@ -3535,6 +3550,7 @@ export function JobPostingTemplate({
                                 awaiting_feedback:  "interview-add-feedback",
                                 feedback_captured:  "interview-feedback-captured",
                                 hire:               "interview-feedback-captured",
+                                contract_offered:   "interview-feedback-captured",
                               };
                               setSelectedProfileContext(interviewCtxMap[saraInterviewState]);
                             }
@@ -3851,8 +3867,67 @@ export function JobPostingTemplate({
           onClose={() => { setShowCompareModal(false); setHireCompareMode(false); setHireCompareSelected({}); }}
           onViewSara={() => { setShowCompareModal(false); setHireCompareMode(false); setSelectedProfile(SARA_PROFILE_DATA); setSelectedProfileContext("interview-feedback-captured"); }}
           onViewOmar={() => { setShowCompareModal(false); setHireCompareMode(false); }}
+          onMakeHiringDecision={() => {
+            setShowCompareModal(false);
+            setSelectedHiringCandidate(null);
+            setShowHiringSelectModal(true);
+          }}
         />
       )}
+      {/* ── Make Hiring Decision: Select Candidate Modal ── */}
+      {showHiringSelectModal && (
+        <HiringSelectModal
+          key="hiring-select-modal"
+          selectedCandidate={selectedHiringCandidate}
+          onSelectCandidate={setSelectedHiringCandidate}
+          onBack={() => { setShowHiringSelectModal(false); setShowCompareModal(true); }}
+          onClose={() => { setShowHiringSelectModal(false); setSelectedHiringCandidate(null); setHireCompareMode(false); setHireCompareSelected({}); }}
+          onContinue={() => {
+            setShowHiringSelectModal(false);
+            setHiringDecisionVote(null);
+            setShowHiringDecisionConfirm(true);
+          }}
+        />
+      )}
+
+      {/* ── Hiring Decision: Sara Khalid Modal ── */}
+      {showHiringDecisionConfirm && (
+        <HiringDecisionConfirmModal
+          key="hiring-decision-confirm-modal"
+          vote={hiringDecisionVote}
+          onVote={setHiringDecisionVote}
+          onClose={() => { setShowHiringDecisionConfirm(false); setHiringDecisionVote(null); setHireCompareMode(false); setHireCompareSelected({}); }}
+          onNext={() => {
+            setShowHiringDecisionConfirm(false);
+            setContractTab("summary");
+            setShowOfferContractModal(true);
+          }}
+        />
+      )}
+
+      {/* ── Offer Contract: Sara Khalid Modal ── */}
+      {showOfferContractModal && (
+        <OfferContractModal
+          key="offer-contract-modal"
+          activeTab={contractTab}
+          onTabChange={setContractTab}
+          onBack={() => { setShowOfferContractModal(false); setShowHiringDecisionConfirm(true); }}
+          onClose={() => { setShowOfferContractModal(false); setHireCompareMode(false); setHireCompareSelected({}); }}
+          onSendOffer={() => {
+            setShowOfferContractModal(false);
+            setHireCompareMode(false);
+            setHireCompareSelected({});
+            setSaraInterviewState("contract_offered");
+            setKanban((prev) => ({
+              ...prev,
+              hire: prev.hire.map((c) =>
+                c.id === "tp1" ? { ...c, interviewBadges: undefined } : c
+              ),
+            }));
+          }}
+        />
+      )}
+
       {/* Interview Feedback Modal — opens when "Add Feedback" is clicked */}
       {showFeedbackModal && (
         <FeedbackModal
@@ -4349,10 +4424,11 @@ function FeedbackModal({ onClose, onSubmit }: { onClose: () => void; onSubmit?: 
 ══════════════════════════════════════════════════════════════════════════ */
 type CompareTab = "recommendation" | "differentiators" | "skill" | "behavioural";
 
-function CandidateComparisonModal({ onClose, onViewSara, onViewOmar }: {
+function CandidateComparisonModal({ onClose, onViewSara, onViewOmar, onMakeHiringDecision }: {
   onClose: () => void;
   onViewSara: () => void;
   onViewOmar: () => void;
+  onMakeHiringDecision?: () => void;
 }) {
   const [activeTab, setActiveTab] = useState<CompareTab>("recommendation");
 
@@ -4584,6 +4660,7 @@ function CandidateComparisonModal({ onClose, onViewSara, onViewOmar }: {
           </button>
           <button
             style={{ padding: "8px 24px", background: "#1dc558", color: "#18181b", borderRadius: 4, border: "none", cursor: "pointer", fontSize: 16, lineHeight: "24px", fontWeight: 400 }}
+            onClick={onMakeHiringDecision}
           >
             Make Hiring Decision
           </button>
@@ -4672,6 +4749,397 @@ function CloseJobPostingModal({ jobTitle, hiredCount, offeredCount, unsuccessful
         </button>
       </div>
     </ModalShell>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   HIRING FLOW MODALS
+══════════════════════════════════════════════════════════════════════════ */
+
+const SARA_VERDICTS = [
+  { name: "AI Facilitator", verdict: "Strong Yes", strong: true },
+  { name: "Ahmed W",        verdict: "Strong Yes", strong: true },
+  { name: "Omar S.",        verdict: "Strong Yes", strong: true },
+];
+const OMAR_VERDICTS = [
+  { name: "AI Facilitator", verdict: "Yes", strong: false },
+  { name: "Ahmed W",        verdict: "Yes", strong: false },
+  { name: "Omar S.",        verdict: "Yes", strong: false },
+];
+
+function HiringVerdictBadge({ label, strong }: { label: string; strong?: boolean }) {
+  return (
+    <span style={{
+      background: strong ? "rgba(29,197,88,0.15)" : "rgba(29,197,88,0.05)",
+      color: "#1dc558", fontSize: 14, lineHeight: "20px",
+      padding: "4px 12px", borderRadius: 8, whiteSpace: "nowrap",
+    }}>{label}</span>
+  );
+}
+
+function ModalOverlay({ children, onClickOutside }: { children: React.ReactNode; onClickOutside?: () => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+      style={{
+        position: "fixed", inset: 0, zIndex: 210,
+        background: "rgba(0,0,0,0.75)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: 24, overflowY: "auto",
+      }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClickOutside?.(); }}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.97 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.97 }}
+        transition={{ duration: 0.2 }}
+        style={{
+          background: "rgba(255,255,255,0.05)",
+          backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)",
+          borderRadius: 16, border: "1px solid rgba(255,255,255,0.1)",
+          width: "100%", maxWidth: 720,
+          display: "flex", flexDirection: "column", gap: 32, padding: 32,
+        }}
+      >
+        {children}
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function IconBtn({ onClick, children }: { onClick?: () => void; children: React.ReactNode }) {
+  return (
+    <button onClick={onClick} style={{
+      width: 40, height: 40, borderRadius: 4,
+      background: "rgba(255,255,255,0.05)", border: "none",
+      cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+    }}>{children}</button>
+  );
+}
+
+/* ── Modal 1: Make Hiring Decision — Select Candidate ── */
+function HiringSelectModal({ selectedCandidate, onSelectCandidate, onBack, onClose, onContinue }: {
+  selectedCandidate: string | null;
+  onSelectCandidate: (id: string) => void;
+  onBack: () => void;
+  onClose: () => void;
+  onContinue: () => void;
+}) {
+  const canContinue = selectedCandidate !== null;
+
+  const CandidateCard = ({ id, name, role, score, scoreIncreased, verdicts, photo, photoBg }: {
+    id: string; name: string; role: string; score: number; scoreIncreased?: boolean;
+    verdicts: typeof SARA_VERDICTS; photo: string; photoBg: string;
+  }) => {
+    const isSelected = selectedCandidate === id;
+    return (
+      <div
+        onClick={() => onSelectCandidate(id)}
+        style={{
+          flex: 1, minWidth: 0,
+          background: "rgba(255,255,255,0.04)",
+          border: isSelected ? "1.5px solid #1dc558" : "1px solid rgba(255,255,255,0.08)",
+          borderRadius: 10, padding: 17, cursor: "pointer",
+          display: "flex", flexDirection: "column", gap: 24,
+          transition: "border-color 0.15s",
+        }}
+      >
+        <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+          <div style={{ width: 44, height: 44, borderRadius: "50%", background: photoBg, flexShrink: 0, overflow: "hidden" }}>
+            <img src={photo} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ fontSize: 16, fontWeight: 600, color: "#fafafa", lineHeight: "24px" }}>{name}</p>
+            <p style={{ fontSize: 14, color: "#d4d4d8", lineHeight: "20px" }}>{role}</p>
+          </div>
+          <ScoreCircle score={score} scoreIncreased={scoreIncreased} size={44} />
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {verdicts.map(({ name: vName, verdict, strong }) => (
+            <div key={vName} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", height: 28 }}>
+              <span style={{ fontSize: 16, color: "#d4d4d8", lineHeight: "24px" }}>{vName}</span>
+              <HiringVerdictBadge label={verdict} strong={strong} />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <ModalOverlay onClickOutside={onClose}>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <IconBtn onClick={onBack}><ArrowLeft size={20} color="white" /></IconBtn>
+          <p style={{ fontSize: 24, fontWeight: 600, color: "white", lineHeight: "28px" }}>Make Hiring Decision</p>
+        </div>
+        <IconBtn onClick={onClose}><X size={20} color="white" /></IconBtn>
+      </div>
+
+      {/* Body */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <p style={{ fontSize: 16, fontWeight: 600, color: "white", lineHeight: "24px" }}>Select candidate</p>
+        <div style={{ display: "flex", gap: 16 }}>
+          <CandidateCard id="sara" name="Sara Khalid" role="AI Practitioner" score={95} scoreIncreased verdicts={SARA_VERDICTS} photo="/sara-khalid.png" photoBg="#ffdabf" />
+          <CandidateCard id="omar" name="Omar Abdul" role="AI Engineer" score={88} verdicts={OMAR_VERDICTS} photo="/candidates/omar-abdul.png" photoBg="#afd0ff" />
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <button
+          disabled={!canContinue}
+          onClick={canContinue ? onContinue : undefined}
+          style={{
+            padding: "8px 24px", borderRadius: 4, border: "none", fontSize: 16, lineHeight: "24px", fontWeight: 400, cursor: canContinue ? "pointer" : "not-allowed",
+            background: canContinue ? "#1dc558" : "rgba(29,197,88,0.25)",
+            color: canContinue ? "#18181b" : "rgba(29,197,88,0.6)",
+            transition: "all 0.15s",
+          }}
+        >
+          Continue
+        </button>
+      </div>
+    </ModalOverlay>
+  );
+}
+
+/* ── Modal 2: Hiring Decision — Confirm Sara ── */
+function HiringDecisionConfirmModal({ vote, onVote, onClose, onNext }: {
+  vote: string | null;
+  onVote: (v: string) => void;
+  onClose: () => void;
+  onNext: () => void;
+}) {
+  const canNext = vote !== null;
+
+  return (
+    <ModalOverlay onClickOutside={onClose}>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <p style={{ fontSize: 24, fontWeight: 600, color: "white", lineHeight: "28px" }}>Hiring Decision: Sara Khalid</p>
+        <IconBtn onClick={onClose}><X size={20} color="white" /></IconBtn>
+      </div>
+
+      {/* Body card */}
+      <div style={{
+        background: "rgba(255,255,255,0.05)",
+        borderRadius: 16, padding: 24,
+        display: "flex", flexDirection: "column", gap: 24,
+      }}>
+        {/* Panel Verdict */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <p style={{ fontSize: 16, fontWeight: 600, color: "white", lineHeight: "24px" }}>Panel Verdict</p>
+          <div style={{
+            background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
+            borderRadius: 10, padding: 17, display: "flex", flexDirection: "column", gap: 24,
+          }}>
+            <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+              <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#ffdabf", flexShrink: 0, overflow: "hidden" }}>
+                <img src="/sara-khalid.png" alt="Sara" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize: 16, fontWeight: 600, color: "#fafafa", lineHeight: "24px" }}>Sara Khalid</p>
+                <p style={{ fontSize: 14, color: "#d4d4d8", lineHeight: "20px" }}>AI Practitioner</p>
+              </div>
+              <ScoreCircle score={95} scoreIncreased size={44} />
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {SARA_VERDICTS.map(({ name, verdict, strong }) => (
+                <div key={name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", height: 28 }}>
+                  <span style={{ fontSize: 16, color: "#d4d4d8" }}>{name}</span>
+                  <HiringVerdictBadge label={verdict} strong={strong} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* AI Recommendation */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <p style={{ fontSize: 16, fontWeight: 600, color: "white", lineHeight: "24px" }}>AI Recommendation</p>
+            <Sparkles size={16} color="#1dc558" />
+          </div>
+          <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: 17 }}>
+            <p style={{ fontSize: 16, color: "#d4d4d8", lineHeight: "24px" }}>
+              <strong style={{ color: "#fafafa" }}>trAIn recommends Sara Khalid</strong>
+              {" "}for the Senior AI Developer role. Her published research in Prompt Engineering and a Gen AI score of 97 — the highest across all 54 applicants — directly address the role's primary requirements.
+            </p>
+          </div>
+        </div>
+
+        {/* Hire question */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <p style={{ fontSize: 16, fontWeight: 600, color: "white", lineHeight: "24px" }}>Would you like to hire Sara Khalid?</p>
+          <div style={{ display: "flex", gap: 16 }}>
+            {["No", "Stall", "Yes"].map((opt) => {
+              const selected = vote === opt.toLowerCase();
+              return (
+                <button
+                  key={opt}
+                  onClick={() => onVote(opt.toLowerCase())}
+                  style={{
+                    flex: 1, padding: "10px 20px", borderRadius: 12, fontSize: 16, fontWeight: 600, cursor: "pointer", lineHeight: "24px",
+                    background: selected ? "transparent" : "rgba(255,255,255,0.05)",
+                    border: selected ? "1.5px solid #1dc558" : "1px solid rgba(255,255,255,0.05)",
+                    color: selected ? "#1dc558" : "white",
+                    transition: "all 0.15s",
+                  }}
+                >
+                  {opt}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <button
+          disabled={!canNext}
+          onClick={canNext ? onNext : undefined}
+          style={{
+            padding: "8px 24px", borderRadius: 4, border: "none", fontSize: 16, lineHeight: "24px", fontWeight: 400, cursor: canNext ? "pointer" : "not-allowed",
+            background: canNext ? "#1dc558" : "rgba(255,255,255,0.1)",
+            color: canNext ? "#18181b" : "rgba(255,255,255,0.25)",
+            transition: "all 0.15s",
+          }}
+        >
+          Next
+        </button>
+      </div>
+    </ModalOverlay>
+  );
+}
+
+/* ── Modal 3: Offer Contract: Sara Khalid ── */
+function OfferContractModal({ activeTab, onTabChange, onBack, onClose, onSendOffer }: {
+  activeTab: "summary" | "salary" | "leave" | "terms";
+  onTabChange: (t: "summary" | "salary" | "leave" | "terms") => void;
+  onBack: () => void;
+  onClose: () => void;
+  onSendOffer: () => void;
+}) {
+  const tabs: { key: "summary" | "salary" | "leave" | "terms"; label: string }[] = [
+    { key: "summary", label: "Summary" },
+    { key: "salary",  label: "Salary and Contract" },
+    { key: "leave",   label: "Leave and Benefits" },
+    { key: "terms",   label: "Standard Terms" },
+  ];
+
+  const summaryRows = [
+    { label: "Role",              value: "Senior AI Developer",        green: false },
+    { label: "Employment type",   value: "Full-time",                  green: false },
+    { label: "Base salary",       value: "SAR 88,000 / year",          green: true  },
+    { label: "Start date",        value: "1 March 2026",               green: false },
+    { label: "Probation period",  value: "90 days",                    green: false },
+    { label: "Location",          value: "Riyadh HQ - Hybrid (3 days)",green: false },
+    { label: "Medical insurance", value: "CIGNA Gold",                 green: false },
+    { label: "Annual leave",      value: "21 days",                    green: false },
+    { label: "Response deadline", value: "7 days from offer",          green: false },
+  ];
+
+  return (
+    <ModalOverlay onClickOutside={onClose}>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <IconBtn onClick={onBack}><ArrowLeft size={20} color="white" /></IconBtn>
+          <p style={{ fontSize: 24, fontWeight: 600, color: "white", lineHeight: "28px" }}>Offer Contract: Sara Khalid</p>
+        </div>
+        <IconBtn onClick={onClose}><X size={20} color="white" /></IconBtn>
+      </div>
+
+      {/* Body */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+        {/* Sara candidate card */}
+        <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 16, display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#ffdabf", flexShrink: 0, overflow: "hidden" }}>
+            <img src="/sara-khalid.png" alt="Sara" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <p style={{ fontSize: 16, color: "#fafafa", lineHeight: "24px" }}>Sara Khalid</p>
+            <p style={{ fontSize: 14, color: "#d4d4d8", lineHeight: "20px" }}>AI Practitioner</p>
+          </div>
+          <ScoreCircle score={95} scoreIncreased size={44} />
+        </div>
+
+        {/* AI banner */}
+        <div style={{ display: "flex", alignItems: "stretch", background: "rgba(119,220,155,0.05)", border: "1px solid #4ad179", borderRadius: 12, overflow: "hidden" }}>
+          <div style={{ width: 8, background: "#4ad179", flexShrink: 0 }} />
+          <div style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: 16, flex: 1 }}>
+            <Sparkles size={18} color="#4ad179" style={{ flexShrink: 0, marginTop: 2 }} />
+            <p style={{ fontSize: 14, color: "#d2f3de", lineHeight: "20px" }}>
+              trAIn has prepared the contract based on your job listing and organisation preferences. Please review and configure the contract variables before submitting your offer.
+            </p>
+          </div>
+        </div>
+
+        {/* Configure Contract */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <p style={{ fontSize: 16, fontWeight: 600, color: "white", lineHeight: "24px" }}>Configure Contract</p>
+          <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 16, padding: 24, display: "flex", flexDirection: "column", gap: 24, overflow: "hidden" }}>
+            {/* Tabs */}
+            <div style={{ display: "flex", gap: 24, borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+              {tabs.map((t) => (
+                <button
+                  key={t.key}
+                  onClick={() => onTabChange(t.key)}
+                  style={{
+                    background: "none", border: "none", cursor: "pointer", padding: "0 0 13px 0",
+                    fontSize: 16, lineHeight: "24px",
+                    color: activeTab === t.key ? "white" : "rgba(255,255,255,0.5)",
+                    borderBottom: activeTab === t.key ? "3px solid #fafafa" : "3px solid transparent",
+                    marginBottom: -1, whiteSpace: "nowrap", transition: "all 0.15s",
+                  }}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Tab content */}
+            {activeTab === "summary" ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {summaryRows.map(({ label, value, green }) => (
+                  <div key={label} style={{
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    background: "rgba(255,255,255,0.05)", borderRadius: 8, padding: "8px 12px",
+                  }}>
+                    <span style={{ fontSize: 14, color: "#a1a1aa" }}>{label}</span>
+                    <span style={{ fontSize: 14, color: green ? "#1dc558" : "white" }}>{value}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ minHeight: 200 }} />
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
+        <button style={{
+          padding: "8px 24px", borderRadius: 4, fontSize: 16, lineHeight: "24px", fontWeight: 400,
+          background: "rgba(255,255,255,0.05)", border: "none", color: "#fafafa", cursor: "pointer",
+        }}>Preview Contract</button>
+        <button
+          onClick={onSendOffer}
+          style={{
+            padding: "8px 24px", borderRadius: 4, border: "none", fontSize: 16, lineHeight: "24px", fontWeight: 400,
+            background: "#1dc558", color: "#18181b", cursor: "pointer",
+          }}
+        >Send Offer</button>
+      </div>
+    </ModalOverlay>
   );
 }
 
