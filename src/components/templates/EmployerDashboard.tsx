@@ -213,7 +213,7 @@ function PostJobWizardCard({ onClose, onFinish, initialData, isPreFilled = false
 
   return (
       <div
-        className="w-full max-w-xl flex flex-col rounded-2xl mx-auto"
+        className="w-full flex flex-col rounded-2xl"
         style={{ background: 'rgba(255,255,255,0.05)', padding: '32px', height: '620px' }}
       >
         {/* Header — title + close + progress */}
@@ -242,7 +242,7 @@ function PostJobWizardCard({ onClose, onFinish, initialData, isPreFilled = false
                     style={{ background: 'rgba(119,220,155,0.05)', border: '1px solid #4ad179' }}>
                     <div className="w-2 flex-shrink-0" style={{ background: '#4ad179' }} />
                     <div className="flex items-start gap-2 px-3 py-[10px]">
-                      <SparkleIcon size={20} />
+                      <SparkleIcon size={24} />
                       <p className="text-base text-[#d2f3de] leading-6">
                         trAIn has pre-filled this information based on your requirements.
                       </p>
@@ -266,7 +266,7 @@ function PostJobWizardCard({ onClose, onFinish, initialData, isPreFilled = false
                           onChange={e => set(key, e.target.value)}
                           placeholder={placeholder}
                           className="h-[54px] w-full px-3 rounded-[10px] text-base text-white outline-none transition-colors"
-                          style={{ background: 'rgba(255,255,255,0.05)', caretColor: '#1ed25e' }}
+                          style={{ background: 'rgba(255,255,255,0.05)', caretColor: '#1ed25e', letterSpacing: '-0.3125px' }}
                         />
                       </div>
                     ))}
@@ -424,7 +424,7 @@ function PostJobWizardCard({ onClose, onFinish, initialData, isPreFilled = false
                         <label className="text-[14px] text-[#d4d4d8]">{label}</label>
                         <input value={form[key]} onChange={e => set(key, e.target.value)} placeholder={placeholder}
                           className="h-[54px] w-full px-3 rounded-[10px] text-base text-white outline-none"
-                          style={{ background: 'rgba(255,255,255,0.05)', caretColor: '#1ed25e' }} />
+                          style={{ background: 'rgba(255,255,255,0.05)', caretColor: '#1ed25e', letterSpacing: '-0.3125px' }} />
                       </div>
                     ))}
                   </div>

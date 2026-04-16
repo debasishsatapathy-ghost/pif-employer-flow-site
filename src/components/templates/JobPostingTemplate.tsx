@@ -3035,7 +3035,7 @@ export function JobPostingTemplate({
     return () => clearTimeout(t);
   }, [saraInterviewState]);
 
-  // After second booking: 7 s → awaiting_feedback ("Awaiting Feedback")
+  // After second booking: 5 s → awaiting_feedback ("Awaiting Feedback")
   useEffect(() => {
     if (saraInterviewState !== "second_booked") return;
     const t = setTimeout(() => {
@@ -3048,11 +3048,11 @@ export function JobPostingTemplate({
             : c
         ),
       }));
-    }, 7000);
+    }, 5000);
     return () => clearTimeout(t);
   }, [saraInterviewState]);
 
-  // 7s after contract is offered → auto-accept (fires in all offer flows)
+  // 5s after contract is offered → auto-accept (fires in all offer flows)
   useEffect(() => {
     if (saraInterviewState !== "contract_offered") return;
     const t = setTimeout(() => {
@@ -3061,7 +3061,7 @@ export function JobPostingTemplate({
       setSelectedProfileContext((prev) =>
         prev === "hire-contract-offered" ? "hire-contract-accepted" : prev
       );
-    }, 7000);
+    }, 5000);
     return () => clearTimeout(t);
   }, [saraInterviewState]);
 
@@ -3253,12 +3253,21 @@ export function JobPostingTemplate({
     );
   }
 
+  /* ── kanban column adjacency helpers ────────────────────────────────── */
+  const KANBAN_COL_ORDER: KanbanCol[] = ["screening", "shortlist", "interview", "hire"];
+  function isAdjacentKanbanColumn(from: KanbanCol, to: KanbanCol): boolean {
+    const fi = KANBAN_COL_ORDER.indexOf(from);
+    const ti = KANBAN_COL_ORDER.indexOf(to);
+    return Math.abs(fi - ti) === 1;
+  }
+
   /* ── kanban drag handlers ────────────────────────────────────────────── */
   function handleKanbanDragStart(e: React.DragEvent, candidate: KCandidate, from: KanbanCol) {
     dragRef.current = { candidate, from };
     e.dataTransfer.effectAllowed = "move";
   }
   function handleKanbanDragOver(e: React.DragEvent, col: KanbanCol) {
+    if (!dragRef.current || !isAdjacentKanbanColumn(dragRef.current.from, col)) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
     setDragOver(col);
@@ -3276,6 +3285,7 @@ export function JobPostingTemplate({
     const { candidate, from } = dragRef.current;
     dragRef.current = null;
     if (from === to) return;
+    if (!isAdjacentKanbanColumn(from, to)) return;
     setKanban((prev) => ({
       ...prev,
       [from]: prev[from].filter((c) => c.id !== candidate.id),
@@ -4236,7 +4246,7 @@ function FeedbackModal({ onClose, onSubmit }: { onClose: () => void; onSubmit?: 
           }}>
             {/* Header row: title + AI badge */}
             <div style={{ display: "flex", alignItems: "center", gap: 24, flexShrink: 0 }}>
-              <p style={{ fontFamily: "Inter", fontSize: 20, fontStyle: "normal", fontWeight: 600, color: "#FFF", lineHeight: "24px", whiteSpace: "nowrap" }}>
+              <p style={{ fontSize: 20, fontStyle: "normal", fontWeight: 600, color: "#FFF", lineHeight: "24px", whiteSpace: "nowrap" }}>
                 Interview Synthesis
               </p>
               <div style={{
@@ -4296,9 +4306,13 @@ function FeedbackModal({ onClose, onSubmit }: { onClose: () => void; onSubmit?: 
                       gap: 10,
                       alignSelf: "stretch",
                     }}>
-                      <p style={{ fontFamily: "Inter", color: "#D4D4D8", fontSize: 16, fontWeight: 400, lineHeight: "24px", alignSelf: "stretch", whiteSpace: "pre-line" }}>
-                        {`Sara demonstrated strong clarity of thought throughout. She structured answers using concrete examples and showed genuine enthusiasm for the role. Sara's Generative AI expertise was once again a standout - she further expanded on her previous experience in this space.\n\nPacing was confident, with minimal hesitation on core questions.\n\nOne area to probe further: her experience with production-scale model deployment was light on specifics.`}
-                      </p>
+                      <div style={{ color: "#d4d4d8", fontSize: 16, fontWeight: 400, lineHeight: 0 }}>
+                        <p style={{ lineHeight: "24px", margin: 0 }}>Sara demonstrated strong clarity of thought throughout. She structured answers using concrete examples and showed genuine enthusiasm for the role. Sara&apos;s Generative AI expertise was once again a standout — she further expanded on her previous experience in this space.</p>
+                        <p style={{ lineHeight: "24px", margin: 0 }}>&nbsp;</p>
+                        <p style={{ lineHeight: "24px", margin: 0 }}>Pacing was confident, with minimal hesitation on core questions.</p>
+                        <p style={{ lineHeight: "24px", margin: 0 }}>&nbsp;</p>
+                        <p style={{ lineHeight: "24px", margin: 0 }}>One area to probe further: her experience with production-scale model deployment was light on specifics.</p>
+                      </div>
                     </div>
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -4429,11 +4443,11 @@ function FeedbackModal({ onClose, onSubmit }: { onClose: () => void; onSubmit?: 
                       <div key={m.time} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
                         <div style={{ width: 8, height: 8, borderRadius: "50%", background: m.color, flexShrink: 0, marginTop: 8 }} />
                         <p style={{
-                          width: 570, fontFamily: "Inter", fontSize: 14, fontStyle: "normal",
+                          width: 570, fontSize: 14, fontStyle: "normal",
                           fontWeight: 400, lineHeight: "24px", color: "#71717a",
                         }}>
                           {m.time}
-                          <span style={{ fontFamily: "Inter", fontSize: 14, fontStyle: "normal", fontWeight: 400, lineHeight: "24px", color: "#a1a1aa" }}>{m.text}</span>
+                          <span style={{ fontSize: 14, fontStyle: "normal", fontWeight: 400, lineHeight: "24px", color: "#a1a1aa" }}>{m.text}</span>
                         </p>
                       </div>
                     ))}
@@ -4453,7 +4467,7 @@ function FeedbackModal({ onClose, onSubmit }: { onClose: () => void; onSubmit?: 
               display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 24,
               width: "100%", overflow: "hidden", flexShrink: 0,
             }}>
-              <p style={{ fontFamily: "Inter", fontSize: 20, fontWeight: 600, color: "#FFF", lineHeight: "24px", flexShrink: 0 }}>Panel Status</p>
+              <p style={{ fontSize: 20, fontWeight: 600, color: "#FFF", lineHeight: "24px", flexShrink: 0 }}>Panel Status</p>
               {/* Omar S */}
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", flexShrink: 0 }}>
                 <div style={{ display: "flex", gap: 12, alignItems: "center", flexShrink: 0 }}>
@@ -4503,7 +4517,7 @@ function FeedbackModal({ onClose, onSubmit }: { onClose: () => void; onSubmit?: 
               display: "flex", flexDirection: "column", alignItems: "flex-end",
               gap: 24, flex: "1 0 0", minHeight: 1, overflow: "hidden", width: "100%",
             }}>
-              <p style={{ fontFamily: "Inter", fontSize: 20, fontWeight: 600, color: "#FFF", lineHeight: "24px", width: "100%" }}>Your assessment</p>
+              <p style={{ fontSize: 20, fontWeight: 600, color: "#FFF", lineHeight: "24px", width: "100%" }}>Your assessment</p>
 
               {/* Notes */}
               <div style={{ display: "flex", flexDirection: "column", gap: 12, alignItems: "flex-start", flex: "1 0 0", minHeight: 1, width: "100%" }}>
