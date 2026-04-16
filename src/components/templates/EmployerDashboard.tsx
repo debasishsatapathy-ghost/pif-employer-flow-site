@@ -124,6 +124,8 @@ function PostJobWizardCard({ onClose, onFinish, initialData, isPreFilled = false
   const [newSkill, setNewSkill] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [draggedSkill, setDraggedSkill] = useState<{ skill: string; fromTier: keyof SkillSet } | null>(null);
+  const [dragOverTier, setDragOverTier] = useState<keyof SkillSet | null>(null);
 
   const set = (k: keyof JobFormData, v: string) => setForm(f => ({ ...f, [k]: v }));
 
@@ -153,6 +155,18 @@ function PostJobWizardCard({ onClose, onFinish, initialData, isPreFilled = false
     if (!s) return;
     setForm(f => ({ ...f, skills: { ...f.skills, [tier]: [...f.skills[tier], s] } }));
     setNewSkill(""); setAddingSkillTier(null);
+  };
+
+  const moveSkill = (skill: string, fromTier: keyof SkillSet, toTier: keyof SkillSet) => {
+    if (fromTier === toTier) return;
+    setForm(f => ({
+      ...f,
+      skills: {
+        ...f.skills,
+        [fromTier]: f.skills[fromTier].filter(s => s !== skill),
+        [toTier]: [...f.skills[toTier], skill],
+      },
+    }));
   };
 
   const market = getMarketSalary(form.title);
@@ -199,11 +213,11 @@ function PostJobWizardCard({ onClose, onFinish, initialData, isPreFilled = false
 
   return (
       <div
-        className="w-full max-w-xl flex flex-col gap-6 rounded-2xl mx-auto"
-        style={{ background: 'rgba(255,255,255,0.05)', padding: '32px' }}
+        className="w-full max-w-xl flex flex-col rounded-2xl mx-auto"
+        style={{ background: 'rgba(255,255,255,0.05)', padding: '32px', height: '620px' }}
       >
         {/* Header — title + close + progress */}
-        <div className="flex flex-col gap-4 flex-shrink-0">
+        <div className="flex flex-col gap-4 flex-shrink-0 mb-5">
           <div className="flex items-center justify-between">
             <span className="text-[24px] font-semibold leading-7 tracking-tight text-[#fafafa]">Post a job</span>
             <button onClick={onClose} className="text-white/25 hover:text-white/55 transition-colors ml-4 flex-shrink-0"><X size={15} /></button>
@@ -217,7 +231,7 @@ function PostJobWizardCard({ onClose, onFinish, initialData, isPreFilled = false
           </div>
         </div>
 
-        <div className="overflow-y-auto flex flex-col gap-5" style={{ maxHeight: 'calc(100dvh - 320px)' }}>
+        <div className="flex-1 overflow-y-auto min-h-0">
           <AnimatePresence mode="wait">
             {/* ── Step 1: Role details ── */}
             {step === 1 && (
@@ -321,48 +335,65 @@ function PostJobWizardCard({ onClose, onFinish, initialData, isPreFilled = false
                 <p className="text-[20px] font-semibold text-[#fafafa]">Skills</p>
                 <div className="rounded-[10px] p-4 flex flex-col gap-4"
                   style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                  {tierLabels.map(({ key, label, color }) => (
-                    <div key={key} className="flex flex-col gap-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5">
-                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
-                          <span className="text-[11px] font-semibold tracking-widest text-white/60">{label}</span>
-                        </div>
-                        {addingSkillTier !== key && (
-                          <button onClick={() => setAddingSkillTier(key)}
-                            className="flex items-center gap-1 text-[13px] text-white/40 hover:text-white/70 transition-colors">
-                            <Plus size={12} /> Add a skill
-                          </button>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {form.skills[key].map(skill => (
-                          <div key={skill} className="group flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm text-white/75"
-                            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)' }}>
-                            <span>{skill}</span>
-                            <button onClick={() => removeSkill(skill, key)}
-                              className="opacity-0 group-hover:opacity-100 transition-opacity text-white/35 hover:text-red-400">
-                              <X size={11} />
-                            </button>
-                          </div>
-                        ))}
-                        {addingSkillTier === key && (
+                  {tierLabels.map(({ key, label, color }) => {
+                    const isDropTarget = dragOverTier === key && draggedSkill?.fromTier !== key;
+                    return (
+                      <div key={key} className="flex flex-col gap-2 rounded-[8px] transition-all duration-150"
+                        style={{ outline: isDropTarget ? '2px dashed rgba(255,255,255,0.25)' : '2px solid transparent', padding: isDropTarget ? '6px' : '0px' }}
+                        onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOverTier(key); }}
+                        onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverTier(null); }}
+                        onDrop={e => { e.preventDefault(); setDragOverTier(null); if (draggedSkill) { moveSkill(draggedSkill.skill, draggedSkill.fromTier, key); setDraggedSkill(null); } }}>
+                        <div className="flex items-center justify-between">
                           <div className="flex items-center gap-1.5">
-                            <input autoFocus value={newSkill} onChange={e => setNewSkill(e.target.value)}
-                              onKeyDown={e => { if (e.key === "Enter") addSkill(key); if (e.key === "Escape") { setAddingSkillTier(null); setNewSkill(""); } }}
-                              className="px-3 py-1.5 rounded-full text-sm text-white outline-none w-32"
-                              style={{ background: 'rgba(255,255,255,0.08)', border: `1px solid ${color}60`, caretColor: '#1ed25e' }}
-                              placeholder="Skill name" />
-                            <button onClick={() => addSkill(key)}
-                              className="text-xs px-2.5 py-1.5 rounded-full font-semibold"
-                              style={{ background: color, color: '#18181b' }}>Add</button>
-                            <button onClick={() => { setAddingSkillTier(null); setNewSkill(""); }}
-                              className="text-white/30 hover:text-white/60 transition-colors"><X size={13} /></button>
+                            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
+                            <span className="text-[11px] font-semibold tracking-widest text-white/60">{label}</span>
                           </div>
-                        )}
+                          {addingSkillTier !== key && (
+                            <button onClick={() => setAddingSkillTier(key)}
+                              className="flex items-center gap-1 text-[13px] text-white/40 hover:text-white/70 transition-colors">
+                              <Plus size={12} /> Add a skill
+                            </button>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-2 min-h-[28px]">
+                          {form.skills[key].map(skill => (
+                            <div
+                              key={skill}
+                              draggable={true}
+                              onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; setDraggedSkill({ skill, fromTier: key }); }}
+                              onDragEnd={() => { setDraggedSkill(null); setDragOverTier(null); }}
+                              className="group flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm text-white/75 transition-opacity"
+                              style={{
+                                background: 'rgba(255,255,255,0.06)',
+                                border: '1px solid rgba(255,255,255,0.10)',
+                                cursor: draggedSkill ? 'grabbing' : 'grab',
+                                opacity: draggedSkill?.skill === skill && draggedSkill?.fromTier === key ? 0.4 : 1,
+                              }}>
+                              <span>{skill}</span>
+                              <button onClick={() => removeSkill(skill, key)}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity text-white/35 hover:text-red-400">
+                                <X size={11} />
+                              </button>
+                            </div>
+                          ))}
+                          {addingSkillTier === key && (
+                            <div className="flex items-center gap-1.5">
+                              <input autoFocus value={newSkill} onChange={e => setNewSkill(e.target.value)}
+                                onKeyDown={e => { if (e.key === "Enter") addSkill(key); if (e.key === "Escape") { setAddingSkillTier(null); setNewSkill(""); } }}
+                                className="px-3 py-1.5 rounded-full text-sm text-white outline-none w-32"
+                                style={{ background: 'rgba(255,255,255,0.08)', border: `1px solid ${color}60`, caretColor: '#1ed25e' }}
+                                placeholder="Skill name" />
+                              <button onClick={() => addSkill(key)}
+                                className="text-xs px-2.5 py-1.5 rounded-full font-semibold"
+                                style={{ background: color, color: '#18181b' }}>Add</button>
+                              <button onClick={() => { setAddingSkillTier(null); setNewSkill(""); }}
+                                className="text-white/30 hover:text-white/60 transition-colors"><X size={13} /></button>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </motion.div>
             )}
@@ -436,38 +467,38 @@ function PostJobWizardCard({ onClose, onFinish, initialData, isPreFilled = false
               </motion.div>
             )}
           </AnimatePresence>
+        </div>
 
-          {/* Save error */}
-          {saveError && (
-            <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl flex-shrink-0"
-              style={{ background: "var(--error-surface-subtle)", border: "1px solid var(--error-border-subtle)" }}>
-              <AlertTriangle size={14} className="text-red-400 flex-shrink-0 mt-0.5" />
-              <p className="text-xs text-red-300 leading-relaxed">{saveError}</p>
-            </div>
-          )}
-
-          {/* Navigation buttons */}
-          <div className="flex items-center justify-between pt-2 flex-shrink-0">
-            {step > 1 ? (
-              <button onClick={goBack} disabled={saving}
-                className="flex items-center gap-1.5 text-sm text-white/40 hover:text-white/70 transition-colors disabled:opacity-40">
-                <ArrowRight size={14} style={{ transform: "rotate(180deg)" }} /> Back
-              </button>
-            ) : <div />}
-            <button
-              onClick={step === TOTAL_STEPS ? handleFinish : goNext}
-              disabled={(step === 1 && !step1Valid) || saving}
-              className="flex items-center gap-2 h-[52px] px-4 rounded-[10px] text-base font-semibold transition-all"
-              style={{
-                background: '#1dc558',
-                color: '#18181b',
-                opacity: ((step === 1 && !step1Valid) || saving) ? 0.5 : 1,
-              }}>
-              {step === TOTAL_STEPS
-                ? saving ? <><Loader2 size={16} className="animate-spin" /> Saving…</> : "Finish"
-                : <>Continue <ArrowRight size={16} /></>}
-            </button>
+        {/* Save error — outside scroll area, always visible */}
+        {saveError && (
+          <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-xl flex-shrink-0 mt-3"
+            style={{ background: "var(--error-surface-subtle)", border: "1px solid var(--error-border-subtle)" }}>
+            <AlertTriangle size={14} className="text-red-400 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-red-300 leading-relaxed">{saveError}</p>
           </div>
+        )}
+
+        {/* Navigation buttons — always pinned at bottom, never scroll */}
+        <div className="flex items-center justify-between pt-4 mt-auto flex-shrink-0">
+          {step > 1 ? (
+            <button onClick={goBack} disabled={saving}
+              className="flex items-center gap-1.5 text-sm text-white/40 hover:text-white/70 transition-colors disabled:opacity-40">
+              <ArrowRight size={14} style={{ transform: "rotate(180deg)" }} /> Back
+            </button>
+          ) : <div />}
+          <button
+            onClick={step === TOTAL_STEPS ? handleFinish : goNext}
+            disabled={(step === 1 && !step1Valid) || saving}
+            className="flex items-center gap-2 h-[52px] px-4 rounded-[10px] text-base font-semibold transition-all"
+            style={{
+              background: '#1dc558',
+              color: '#18181b',
+              opacity: ((step === 1 && !step1Valid) || saving) ? 0.5 : 1,
+            }}>
+            {step === TOTAL_STEPS
+              ? saving ? <><Loader2 size={16} className="animate-spin" /> Saving…</> : "Finish"
+              : <>Continue <ArrowRight size={16} /></>}
+          </button>
         </div>
       </div>
   );
