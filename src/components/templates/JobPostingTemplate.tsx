@@ -1722,6 +1722,7 @@ function CandidateProfileModal({
   onBookNextInterview,
   onAddFeedback,
   onMakeHiringDecision,
+  onAddToHire,
 }: {
   profile: CandidateProfileData;
   context: "talentPool" | "screening" | "shortlist" | "interview" | "interview-ai-complete" | "interview-second-booked" | "interview-add-feedback" | "interview-feedback-captured" | "hire-contract-offered" | "hire-contract-accepted";
@@ -1733,6 +1734,7 @@ function CandidateProfileModal({
   onBookNextInterview?: () => void;
   onAddFeedback?: () => void;
   onMakeHiringDecision?: () => void;
+  onAddToHire?: () => void;
 }) {
   // Only one accordion open at a time
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
@@ -2692,9 +2694,9 @@ function CandidateProfileModal({
                 type="button"
                 className="flex-1 flex items-center justify-center gap-2 text-base font-normal transition-all hover:brightness-110 active:scale-[0.98]"
                 style={{ padding: "8px 24px", background: "#1dc558", color: "#18181b", borderRadius: 4, lineHeight: "24px" }}
-                onClick={onMakeHiringDecision}
+                onClick={onAddToHire ?? onMakeHiringDecision}
               >
-                Make Hiring Decision
+                {onAddToHire ? "Add to Hire" : "Make Hiring Decision"}
               </button>
             )}
             {effectiveContext === "hire-contract-offered" && (
@@ -3942,6 +3944,30 @@ export function JobPostingTemplate({
             setSelectedProfile(null);
           }}
           onAddFeedback={() => setShowFeedbackModal(true)}
+          onAddToHire={saraInterviewState === "feedback_captured" ? () => {
+            setSaraInterviewState("hire");
+            setKanban((prev) => {
+              const sara = prev.interview.find((c) => c.id === "tp1");
+              const omar = prev.interview.find((c) => c.id === "k4");
+              const restInterview = prev.interview.filter(
+                (c) => c.id !== "tp1" && c.id !== "k4"
+              ).map((c) =>
+                c.name === "Faris Saleh"
+                  ? { ...c, interviewBadges: { count: "2 of 2", status: "10:00am Friday" } }
+                  : c
+              );
+              const newHire: KCandidate[] = [
+                sara ? { ...sara, interviewBadges: undefined } : null,
+                omar ? { ...omar, interviewBadges: undefined } : null,
+              ].filter(Boolean) as KCandidate[];
+              return {
+                ...prev,
+                interview: restInterview,
+                hire: [...newHire, ...prev.hire].sort((a, b) => b.score - a.score),
+              };
+            });
+            setSelectedProfile(null);
+          } : undefined}
           onMakeHiringDecision={() => {
             setSelectedProfile(null);
             setHiringDecisionVote(null);
