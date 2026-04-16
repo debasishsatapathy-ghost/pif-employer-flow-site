@@ -223,7 +223,7 @@ const SCREENING_CANDIDATES: KCandidate[] = [
   { id: "k3", name: "Yousef Rayan", role: "ML Engineer",     score: 86, avatar: "/candidates/yousef-rayan.png"},
 ];
 const SHORTLIST_INIT_CANDIDATES: KCandidate[] = [
-  { id: "k6", name: "Ahmed Saad",   role: "ML Specialist",   score: 89, avatar: "/candidates/ahmed-saad.png"  },
+  { id: "k6", name: "Ahmed Saad",   role: "ML Specialist",   score: 85, avatar: "/candidates/ahmed-saad.png"  },
   { id: "k7", name: "Lama Abdul",   role: "AI Developer",    score: 88, avatar: "/candidates/lama-abdul.png"  },
   { id: "k8", name: "Tariq Nasser", role: "ML Practitioner", score: 87, avatar: "/candidates/tariq-nasser.png"},
 ];
@@ -231,7 +231,7 @@ const SHORTLIST_INIT_CANDIDATES: KCandidate[] = [
 const INTERVIEW_INIT_CANDIDATES: KCandidate[] = [
   { id: "k4", name: "Omar Abdul",  role: "AI Engineer",  score: 88, avatar: "/candidates/omar-abdul.png",
     interviewBadges: { count: "2 of 2", status: "3:00pm Wednesday" } },
-  { id: "k5", name: "Faris Saleh", role: "AI Developer", score: 85, avatar: "/candidates/faris-saleh.png",
+  { id: "k5", name: "Faris Saleh", role: "AI Developer", score: 88, avatar: "/candidates/faris-saleh.png",
     interviewBadges: { count: "1 of 2", status: "AI Interview booked" } },
 ];
 // All screened (used for ALL-in-screening "screening" progression stage)
@@ -3268,7 +3268,7 @@ export function JobPostingTemplate({
     setKanban((prev) => ({
       ...prev,
       [from]: prev[from].filter((c) => c.id !== candidate.id),
-      [to]:   [...prev[to], candidate],
+      [to]:   [...prev[to], candidate].sort((a, b) => b.score - a.score),
     }));
   }
 
@@ -3509,9 +3509,14 @@ export function JobPostingTemplate({
                                       {(saraInterviewState === "contract_offered" || saraInterviewState === "contract_accepted") && c.id === "tp1" && (
                                         <span style={{
                                           display: "inline-block", marginTop: 4,
-                                          background: "rgba(74,160,255,0.12)",
-                                          border: "1px solid rgba(74,160,255,0.35)",
-                                          color: "#4aa0ff", fontSize: 11, lineHeight: "16px",
+                                          background: saraInterviewState === "contract_accepted"
+                                            ? "rgba(29,197,88,0.05)"
+                                            : "rgba(74,160,255,0.12)",
+                                          border: saraInterviewState === "contract_accepted"
+                                            ? "1px solid #1dc558"
+                                            : "1px solid rgba(74,160,255,0.35)",
+                                          color: saraInterviewState === "contract_accepted" ? "#d2f3de" : "#4aa0ff",
+                                          fontSize: 11, lineHeight: "16px",
                                           padding: "2px 8px", borderRadius: 100,
                                         }}>
                                           {saraInterviewState === "contract_offered" ? "Contract Offered" : "Contract Accepted"}
