@@ -223,9 +223,9 @@ const SCREENING_CANDIDATES: KCandidate[] = [
   { id: "k3", name: "Yousef Rayan", role: "ML Engineer",     score: 86, avatar: "/candidates/yousef-rayan.png"},
 ];
 const SHORTLIST_INIT_CANDIDATES: KCandidate[] = [
-  { id: "k6", name: "Ahmed Saad",   role: "ML Specialist",   score: 85, avatar: "/candidates/ahmed-saad.png"  },
   { id: "k7", name: "Lama Abdul",   role: "AI Developer",    score: 88, avatar: "/candidates/lama-abdul.png"  },
   { id: "k8", name: "Tariq Nasser", role: "ML Practitioner", score: 87, avatar: "/candidates/tariq-nasser.png"},
+  { id: "k6", name: "Ahmed Saad",   role: "ML Specialist",   score: 85, avatar: "/candidates/ahmed-saad.png"  },
 ];
 // Omar & Faris are pre-placed in Interview (Figma image 1 state)
 const INTERVIEW_INIT_CANDIDATES: KCandidate[] = [
@@ -2862,7 +2862,15 @@ export function JobPostingTemplate({
 
   // Initialize local state from Zustand or defaults
   const [mainTab, setMainTabLocal] = useState<MainTab>(persistedState?.mainTab || "applicants");
-  const [kanban, setKanbanLocal] = useState<Record<KanbanCol, KCandidate[]>>(persistedState?.kanban || defaultKanban);
+  const [kanban, setKanbanLocal] = useState<Record<KanbanCol, KCandidate[]>>(() => {
+    const base = persistedState?.kanban || defaultKanban;
+    return {
+      screening: [...base.screening].sort((a, b) => b.score - a.score),
+      shortlist:  [...base.shortlist].sort((a, b) => b.score - a.score),
+      interview:  [...base.interview].sort((a, b) => b.score - a.score),
+      hire:       [...base.hire].sort((a, b) => b.score - a.score),
+    };
+  });
   const [talentPool, setTalentPoolLocal] = useState<TalentCandidate[]>(persistedState?.talentPool || TALENT_POOL_INIT);
   const [pendingInvites, setPendingInvitesLocal] = useState<Record<string, number>>(persistedState?.pendingInvites || {});
 
