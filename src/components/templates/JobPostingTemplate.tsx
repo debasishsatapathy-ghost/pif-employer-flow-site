@@ -4135,12 +4135,12 @@ function FeedbackModal({ onClose, onSubmit }: { onClose: () => void; onSubmit?: 
           width: "100%",
           maxWidth: 1400,
           height: 900,
-          maxHeight: "88vh",
           display: "flex",
           flexDirection: "column",
           alignItems: "flex-start",
           gap: 32,
           padding: 32,
+          overflow: "hidden",
         }}
       >
         {/* ── Header ── */}
@@ -4180,18 +4180,19 @@ function FeedbackModal({ onClose, onSubmit }: { onClose: () => void; onSubmit?: 
         </div>
 
         {/* ── Two-column body ── */}
-        <div style={{ display: "flex", gap: 24, flex: 1, minHeight: 0, overflow: "hidden", width: "100%" }}>
+        <div style={{ display: "flex", gap: 24, width: "100%", alignItems: "flex-start", flex: "1 0 0", minHeight: 1 }}>
 
-          {/* LEFT: Interview Synthesis panel */}
+          {/* LEFT: Interview Synthesis panel — static, no scroll */}
           <div style={{
-            flex: 1, minWidth: 0,
+            width: 656, height: 752, flexShrink: 0,
             background: "rgba(255,255,255,0.05)",
             borderRadius: 16,
             padding: 24,
             display: "flex",
             flexDirection: "column",
+            alignItems: "flex-start",
             gap: 24,
-            overflowY: "auto",
+            overflow: "hidden",
           }}>
             {/* Header row: title + AI badge */}
             <div style={{ display: "flex", alignItems: "center", gap: 24, flexShrink: 0 }}>
@@ -4236,8 +4237,8 @@ function FeedbackModal({ onClose, onSubmit }: { onClose: () => void; onSubmit?: 
               ))}
             </div>
 
-            {/* Tab content */}
-            <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+            {/* Tab content — static */}
+            <div style={{ width: "100%" }}>
 
               {/* OVERVIEW TAB */}
               {activeTab === "overview" && (
@@ -4403,18 +4404,19 @@ function FeedbackModal({ onClose, onSubmit }: { onClose: () => void; onSubmit?: 
           </div>
 
           {/* RIGHT: Panel Status + Your Assessment */}
-          <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 16, overflowY: "auto" }}>
+          <div style={{ width: 656, flexShrink: 0, height: "100%", display: "flex", flexDirection: "column", gap: 24, alignItems: "flex-start", justifyContent: "center" }}>
 
             {/* Panel Status card */}
             <div style={{
               background: "rgba(255,255,255,0.05)",
               borderRadius: 16, padding: 24,
-              display: "flex", flexDirection: "column", gap: 24,
+              display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 24,
+              width: "100%", overflow: "hidden", flexShrink: 0,
             }}>
-              <p style={{ fontFamily: "Inter", fontSize: 20, fontWeight: 600, color: "#FFF", lineHeight: "24px" }}>Panel Status</p>
+              <p style={{ fontFamily: "Inter", fontSize: 20, fontWeight: 600, color: "#FFF", lineHeight: "24px", flexShrink: 0 }}>Panel Status</p>
               {/* Omar S */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", flexShrink: 0 }}>
+                <div style={{ display: "flex", gap: 12, alignItems: "center", flexShrink: 0 }}>
                   <div style={{
                     width: 44, height: 44, borderRadius: "50%", flexShrink: 0,
                     background: "#d2f3de", overflow: "hidden",
@@ -4423,18 +4425,18 @@ function FeedbackModal({ onClose, onSubmit }: { onClose: () => void; onSubmit?: 
                       <User size={22} color="#0c4f23" />
                     </div>
                   </div>
-                  <div>
-                    <p style={{ fontSize: 16, fontWeight: 600, color: "#fafafa", lineHeight: "24px" }}>You (Omar S)</p>
-                    <p style={{ fontSize: 14, color: "#d4d4d8", lineHeight: "20px" }}>Hiring Manager</p>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", width: 128, flexShrink: 0 }}>
+                    <p style={{ fontSize: 16, fontWeight: 600, color: "#fafafa", lineHeight: "24px", whiteSpace: "nowrap" }}>You (Omar S)</p>
+                    <p style={{ fontSize: 14, color: "#d4d4d8", lineHeight: "20px", whiteSpace: "nowrap" }}>Hiring Manager</p>
                   </div>
                 </div>
-                <span style={{ background: "#ffe1cc", color: "#401b00", fontSize: 14, lineHeight: "20px", padding: "4px 8px", borderRadius: 100 }}>
+                <span style={{ background: "#ffe1cc", color: "#401b00", fontSize: 14, lineHeight: "20px", padding: "4px 8px", borderRadius: 100, flexShrink: 0 }}>
                   Pending
                 </span>
               </div>
               {/* Ahmed W */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", flexShrink: 0 }}>
+                <div style={{ display: "flex", gap: 12, alignItems: "center", flexShrink: 0 }}>
                   <div style={{
                     width: 44, height: 44, borderRadius: "50%", flexShrink: 0,
                     background: "#afd0ff", overflow: "hidden",
@@ -4443,12 +4445,12 @@ function FeedbackModal({ onClose, onSubmit }: { onClose: () => void; onSubmit?: 
                       <User size={22} color="#0c2f66" />
                     </div>
                   </div>
-                  <div>
-                    <p style={{ fontSize: 16, fontWeight: 600, color: "#fafafa", lineHeight: "24px" }}>Ahmed W</p>
-                    <p style={{ fontSize: 14, color: "#d4d4d8", lineHeight: "20px" }}>Tech Principal</p>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", width: 128, flexShrink: 0 }}>
+                    <p style={{ fontSize: 16, fontWeight: 600, color: "#fafafa", lineHeight: "24px", whiteSpace: "nowrap" }}>Ahmed W</p>
+                    <p style={{ fontSize: 14, color: "#d4d4d8", lineHeight: "20px", whiteSpace: "nowrap" }}>Tech Principal</p>
                   </div>
                 </div>
-                <span style={{ background: "#d2f3de", color: "#0c4f23", fontSize: 14, lineHeight: "20px", padding: "4px 8px", borderRadius: 100 }}>
+                <span style={{ background: "#d2f3de", color: "#0c4f23", fontSize: 14, lineHeight: "20px", padding: "4px 8px", borderRadius: 100, flexShrink: 0 }}>
                   Submitted
                 </span>
               </div>
