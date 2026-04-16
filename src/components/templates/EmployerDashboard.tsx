@@ -1004,6 +1004,7 @@ function ChatView({
   wizardPreFilled = false,
   onWizardClose,
   onWizardFinish,
+  onGoToHiring,
 }: {
   messages: ChatMessage[];
   isTyping: boolean;
@@ -1016,6 +1017,7 @@ function ChatView({
   wizardPreFilled?: boolean;
   onWizardClose?: () => void;
   onWizardFinish?: (job: PostedJob) => void;
+  onGoToHiring?: () => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -1077,7 +1079,15 @@ function ChatView({
                         <span className="font-semibold">{msg.candidates[0].matchScore}% match</span>
                         {` for your `}
                         <span className="text-[#1dc558] underline">{msg.job.title}</span>
-                        {` posting.`}
+                        {` posting. You can see the Job Posting in the Hiring Dashboard. `}
+                        {onGoToHiring && (
+                          <button
+                            onClick={onGoToHiring}
+                            className="text-[#1dc558] font-semibold underline hover:brightness-125 transition-all bg-transparent border-0 p-0 cursor-pointer"
+                          >
+                            Here is the link to Hiring Dashboard
+                          </button>
+                        )}
                       </p>
                       {/* Equal-width columns; horizontal scroll only if viewport is very narrow */}
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
@@ -1416,7 +1426,7 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
       if (displayText) return displayText;
       if (options.some(o => /junior|mid-level|senior/i.test(o))) return "What experience level are you looking for?";
       if (options.some(o => /riyadh|jeddah|remote/i.test(o))) return "Where is this role based?";
-      if (options.some(o => /ai developer|cloud engineer|backend engineer|data analyst/i.test(o))) return "What role are you hiring for?";
+      if (options.some(o => /ai developer|cloud engineer|backend engineer|data analyst/i.test(o))) return "Firstly, what type of role are you hiring for?";
       return safeText;
     })();
 
@@ -1834,6 +1844,7 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
                   wizardOpen={wizardOpen}
                   wizardInitialData={wizardInitialData}
                   wizardPreFilled={wizardPreFilled}
+                  onGoToHiring={() => setActiveTab("hiring")}
                   onWizardClose={() => {
                     setWizardOpen(false);
                     setWizardInitialData({});
