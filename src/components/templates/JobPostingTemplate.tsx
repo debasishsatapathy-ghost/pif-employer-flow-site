@@ -3260,6 +3260,16 @@ export function JobPostingTemplate({
     const ti = KANBAN_COL_ORDER.indexOf(to);
     return Math.abs(fi - ti) === 1;
   }
+  function isValidKanbanDrop(candidate: KCandidate, from: KanbanCol, to: KanbanCol): boolean {
+    // Sara (tp1) may only move between Screening and Shortlist via drag-drop.
+    // Her progression to Interview and beyond is handled by the saraInterviewState machine.
+    if (candidate.id === "tp1") {
+      return (from === "screening" && to === "shortlist") ||
+             (from === "shortlist" && to === "screening");
+    }
+    // All other candidates follow the one-step adjacency rule.
+    return isAdjacentKanbanColumn(from, to);
+  }
 
   /* ── kanban drag handlers ────────────────────────────────────────────── */
   function handleKanbanDragStart(e: React.DragEvent, candidate: KCandidate, from: KanbanCol) {
@@ -3267,7 +3277,7 @@ export function JobPostingTemplate({
     e.dataTransfer.effectAllowed = "move";
   }
   function handleKanbanDragOver(e: React.DragEvent, col: KanbanCol) {
-    if (!dragRef.current || !isAdjacentKanbanColumn(dragRef.current.from, col)) return;
+    if (!dragRef.current || !isValidKanbanDrop(dragRef.current.candidate, dragRef.current.from, col)) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
     setDragOver(col);
@@ -3285,7 +3295,7 @@ export function JobPostingTemplate({
     const { candidate, from } = dragRef.current;
     dragRef.current = null;
     if (from === to) return;
-    if (!isAdjacentKanbanColumn(from, to)) return;
+    if (!isValidKanbanDrop(candidate, from, to)) return;
     setKanban((prev) => ({
       ...prev,
       [from]: prev[from].filter((c) => c.id !== candidate.id),
