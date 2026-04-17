@@ -190,10 +190,12 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
             }}
           >
             {/* LIVE video — always in DOM so ref is set when track arrives.
-                Face position: the Benny/Mobeus avatar sits on the RIGHT side
-                of the video frame → objectPosition: right center matches the
-                reference repo (BackgroundLayer.tsx) exactly.
-                scale(2) anchored at 80% 35% zooms into that right-center face zone. */}
+                objectPosition: right top → for portrait video (720×1280) this
+                shows the TOP portion of the frame where the avatar face/head
+                lives; for landscape video it is identical to right center since
+                the full height fits anyway.
+                scale(2) anchored at 80% 28% zooms into the upper-right zone
+                (hair → shoulders) so the face fills the circular frame. */}
             <video
               ref={videoElRef}
               autoPlay
@@ -205,9 +207,9 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
                 width: '100%',
                 height: '100%',
                 objectFit: 'cover',
-                objectPosition: 'right center',
+                objectPosition: 'right top',
                 transform: 'scale(2)',
-                transformOrigin: '80% 35%',
+                transformOrigin: '80% 28%',
                 display: showLiveVideo ? 'block' : 'none',
               }}
             />
@@ -247,9 +249,9 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
                   width: '100%',
                   height: '100%',
                   objectFit: 'cover',
-                  objectPosition: 'right center',
+                  objectPosition: 'right top',
                   transform: 'scale(2)',
-                  transformOrigin: '80% 35%',
+                  transformOrigin: '80% 28%',
                 }}
               />
             )}

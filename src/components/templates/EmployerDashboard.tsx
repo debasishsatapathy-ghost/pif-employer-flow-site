@@ -1663,20 +1663,25 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
         hiringAudioRef.current = audioEl;
       }
 
-      // Kick the agent exactly once per popup open.
-      // Uses informAgent (invisible context) so it does NOT appear in the
-      // conversation transcript. The agent is expected to:
-      //   1. Speak a natural greeting ("How can I help?")
-      //   2. Call callSiteFunction("showHiringOptions", { options: [...] }) to surface the bubbles
+      // Kick the agent exactly once per popup open via lk.chat.
+      // lk.chat is the same channel as sendTextMessage — the Mobeus agent
+      // framework treats it as a real user turn and MUST respond with speech.
+      // We do NOT call sendTextMessage() (which adds to Zustand transcripts).
+      // Instead we call room.localParticipant.sendText directly — the same
+      // technique used by kickAgentTurn() in the trainco reference repo —
+      // so the message is invisible to the React UI but audible to the agent.
       if (sessionState === 'connected' && !greetingFiredRef.current) {
         greetingFiredRef.current = true;
+        const { room: liveRoom } = useVoiceSessionStore.getState();
         setTimeout(() => {
-          useVoiceSessionStore.getState().informAgent(
-            '[HIRING_ASSISTANT] You have appeared as the AI hiring assistant on the employer dashboard. ' +
-            'Greet the employer naturally (e.g. "How can I help?"), then immediately call ' +
-            'callSiteFunction("showHiringOptions") to display the three hiring option bubbles.'
-          ).catch(() => {});
-        }, 600);
+          liveRoom?.localParticipant
+            ?.sendText(
+              '[HIRING_ASSISTANT] Greet the employer warmly (say "Hello! How can I help?") ' +
+              'then immediately call callSiteFunction showHiringOptions.',
+              { topic: 'lk.chat' }
+            )
+            .catch(() => {});
+        }, 800);
       }
     } else {
       // CLOSE — reset greeting guard, disable live avatar, clean up, restart mute loop
@@ -2335,11 +2340,12 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
           open={hiringAvatarOpen}
           onClose={() => setHiringAvatarOpen(false)}
           onOptionClick={(label) => {
-            // Send the selection to the agent as a visible user turn.
-            // The agent processes the selection and responds naturally based on
-            // its knowledge of hiring metrics, applicants, and market trends.
+            // Re-include [HIRING_ASSISTANT] context with every option click so
+            // the agent knows it is still in the hiring assistant overlay and
+            // which knowledge base to respond from. tellAgent() creates a real
+            // user turn that forces an agent speech response.
             useVoiceSessionStore.getState().tellAgent(
-              `user selected: ${label}`
+              `[HIRING_ASSISTANT] user selected: ${label}`
             ).catch(() => {});
           }}
         />
