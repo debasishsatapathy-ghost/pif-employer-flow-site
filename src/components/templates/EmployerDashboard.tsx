@@ -1664,31 +1664,25 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
           greetingCleanupRef.current = null;
           const { room: liveRoom, sessionState: ss } = useVoiceSessionStore.getState();
           if (ss !== 'connected') return;
-          // Brief buffer so the audio element attaches before the agent speaks.
-          setTimeout(() => {
-            liveRoom?.localParticipant
-              ?.sendText('[HIRING_ASSISTANT]', { topic: 'lk.chat' })
-              .catch(() => {});
-          }, 400);
+          // Video is already confirmed ready when sendGreeting is called —
+          // no extra delay needed; send immediately.
+          liveRoom?.localParticipant
+            ?.sendText('[HIRING_ASSISTANT]', { topic: 'lk.chat' })
+            .catch(() => {});
         };
 
-        const { avatarVideoTrack: existingTrack } = useVoiceSessionStore.getState();
-        if (existingTrack) {
-          // Avatar already connected (e.g. popup opened twice in the same session)
-          sendGreeting();
-        } else {
-          // Wait for the video track to confirm the avatar is fully up.
-          // subscribeWithSelector is not used in this store, so we subscribe to
-          // the full state and check avatarVideoTrack inside the listener.
-          const unsubTrack = useVoiceSessionStore.subscribe((state) => {
-            if (state.avatarVideoTrack) sendGreeting();
-          });
-          const fallbackTimer = setTimeout(sendGreeting, 10_000);
-          greetingCleanupRef.current = () => {
-            unsubTrack();
-            clearTimeout(fallbackTimer);
-          };
-        }
+        // Wait for 'hiring-avatar-video-ready' — dispatched by HiringAvatarPopup
+        // when the <video> element fires canplay (actual frames flowing).
+        // This guarantees the agent speaks only AFTER the face is visible.
+        const onVideoReady = () => sendGreeting();
+        window.addEventListener('hiring-avatar-video-ready', onVideoReady, { once: true });
+        // Hard fallback: if the event never fires (no avatar feature / timeout),
+        // greet after 20 s so the popup doesn't stay silent forever.
+        const fallbackTimer = setTimeout(sendGreeting, 20_000);
+        greetingCleanupRef.current = () => {
+          window.removeEventListener('hiring-avatar-video-ready', onVideoReady);
+          clearTimeout(fallbackTimer);
+        };
       }
     } else {
       // CLOSE — reset greeting guard, cancel any pending greeting kick, clean up

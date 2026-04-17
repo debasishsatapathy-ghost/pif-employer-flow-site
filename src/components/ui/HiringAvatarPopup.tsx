@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useVoiceSessionStore } from '@/lib/stores/voice-session-store';
 
@@ -31,21 +31,21 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
   const avatarAvailable    = useVoiceSessionStore((s) => s.avatarAvailable);
   const avatarAudioElement = useVoiceSessionStore((s) => s.avatarAudioElement);
 
-  const videoElRef = useRef<HTMLVideoElement | null>(null);
-
   // ── Phase state ─────────────────────────────────────────────────────────────
-  // 'loading' — avatar is starting up; show only the pulsing circle, no speech
-  //             bubble or option pills yet.
-  // 'ready'   — live video is rendering frames (canplay fired) OR fallback.
+  // 'loading' — avatar is starting up; show only the pulsing circle + spinner.
+  // 'ready'   — live video has actual frames (canplay fired) OR 20 s fallback.
   const [popupPhase, setPopupPhase] = useState<'loading' | 'ready'>('loading');
 
-  // True only when the <video> element has actual frames (canplay / playing).
-  // avatarVideoTrack being non-null only means the LiveKit track is subscribed —
-  // video frames may not have arrived yet (streaming connection still warming up).
+  // True only when the <video> element has actual decoded frames.
+  // avatarVideoTrack being non-null only means LiveKit subscribed the track —
+  // the streaming pipeline may still be warming up with no frames yet.
   const [videoReady, setVideoReady] = useState(false);
 
   // Agent-driven option bubbles received via callSiteFunction → showHiringOptions
   const [agentOptions, setAgentOptions] = useState<HiringOption[]>([]);
+
+  // Stores cleanup for the current video element's listeners + track detach.
+  const videoCleanupRef = useRef<(() => void) | null>(null);
 
   // ── Reset on each open ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -57,61 +57,72 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
     setAgentOptions([]);
     setVideoReady(false);
 
-    // Hard fallback: show full UI after 15 s if video never becomes ready.
-    // 15 s covers slow streaming connections; canplay normally fires within 3–6 s.
-    const fallbackTimer = setTimeout(() => setPopupPhase('ready'), 15_000);
+    // Hard fallback: show full UI after 20 s if video never becomes ready.
+    const fallbackTimer = setTimeout(() => setPopupPhase('ready'), 20_000);
     return () => clearTimeout(fallbackTimer);
   }, [open]);
 
-  // ── Attach live video track + wait for canplay before showing content ────────
-  // Only after canplay (frames actually flowing) do we mark videoReady.
-  // This prevents the spinner from stopping while the avatar circle is still black.
-  useEffect(() => {
-    const el = videoElRef.current;
-    if (!el || !avatarVideoTrack) {
-      setVideoReady(false);
-      return;
-    }
+  // ── useCallback ref — the candidate-experiment-site pattern ─────────────────
+  // Unlike useRef + useEffect([avatarVideoTrack]):
+  //   • When the track arrives BEFORE the popup opens, useRef.current is null
+  //     so the effect returns early — attach() is never called.
+  //   • useCallback ref fires every time EITHER the element mounts OR
+  //     avatarVideoTrack changes, covering both orderings.
+  const videoRef = useCallback(
+    (el: HTMLVideoElement | null) => {
+      // Run any previous cleanup (detach old track, remove old listeners)
+      videoCleanupRef.current?.();
+      videoCleanupRef.current = null;
 
-    avatarVideoTrack.attach(el);
-    console.log('[HiringAvatar] Video track attached, waiting for canplay…');
+      if (!el) {
+        setVideoReady(false);
+        return;
+      }
+      if (!avatarVideoTrack) return;
 
-    const onCanPlay = () => {
-      console.log('[HiringAvatar] canplay fired — streaming pipeline ready');
-      setVideoReady(true);
-    };
-    const onPlaying = () => {
-      console.log('[HiringAvatar] playing fired — video frames flowing');
-      setVideoReady(true);
-    };
+      // Attach LiveKit track → sets el.srcObject = new MediaStream([track])
+      avatarVideoTrack.attach(el);
+      console.log('[HiringAvatar] track attached to <video>, waiting for canplay…');
 
-    el.addEventListener('canplay',  onCanPlay);
-    el.addEventListener('playing',  onPlaying);
+      const onReady = () => {
+        console.log('[HiringAvatar] video ready (canplay/playing) — frames flowing');
+        setVideoReady(true);
+      };
 
-    // If track was already playing before this effect ran (e.g. popup re-opened)
-    if (el.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
-      setVideoReady(true);
-    }
+      el.addEventListener('canplay', onReady);
+      el.addEventListener('playing', onReady);
 
-    return () => {
-      el.removeEventListener('canplay',  onCanPlay);
-      el.removeEventListener('playing',  onPlaying);
-      setVideoReady(false);
-      try { avatarVideoTrack.detach(); } catch {}
-    };
-  }, [avatarVideoTrack]);
+      // Already has frames (e.g. popup opened a second time in the same session)
+      if (el.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+        setVideoReady(true);
+      }
+
+      videoCleanupRef.current = () => {
+        el.removeEventListener('canplay', onReady);
+        el.removeEventListener('playing', onReady);
+        try { avatarVideoTrack.detach(el); } catch {}
+        setVideoReady(false);
+      };
+    },
+    [avatarVideoTrack],
+  );
 
   // ── Transition to ready when video is truly streaming ───────────────────────
-  // showLiveVideo now requires videoReady so the 'ready' phase (speech bubble +
-  // option pills) only appears once the avatar face is visible in the circle.
   const showLiveVideo = avatarEnabled && !!avatarVideoTrack && videoReady;
 
   useEffect(() => {
     if (showLiveVideo || !avatarAvailable) {
-      console.log('[HiringAvatar] popupPhase → ready', { showLiveVideo, avatarAvailable });
       setPopupPhase('ready');
     }
   }, [showLiveVideo, avatarAvailable]);
+
+  // ── Notify EmployerDashboard when video is ready so it fires the greeting ────
+  // The greeting kick (sendText lk.chat) is sent AFTER frames are flowing so the
+  // agent speaks only once the avatar face is already visible in the circle.
+  useEffect(() => {
+    if (!videoReady || !open) return;
+    window.dispatchEvent(new CustomEvent('hiring-avatar-video-ready'));
+  }, [videoReady, open]);
 
   // ── Unlock AudioContext on popup open (user gesture just occurred) ───────────
   // The popup opens from a user click. We use that gesture window to resume
@@ -161,8 +172,8 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
       const detail = (e as CustomEvent<{ options: HiringOption[] }>).detail;
       if (Array.isArray(detail?.options) && detail.options.length > 0) {
         setAgentOptions(detail.options);
-        // Upgrade to 'ready' as soon as the agent confirms the overlay is active
-        setPopupPhase('ready');
+        // Do NOT force popupPhase→ready here; that is driven by videoReady so
+        // options only appear once the avatar face is actually visible.
       }
     };
     window.addEventListener('hiring-avatar-options', handler);
@@ -250,17 +261,13 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
               justifyContent: 'center',
             }}
           >
-            {/* LIVE video — always in DOM once track arrives so canplay fires.
-                visibility:hidden (not display:none) keeps the element in the
-                rendering pipeline so the browser fires canplay/playing events
-                while the streaming pipeline warms up.
-                objectPosition: right top → portrait video shows the top-right
-                area where the avatar face lives.
-                scale(2) at 85% 20% zooms into the forehead/eyes region — moved
-                further right (+5%) and up (-8%) compared to previous values to
-                ensure the full face is visible within the circular frame. */}
+            {/* LIVE video — useCallback ref (videoRef) attaches the LiveKit
+                track when EITHER this element mounts OR the track arrives,
+                solving the race condition where track arrives before popup opens.
+                Hidden until videoReady (canplay fired) so the circle never
+                shows a black frame while the stream warms up. */}
             <video
-              ref={videoElRef}
+              ref={videoRef}
               autoPlay
               playsInline
               muted={false}
@@ -273,8 +280,7 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
                 objectPosition: 'right top',
                 transform: 'scale(2)',
                 transformOrigin: '85% 20%',
-                // Use visibility instead of display so canplay fires while hidden
-                visibility: (avatarVideoTrack && !videoReady) ? 'hidden' : (showLiveVideo ? 'visible' : 'hidden'),
+                display: showLiveVideo ? 'block' : 'none',
               }}
             />
 
