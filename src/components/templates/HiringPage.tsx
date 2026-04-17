@@ -83,28 +83,33 @@ interface Metric {
   sub?: string; subIcon?: "plus"|"check"|"warn"|"people"; subColor?: string;
 }
 
+/* dot colors per position — matches Figma progress dots exactly */
 const JOBS: {
-  title: string; meta: string; status: string;
-  solidDots: number; fadedDots: number; dotColor: string;
+  title: string; metaParts: string[]; status: string;
+  dots: string[];
   left: Metric; right: Metric;
 }[] = [
   {
-    title: "Senior AI Developer", meta: "Engineering · Jeddah · 2 days ago",
-    status: "Screening", dotColor: "#1dc558", solidDots: 3, fadedDots: 1,
+    title: "Senior AI Developer",
+    metaParts: ["Engineering", "Jeddah", "2 days ago"],
+    status: "Screening",
+    dots: ["#1dc558", "#71717b", "#71717b", "#71717b"],
     left: {
       num: "8", label: "screened applicants",
-      visual: { t: "grid", color: "#a78bfa", rows: 2, cols: 4 },
+      visual: { t: "squares", color: "#3689ff", n: 8 }, // rendered as mixed row inline
       sub: "5 shortlisted", subIcon: "people", subColor: "rgba(255,255,255,0.45)",
     },
     right: {
       num: "13", label: "talent pool",
-      visual: { t: "grid", color: "#a78bfa", rows: 3, cols: 5 },
-      sub: "8 new suggestions", subIcon: "plus", subColor: "rgba(255,255,255,0.45)",
+      visual: { t: "grid", color: "#9e36ff", rows: 2, cols: 8 },
+      sub: "8 new suggestions", subIcon: "people", subColor: "rgba(255,255,255,0.45)",
     },
   },
   {
-    title: "Cloud Engineer", meta: "Engineering · Remote · 4 days ago",
-    status: "Interviewing", dotColor: "#f97316", solidDots: 3, fadedDots: 1,
+    title: "Cloud Engineer",
+    metaParts: ["Engineering", "Remote", "4 days ago"],
+    status: "Interviewing",
+    dots: ["#a5e8bc", "#a5e8bc", "#1dc558", "#71717b"],
     left: {
       num: "6", label: "interviews booked",
       visual: { t: "avatars", n: 6 },
@@ -120,9 +125,9 @@ const JOBS: {
 
 /* ── interviews ──────────────────────────────────────────────────────────── */
 const IVWS = [
-  { name: "Sara Khalid",  role: "Senior AI Developer", type: "In-person", time: "Today 10:00",   ampm: "AM", bg: "#2a4a6e", avatar: "/sara-khalid.png" },
-  { name: "Rayan Tosan",  role: "Senior AI Developer", type: "In-person", time: "Today 11:00",   ampm: "AM", bg: "#2e5e50", avatar: "https://ui-avatars.com/api/?name=Rayan+Tosan&background=2e5e50&color=fff&size=80" },
-  { name: "Rayan Tosan",  role: "Senior AI Developer", type: "In-person", time: "Tomorrow 9:30", ampm: "AM", bg: "#2e5e50", avatar: "https://ui-avatars.com/api/?name=Rayan+T&background=2e5e50&color=fff&size=80" },
+  { name: "Sara Khalid",  role: "Senior AI Developer", type: "In-person", day: "Today",    clockTime: "10:00", ampm: "AM", avatar: "/sara-khalid.png" },
+  { name: "Rayan Tosan",  role: "Senior AI Developer", type: "In-person", day: "Today",    clockTime: "11:00", ampm: "AM", avatar: "https://ui-avatars.com/api/?name=Rayan+Tosan&background=2e5e50&color=fff&size=80" },
+  { name: "Rayan Tosan",  role: "Senior AI Developer", type: "In-person", day: "Tomorrow", clockTime: "9:30",  ampm: "AM", avatar: "https://ui-avatars.com/api/?name=Rayan+T&background=2e5e50&color=fff&size=80" },
 ];
 
 /* ── calendar ────────────────────────────────────────────────────────────── */
@@ -145,67 +150,74 @@ const TODAY_D = 12;
 
 function Card({ className = "", style = {}, children }: { className?: string; style?: React.CSSProperties; children: React.ReactNode }) {
   return (
-    <div className={`rounded-xl p-4 ${className}`} style={{ ...CARD, ...style }}>
+    <div className={`rounded-2xl p-5 ${className}`} style={{ ...CARD, ...style }}>
       {children}
     </div>
   );
 }
 
-function Dots({ color, solid, faded }: { color: string; solid: number; faded: number }) {
+function StatusDots({ dots }: { dots: string[] }) {
   return (
-    <div className="flex items-center gap-0.5">
-      {Array.from({length: solid}).map((_, i) => (
-        <span key={i} className="w-1.5 h-1.5 rounded-full" style={{background: color}} />
-      ))}
-      {Array.from({length: faded}).map((_, i) => (
-        <span key={i} className="w-1.5 h-1.5 rounded-full" style={{background: "rgba(255,255,255,0.25)"}} />
+    <div className="flex items-center gap-1">
+      {dots.map((color, i) => (
+        <span key={i} className="size-3 rounded-full flex-shrink-0" style={{ background: color }} />
       ))}
     </div>
   );
 }
 
-function VisualBlock({ v }: { v: Visual }) {
+const DOT = "size-3 rounded-[4px] flex-shrink-0"; // 12px square, ~4px radius — matches Figma
+
+function VisualBlock({ v, jobIndex }: { v: Visual; jobIndex?: number }) {
   if (v.t === "grid") {
+    /* Talent pool: all one color, wrapping rows */
+    const dots = Array.from({ length: v.rows * v.cols });
     return (
-      <div className="mt-2" style={{ display: "grid", gridTemplateColumns: `repeat(${v.cols}, 1fr)`, gap: 3 }}>
-        {Array.from({length: v.rows * v.cols}).map((_, i) => (
-          <span key={i} className="rounded-sm" style={{ background: v.color, aspectRatio: "1", minWidth: 12, minHeight: 12 }} />
-        ))}
-      </div>
-    );
-  }
-  if (v.t === "squares") {
-    return (
-      <div className="flex gap-1.5 mt-2">
-        {Array.from({length: v.n}).map((_, i) => (
-          <span key={i} className="w-5 h-5 rounded-sm flex-shrink-0" style={{background: v.color}} />
-        ))}
-      </div>
-    );
-  }
-  if (v.t === "avatars") {
-    const inits = ["SK","RT","AK","NM","JD","AB"];
-    return (
-      <div className="flex mt-2" style={{gap: 0}}>
-        {Array.from({length: v.n}).map((_, i) => (
-          <div
-            key={i}
-            className="w-6 h-6 rounded-full flex items-center justify-center text-[7px] font-bold text-white flex-shrink-0"
-            style={{ background: "#4b6f8c", border: "2px solid rgba(15,20,28,0.9)", marginLeft: i === 0 ? 0 : -6, zIndex: v.n - i }}
-          >
-            {inits[i]}
+      <div className="flex flex-col gap-1">
+        {Array.from({ length: v.rows }).map((_, row) => (
+          <div key={row} className="flex gap-1">
+            {dots.slice(row * v.cols, (row + 1) * v.cols).map((_, i) => (
+              <span key={i} className={DOT} style={{ background: v.color }} />
+            ))}
           </div>
         ))}
       </div>
     );
   }
-  /* grid-mixed: cols×rows of blue, last cell orange */
-  const total = v.rows * v.cols;
+  if (v.t === "squares") {
+    /* screened applicants: 5 blue + 3 purple */
+    return (
+      <div className="flex gap-1">
+        {[...Array(5)].map((_,i) => <span key={i} className={DOT} style={{background:"#3689ff"}} />)}
+        {[...Array(3)].map((_,i) => <span key={i} className={DOT} style={{background:"#9e36ff"}} />)}
+      </div>
+    );
+  }
+  if (v.t === "avatars") {
+    const bg = ["#a5e5e8","#ffbfbf","#a5e8bc","#d7a5e8","#afd0ff","#ffdabf"];
+    return (
+      <div className="flex" style={{ gap: 0 }}>
+        {Array.from({ length: v.n }).map((_, i) => (
+          <div
+            key={i}
+            className="size-10 rounded-full flex items-center justify-center text-[10px] font-bold text-white/80 flex-shrink-0"
+            style={{ background: bg[i % bg.length], border: "2px solid rgba(15,20,28,0.85)", marginLeft: i === 0 ? 0 : -10, zIndex: v.n - i }}
+          />
+        ))}
+      </div>
+    );
+  }
+  /* grid-mixed: shortlisted — row1: 6 green + 3 blue, row2: 7 blue + 1 orange */
   return (
-    <div className="mt-2" style={{ display: "grid", gridTemplateColumns: `repeat(${v.cols}, 1fr)`, gap: 3 }}>
-      {Array.from({length: total}).map((_, i) => (
-        <span key={i} className="rounded-sm" style={{ background: i === total - 1 ? "#f97316" : "#51a2ff", aspectRatio: "1", minWidth: 12, minHeight: 12 }} />
-      ))}
+    <div className="flex flex-col gap-1">
+      <div className="flex gap-1">
+        {[...Array(6)].map((_,i) => <span key={i} className={DOT} style={{background:"#1dc558"}} />)}
+        {[...Array(3)].map((_,i) => <span key={i} className={DOT} style={{background:"#3689ff"}} />)}
+      </div>
+      <div className="flex gap-1">
+        {[...Array(7)].map((_,i) => <span key={i} className={DOT} style={{background:"#3689ff"}} />)}
+        <span className={DOT} style={{background:"#ff6b00"}} />
+      </div>
     </div>
   );
 }
@@ -213,83 +225,116 @@ function VisualBlock({ v }: { v: Visual }) {
 function SubRow({ sub, icon, color }: { sub: string; icon?: "plus"|"check"|"warn"|"people"; color?: string }) {
   const Ic = icon === "people" ? Users : icon === "plus" ? UserPlus : icon === "check" ? UserCheck : AlertCircle;
   return (
-    <p className="text-[10px] mt-1.5 flex items-center gap-1" style={{color: color ?? "rgba(255,255,255,0.45)"}}>
-      {icon && <Ic size={10} className="flex-shrink-0" />}
-      {sub}
-    </p>
+    <div className="flex items-center gap-1">
+      {icon && <Ic size={16} className="flex-shrink-0" style={{ color: color ?? "rgba(255,255,255,0.6)" }} />}
+      <span className="text-sm font-normal leading-5 text-white">{sub}</span>
+    </div>
   );
 }
 
-function MetricCard({ m }: { m: Metric }) {
+function MetricCard({ m, jobIndex }: { m: Metric; jobIndex?: number }) {
   return (
-    <div className="rounded-lg p-2.5 flex flex-col flex-1 min-w-0" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.07)" }}>
-      <p className="text-[22px] font-semibold text-white leading-none">{m.num}</p>
-      <p className="text-[11px] text-white/55 mt-0.5 leading-tight">{m.label}</p>
-      <VisualBlock v={m.visual} />
+    <div className="rounded-xl p-4 flex flex-col flex-1 min-w-0 justify-between gap-3" style={{ background: "rgba(255,255,255,0.05)" }}>
+      {/* top: number + dots */}
+      <div className="flex flex-col gap-3">
+        <div className="flex items-end gap-2">
+          <span className="text-[40px] font-semibold leading-[48px]" style={{ color: "#f4f4f5" }}>{m.num}</span>
+          <span className="text-base font-normal leading-6 pb-[5px]" style={{ color: "#d4d4d8" }}>{m.label}</span>
+        </div>
+        <VisualBlock v={m.visual} jobIndex={jobIndex} />
+      </div>
+      {/* bottom: sub-label */}
       {m.sub && <SubRow sub={m.sub} icon={m.subIcon} color={m.subColor} />}
     </div>
   );
 }
 
-function DetailedJobCard({ job }: { job: typeof JOBS[0] }) {
+function DetailedJobCard({ job, jobIndex }: { job: typeof JOBS[0]; jobIndex?: number }) {
   return (
-    <div className="rounded-xl p-4 flex flex-col gap-3" style={{ background: "rgba(255,255,255,0.045)", border: "1px solid rgba(255,255,255,0.09)" }}>
-      {/* title row */}
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-white leading-tight">{job.title}</p>
-          <p className="text-[11px] text-white/45 mt-0.5">{job.meta}</p>
+    <div
+      className="rounded-xl flex flex-col gap-4"
+      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.05)", padding: 20 }}
+    >
+      {/* header */}
+      <div className="flex flex-col gap-1">
+        {/* title + status */}
+        <div className="flex items-start justify-between gap-2">
+          <p className="text-base font-semibold leading-6" style={{ color: "#fafafa" }}>{job.title}</p>
+          {/* status: dots stacked above label */}
+          <div className="flex flex-col items-end gap-1 flex-shrink-0">
+            <StatusDots dots={job.dots} />
+            <span className="text-sm font-normal leading-5" style={{ color: "#d4d4d8" }}>{job.status}</span>
+          </div>
         </div>
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          <Dots color={job.dotColor} solid={job.solidDots} faded={job.fadedDots} />
-          <span className="text-[11px] text-white/65 font-medium">{job.status}</span>
+        {/* meta row with dot separators */}
+        <div className="flex items-center gap-3">
+          {job.metaParts.map((part, i) => (
+            <React.Fragment key={i}>
+              {i > 0 && <span className="size-1 rounded-full flex-shrink-0" style={{ background: "#d4d4d8" }} />}
+              <span className="text-sm font-normal leading-5" style={{ color: "#d4d4d8" }}>{part}</span>
+            </React.Fragment>
+          ))}
         </div>
       </div>
-      {/* two metric cards */}
-      <div className="flex gap-2">
-        <MetricCard m={job.left} />
-        <MetricCard m={job.right} />
+      {/* two metric sub-cards */}
+      <div className="flex gap-4 flex-1">
+        <MetricCard m={job.left} jobIndex={jobIndex} />
+        <MetricCard m={job.right} jobIndex={jobIndex} />
       </div>
     </div>
   );
 }
 
+const CAL_ROWS = [
+  CAL.slice(0, 7),
+  CAL.slice(7, 14),
+  CAL.slice(14, 21),
+  CAL.slice(21, 28),
+  CAL.slice(28, 35),
+  CAL.slice(35, 42),
+];
+
 function MiniCalendar() {
   return (
-    <div className="rounded-xl p-3" style={CARD}>
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-semibold text-white">June 2026</span>
-        <div className="flex gap-0.5">
+    <div className="flex flex-col gap-3 w-full">
+      {/* Month header — 16px semibold, chevrons */}
+      <div className="flex items-center justify-between pr-2">
+        <span className="text-base font-semibold text-white leading-6">June 2026</span>
+        <div className="flex gap-1">
           <button type="button" className="w-5 h-5 flex items-center justify-center rounded text-white/35 hover:text-white/65">
-            <ChevronLeft size={12} />
+            <ChevronLeft size={14} />
           </button>
           <button type="button" className="w-5 h-5 flex items-center justify-center rounded text-white/35 hover:text-white/65">
-            <ChevronRight size={12} />
+            <ChevronRight size={14} />
           </button>
         </div>
       </div>
-      {/* Headers */}
-      <div className="grid grid-cols-7 mb-0.5">
+      {/* Weekday headers — 12px, #f4f4f5, size-9 cells, justify-between */}
+      <div className="flex items-start justify-between w-full">
         {CAL_HEADS.map((h, i) => (
-          <div key={i} className="text-center text-[9px] font-medium text-white/30 py-0.5">{h}</div>
+          <div key={i} className="size-9 flex items-center justify-center text-[12px] font-normal leading-4" style={{ color: "#f4f4f5" }}>{h}</div>
         ))}
       </div>
-      {/* Days */}
-      <div className="grid grid-cols-7">
-        {CAL.map((c, i) => (
-          <div key={i} className="flex items-center justify-center" style={{padding: "1px 0"}}>
-            <span
-              className="w-[22px] h-[22px] flex items-center justify-center text-[10px] font-medium rounded-full"
-              style={
-                !c.other && c.d === TODAY_D
-                  ? { background: "var(--accent)", color: "#0d1117", fontWeight: 700 }
-                  : c.other
-                  ? { color: "rgba(255,255,255,0.25)" }
-                  : { color: "rgba(255,255,255,0.8)" }
-              }
-            >
-              {c.d}
-            </span>
+      {/* Date grid — flex rows, gap-1 between rows, pb-2 */}
+      <div className="flex flex-col gap-1 pb-2 items-center w-full">
+        {CAL_ROWS.map((row, ri) => (
+          <div key={ri} className="flex items-start justify-between w-full">
+            {row.map((c, ci) => (
+              <div key={ci} className="relative size-9 flex items-center justify-center">
+                <span
+                  className="size-9 flex items-center justify-center text-[14px] font-normal leading-5 rounded-full"
+                  style={
+                    !c.other && c.d === TODAY_D
+                      ? { background: "var(--accent)", color: "#ffffff", fontWeight: 600 }
+                      : c.other
+                      ? { color: "#71717b" }
+                      : { color: "#f4f4f5" }
+                  }
+                >
+                  {c.d}
+                </span>
+              </div>
+            ))}
           </div>
         ))}
       </div>
@@ -1123,7 +1168,7 @@ export function HiringPage({ onSelectJob, onPostJob, apiJobs: externalJobs, apiJ
         initial={{ opacity: 0, x: 12 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-        className="h-full overflow-hidden flex flex-col px-3 pt-3 pb-4"
+        className="flex-1 min-h-0 overflow-hidden flex flex-col px-3 pt-3 pb-4"
       >
         <JobDetailView
           job={selectedJob}
@@ -1140,260 +1185,314 @@ export function HiringPage({ onSelectJob, onPostJob, apiJobs: externalJobs, apiJ
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-      className="h-full overflow-y-auto"
+      className="flex-1 min-h-0 overflow-hidden flex flex-col"
     >
-      <div className="flex flex-col gap-4 px-3 pt-3 pb-8">
+      <div className="flex flex-col items-center gap-10 px-8 pb-10 flex-1 min-h-0">
 
         {/* ── header ── */}
-        <div className="flex items-center justify-between">
-          <h1 className="text-[32px] font-semibold text-white leading-tight">Hiring</h1>
-          <div className="flex gap-2">
-            <button type="button" className="px-4 py-2 rounded-full text-sm font-medium text-white transition-colors" style={{ border: "1px solid rgba(255,255,255,0.2)" }}>
+        <div className="flex items-center justify-between flex-shrink-0 w-full">
+          <h1 className="text-[40px] font-semibold text-white leading-[48px]">Hiring</h1>
+          <div className="flex gap-4">
+            <button
+              type="button"
+              className="h-10 px-4 rounded-[100px] text-base font-semibold text-[#f4f4f5] transition-opacity hover:opacity-80"
+              style={{ background: "rgba(255,255,255,0.05)" }}
+            >
               Browse Talent
             </button>
-            <button type="button" onClick={() => onPostJob?.()} className="px-4 py-2 rounded-full text-sm font-semibold transition-opacity hover:opacity-90 active:scale-[0.97]" style={{ background: "#1dc558", color: "#09090b" }}>
+            <button
+              type="button"
+              onClick={() => onPostJob?.()}
+              className="h-10 px-4 rounded-[100px] text-base font-semibold text-[#f4f4f5] transition-opacity hover:opacity-90 active:scale-[0.97]"
+              style={{ background: "rgba(29,197,88,0.5)" }}
+            >
               Post a Job
             </button>
           </div>
         </div>
 
-        {/* ── main grid ── */}
-        <div className="grid grid-cols-1 md:grid-cols-6 xl:grid-cols-12 gap-4">
+        {/* ── main layout: left content (flex-1) + right panel (316px fixed) ── */}
+        <div className="flex gap-5 flex-1 min-h-0 w-full">
 
-          {/* Pipeline — xl:col-span-4 */}
-          <Card className="md:col-span-3 xl:col-span-4 flex flex-col justify-between" style={{ minHeight: 204 }}>
-            {/* header */}
-            <div className="flex items-center gap-2">
-              <span className="text-base text-white/55 font-normal">Pipeline</span>
-              <div className="ml-auto flex gap-2">
-                {ROLES.map((r) => (
-                  <button
-                    key={r} type="button"
-                    onClick={() => setRole(r)}
-                    className="px-3 py-1 rounded-full text-[13px] font-medium transition-colors"
-                    style={{
-                      background: role === r ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.05)",
-                      color: "rgba(255,255,255,0.9)",
-                      border: role === r ? "1px solid rgba(255,255,255,0.2)" : "1px solid rgba(255,255,255,0.08)",
-                    }}
-                  >
-                    {r}
+          {/* ── Left content ── */}
+          <div className="flex-1 min-w-0 min-h-0 flex flex-col gap-6">
+
+            {/* Top stats row — 8-col grid (Pipeline×4 + Avg time×2 + Avg skill×2) */}
+            <div className="grid grid-cols-4 xl:grid-cols-8 gap-6">
+
+              {/* Pipeline — col-span-4 */}
+              <Card className="col-span-2 xl:col-span-4 flex flex-col justify-between" style={{ height: 204 }}>
+                {/* header */}
+                <div className="flex items-center gap-3">
+                  <span className="text-base font-normal leading-6" style={{ color: "#d4d4d8" }}>Pipeline</span>
+                  <div className="ml-auto flex gap-2">
+                    {ROLES.map((r) => (
+                      <button
+                        key={r} type="button"
+                        onClick={() => setRole(r)}
+                        className="px-3 py-1 rounded-full text-sm font-normal leading-5 transition-colors"
+                        style={{
+                          background: role === r ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.05)",
+                          color: "#f4f4f5",
+                          border: role === r ? "1px solid rgba(255,255,255,0.1)" : "none",
+                        }}
+                      >
+                        {r}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {/* count */}
+                <div className="flex items-end gap-2">
+                  <span className="text-[48px] font-semibold leading-[56px]" style={{ color: "#fafafa" }}>107</span>
+                  <span className="text-base font-normal leading-6 pb-[7px]" style={{ color: "#d4d4d8" }}>applicants</span>
+                </div>
+                {/* bar + legend */}
+                <div className="flex flex-col gap-3">
+                  <div className="h-3 rounded-full overflow-hidden flex gap-px">
+                    {BAR.map((s, i) => (
+                      <div
+                        key={s.label}
+                        className="h-full"
+                        style={{
+                          width: `${s.pct}%`,
+                          background: s.color,
+                          borderRadius: i === 0 ? "100px 0 0 100px" : i === BAR.length - 1 ? "0 100px 100px 0" : undefined,
+                        }}
+                      />
+                    ))}
+                  </div>
+                  {/* legend */}
+                  <div className="flex items-center gap-4">
+                    {BAR.map((s) => (
+                      <span key={s.label} className="flex items-center gap-1.5 text-[12px] font-normal leading-4" style={{ color: "#d4d4d8" }}>
+                        <span className="size-3 rounded-[4px] flex-shrink-0" style={{ background: s.color }} />
+                        {s.label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </Card>
+
+              {/* Avg. time to match — col-span-2 */}
+              <Card className="col-span-1 xl:col-span-2 flex flex-col justify-between" style={{ height: 204 }}>
+                <span className="text-base text-white/55">Avg. time to match</span>
+                <div className="flex items-end gap-2">
+                  <span className="text-[48px] font-semibold leading-none" style={{ color: "#1dc558" }}>4.2</span>
+                  <span className="text-base text-white/55 pb-1">days</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <ArrowDown size={16} style={{ color: "#1dc558" }} />
+                  <span className="text-sm text-white">15% from last month</span>
+                </div>
+              </Card>
+
+              {/* Avg. skill readiness — col-span-2 */}
+              <Card className="col-span-1 xl:col-span-2 flex flex-col justify-between" style={{ height: 204 }}>
+                <span className="text-base text-white/55">Avg. skill readiness</span>
+                <div className="flex items-end gap-2">
+                  <span className="text-[48px] font-semibold leading-none" style={{ color: "#ff9040" }}>79</span>
+                  <span className="text-base text-white/55 pb-1">%</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <ArrowDown size={16} style={{ color: "#ff4040" }} />
+                  <span className="text-sm text-white">5% this month</span>
+                </div>
+              </Card>
+
+            </div>{/* end top stats row */}
+
+            {/* Bottom row — Job Postings (5/8) + Hiring Intelligence (3/8) */}
+            <div className="grid grid-cols-8 gap-6 flex-1 min-h-0">
+
+              {/* Job Postings — col-span-5 */}
+              <div className="col-span-5 flex flex-col gap-6 rounded-2xl p-5 min-h-0 overflow-y-auto" style={{ background: "rgba(255,255,255,0.05)" }}>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-base font-normal leading-6" style={{ color: "#d4d4d8" }}>Job Postings</h2>
+                  <div className="flex gap-2">
+                    {(["Active", "Completed"] as const).map((t) => (
+                      <button
+                        key={t} type="button"
+                        onClick={() => setJobTab(t)}
+                        className="px-3 py-1 rounded-full text-sm font-normal leading-5 transition-colors"
+                        style={{
+                          background: jobTab === t ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.05)",
+                          color: "#f4f4f5",
+                          border: jobTab === t ? "1px solid rgba(255,255,255,0.1)" : "none",
+                        }}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Loading state */}
+                {jobsLoading && (
+                  <div className="flex flex-col gap-3">
+                    {[1, 2].map((i) => (
+                      <div key={i} className="rounded-xl p-4 animate-pulse" style={CARD}>
+                        <div className="h-3 rounded w-2/3 mb-2" style={{ background: "rgba(255,255,255,0.1)" }} />
+                        <div className="h-2 rounded w-1/2" style={{ background: "rgba(255,255,255,0.06)" }} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {!jobsLoading && jobsError && (
+                  <div className="rounded-xl p-4 text-[12px] text-red-400/80" style={CARD}>
+                    Could not load job postings: {jobsError}
+                  </div>
+                )}
+
+                {/* ── Job postings list ── */}
+                {!jobsLoading && !jobsError && jobTab === "Active" && (
+                  <div className="flex flex-col gap-3">
+                    {filteredJobs.map((job) => (
+                      <LiveJobCard
+                        key={job.id}
+                        job={job}
+                        onClick={() => {
+                          const j = { id: job.id, title: job.title, department: job.department || "Engineering", location: job.location || "", status: job.status, posted_at: relativeDate(job.created_at) };
+                          setSelectedJob(j);
+                          onSelectJob?.(job.id, j);
+                        }}
+                      />
+                    ))}
+                    <DetailedJobCard job={JOBS[1]} jobIndex={1} />
+                    {filteredJobs.length === 0 && <DetailedJobCard job={JOBS[0]} jobIndex={0} />}
+                  </div>
+                )}
+
+                {/* No completed postings placeholder */}
+                {!jobsLoading && !jobsError && filteredJobs.length === 0 && jobTab === "Completed" && (
+                  <div className="rounded-xl p-6 flex flex-col items-center gap-2 text-center" style={CARD}>
+                    <p className="text-[13px] font-medium text-white/60">No completed postings</p>
+                    <p className="text-[11px] text-white/35">Completed postings will appear here.</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Hiring Intelligence — col-span-3 */}
+              <div className="col-span-3 flex flex-col gap-6 rounded-2xl p-5 min-h-0 overflow-y-auto" style={{ background: "rgba(255,255,255,0.05)" }}>
+                {/* section header */}
+                <div className="flex items-center justify-between">
+                  <h2 className="text-base font-normal leading-6" style={{ color: "#d4d4d8" }}>Hiring intelligence</h2>
+                  <button type="button" className="text-white/35 hover:text-white/65">
+                    <MoreHorizontal size={16} />
                   </button>
-                ))}
-              </div>
-            </div>
-            {/* count */}
-            <div className="flex items-end gap-2">
-              <span className="text-[48px] font-semibold text-white leading-none">107</span>
-              <span className="text-base text-white/55 pb-1">applicants</span>
-            </div>
-            {/* bar */}
-            <div className="flex flex-col gap-3">
-              <div className="h-3 rounded-full overflow-hidden flex gap-px">
-                {BAR.map((s) => (
-                  <div key={s.label} className="h-full" style={{ width: `${s.pct}%`, background: s.color }} />
-                ))}
-              </div>
-              {/* legend */}
-              <div className="flex flex-wrap gap-x-3 gap-y-1">
-                {BAR.map((s) => (
-                  <span key={s.label} className="flex items-center gap-1.5 text-[12px] text-white/50">
-                    <span className="w-3 h-3 rounded-[4px] flex-shrink-0" style={{ background: s.color }} />
-                    {s.label}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </Card>
+                </div>
 
-          {/* Avg. time to match — xl:col-span-2 */}
-          <Card className="md:col-span-1 xl:col-span-2 flex flex-col justify-between" style={{ minHeight: 204 }}>
-            <span className="text-base text-white/55">Avg. time to match</span>
-            <div className="flex items-end gap-2">
-              <span className="text-[48px] font-semibold leading-none" style={{ color: "#1dc558" }}>4.2</span>
-              <span className="text-base text-white/55 pb-1">days</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <ArrowDown size={16} style={{ color: "#1dc558" }} />
-              <span className="text-sm text-white">15% from last month</span>
-            </div>
-          </Card>
+                {/* intel cards */}
+                <div className="flex flex-col gap-6">
+                  {INTEL.map((c, i) => (
+                    <div key={i} className="flex flex-col gap-3">
+                      {/* title row */}
+                      <div className="flex items-center gap-2">
+                        <span style={{ color: c.iconColor }}>
+                          {c.icon === "down" ? <TrendingDown size={18} /> : <TrendingUp size={18} />}
+                        </span>
+                        <p className="text-base font-semibold leading-6 text-white">{c.title}</p>
+                      </div>
+                      {/* body — Body/sm: 14px, #D4D4D8, leading-5 */}
+                      <p className="text-[14px] font-normal leading-5 w-full" style={{ color: "#d4d4d8" }}>{c.body}</p>
+                      {/* note */}
+                      {"note" in c && c.note && (
+                        <p className="text-[14px] font-normal leading-5 underline" style={{ color: "#1dc558" }}>{c.note}</p>
+                      )}
+                      {/* action / no-action */}
+                      {"noAction" in c && c.noAction ? (
+                        <p className="text-[14px] font-normal leading-5" style={{ color: "rgba(255,255,255,0.35)" }}>{c.noAction}</p>
+                      ) : "cta" in c && c.cta ? (
+                        <button
+                          type="button"
+                          className="w-full py-2 px-4 rounded-xl text-[14px] font-normal leading-5 text-white transition-colors"
+                          style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }}
+                        >
+                          {c.cta}
+                        </button>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
 
-          {/* Avg. skill readiness — xl:col-span-2 */}
-          <Card className="md:col-span-1 xl:col-span-2 flex flex-col justify-between" style={{ minHeight: 204 }}>
-            <span className="text-base text-white/55">Avg. skill readiness</span>
-            <div className="flex items-end gap-2">
-              <span className="text-[48px] font-semibold leading-none" style={{ color: "#ff9040" }}>79</span>
-              <span className="text-base text-white/55 pb-1">%</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <ArrowDown size={16} style={{ color: "#ff4040" }} />
-              <span className="text-sm text-white">5% this month</span>
-            </div>
-          </Card>
+            </div>{/* end bottom row */}
 
-          {/* Upcoming Interviews — xl:col-span-4, spans 2 rows */}
-          <div className="md:col-span-3 xl:col-span-4 flex flex-col gap-3 md:row-span-2">
+          </div>{/* end left content */}
+
+          {/* ── Right panel — Upcoming Interviews, fixed 316px ── */}
+          <div
+            className="w-[316px] flex-shrink-0 flex flex-col justify-between rounded-2xl p-5 self-stretch"
+            style={{ background: "rgba(255,255,255,0.05)" }}
+          >
+            {/* top: title + icon */}
             <div className="flex items-center justify-between">
-              <h2 className="text-base font-semibold text-white">Upcoming Interviews</h2>
+              <h2 className="text-base font-normal leading-6" style={{ color: "#d4d4d8" }}>Upcoming Interviews</h2>
               <button type="button" className="text-white/35 hover:text-white/65">
                 <MoreHorizontal size={16} />
               </button>
             </div>
 
-            <MiniCalendar />
+            {/* bottom: calendar + toggle + interviews */}
+            <div className="flex flex-col gap-3 w-full">
+              <MiniCalendar />
 
-            {/* toggle */}
-            <div className="flex gap-1 p-1 rounded-xl" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
-              {(["For you","All Interviews"] as const).map((t) => (
-                <button
-                  key={t} type="button"
-                  onClick={() => setIvTab(t)}
-                  className="flex-1 py-1.5 rounded-lg text-[12px] font-medium transition-colors"
-                  style={{
-                    background: ivTab === t ? "rgba(255,255,255,0.12)" : "transparent",
-                    color: ivTab === t ? "white" : "rgba(255,255,255,0.5)",
-                  }}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-
-            {/* list */}
-            {IVWS.map((iv, i) => (
-              <div key={i} className="flex items-center gap-3 rounded-xl p-4" style={CARD}>
-                <img
-                  src={iv.avatar} alt={iv.name}
-                  className="w-10 h-10 rounded-full flex-shrink-0 object-cover"
-                  style={{ border: "1px solid rgba(255,255,255,0.1)" }}
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-white leading-tight">{iv.name}</p>
-                  <p className="text-[11px] text-white/50 mt-0.5">{iv.role}</p>
-                  <p className="text-[11px] text-white/40 mt-0.5 flex items-center gap-1">
-                    <MapPin size={10} className="flex-shrink-0" /> {iv.type}
-                  </p>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <p className="text-[12px] font-semibold text-white leading-tight">{iv.time}</p>
-                  <p className="text-[11px] text-white/50">{iv.ampm}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Job Postings — xl:col-span-5 (bottom-LEFT, before Hiring Intel) */}
-          <div className="md:col-span-4 xl:col-span-5 flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-base font-semibold text-white">Job Postings</h2>
-              <div className="flex gap-2">
-                {(["Active", "Completed"] as const).map((t) => (
+              {/* toggle — bg rgba(255,255,255,0.05), p-1, gap-2, rounded-[100px] */}
+              <div className="flex gap-2 p-1 rounded-[100px] w-full" style={{ background: "rgba(255,255,255,0.05)" }}>
+                {(["For you","All Interviews"] as const).map((t) => (
                   <button
                     key={t} type="button"
-                    onClick={() => setJobTab(t)}
-                    className="px-3 py-1 rounded-full text-[13px] font-medium transition-colors"
+                    onClick={() => setIvTab(t)}
+                    className="flex-1 h-8 p-2 rounded-[100px] text-[14px] font-normal leading-5 transition-colors"
                     style={{
-                      background: jobTab === t ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.05)",
-                      color: "rgba(255,255,255,0.9)",
-                      border: jobTab === t ? "1px solid rgba(255,255,255,0.2)" : "1px solid rgba(255,255,255,0.08)",
+                      background: ivTab === t ? "rgba(255,255,255,0.10)" : "transparent",
+                      color: "#f4f4f5",
                     }}
                   >
                     {t}
                   </button>
                 ))}
               </div>
-            </div>
 
-            {/* Loading state */}
-            {jobsLoading && (
-              <div className="flex flex-col gap-3">
-                {[1, 2].map((i) => (
-                  <div key={i} className="rounded-xl p-4 animate-pulse" style={CARD}>
-                    <div className="h-3 rounded w-2/3 mb-2" style={{ background: "rgba(255,255,255,0.1)" }} />
-                    <div className="h-2 rounded w-1/2" style={{ background: "rgba(255,255,255,0.06)" }} />
+              {/* interview list — flex-col gap-3, each card is flex-col */}
+              <div className="flex flex-col gap-3 w-full">
+                {IVWS.map((iv, i) => (
+                  <div key={i} className="flex flex-col gap-4 rounded-xl p-4 w-full" style={{ background: "rgba(255,255,255,0.05)" }}>
+                    {/* top: avatar + name/role */}
+                    <div className="flex gap-3 items-start w-full">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={iv.avatar} alt={iv.name}
+                        className="flex-shrink-0 rounded-full object-cover"
+                        style={{ width: 44, height: 44 }}
+                      />
+                      <div className="flex-1 min-w-0 flex flex-col gap-1">
+                        <p className="text-base font-normal leading-6" style={{ color: "#fafafa" }}>{iv.name}</p>
+                        <p className="text-[14px] font-normal leading-5" style={{ color: "#d4d4d8" }}>{iv.role}</p>
+                      </div>
+                    </div>
+                    {/* bottom: location + time */}
+                    <div className="flex items-end justify-between w-full">
+                      <div className="flex items-center gap-1">
+                        <MapPin size={16} className="flex-shrink-0" style={{ color: "#d4d4d8" }} />
+                        <span className="text-[14px] font-normal leading-5" style={{ color: "#d4d4d8" }}>{iv.type}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[14px] font-normal leading-5" style={{ color: "#f4f4f5" }}>{iv.day}</span>
+                        <span>
+                          <span className="text-base font-semibold leading-6" style={{ color: "#f4f4f5" }}>{iv.clockTime}</span>
+                          {" "}
+                          <span className="text-[12px] font-normal leading-4" style={{ color: "#9f9fa9" }}>{iv.ampm}</span>
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
-            )}
-            {!jobsLoading && jobsError && (
-              <div className="rounded-xl p-4 text-[12px] text-red-400/80" style={CARD}>
-                Could not load job postings: {jobsError}
-              </div>
-            )}
-
-            {/* ── Job postings list ── */}
-            {!jobsLoading && !jobsError && jobTab === "Active" && (
-              <div className="flex flex-col gap-3">
-                {/* Real posted jobs — rich card style, clickable */}
-                {filteredJobs.map((job) => (
-                  <LiveJobCard
-                    key={job.id}
-                    job={job}
-                    onClick={() => {
-                      const j = { id: job.id, title: job.title, department: job.department || "Engineering", location: job.location || "", status: job.status, posted_at: relativeDate(job.created_at) };
-                      setSelectedJob(j);
-                      onSelectJob?.(job.id, j);
-                    }}
-                  />
-                ))}
-                {/* Cloud Engineer always shown as a static demo card below real jobs */}
-                <DetailedJobCard job={JOBS[1]} />
-                {/* When no real jobs yet, also show the Senior AI Developer demo card */}
-                {filteredJobs.length === 0 && <DetailedJobCard job={JOBS[0]} />}
-              </div>
-            )}
-
-            {/* No completed postings placeholder */}
-            {!jobsLoading && !jobsError && filteredJobs.length === 0 && jobTab === "Completed" && (
-              <div className="rounded-xl p-6 flex flex-col items-center gap-2 text-center" style={CARD}>
-                <p className="text-[13px] font-medium text-white/60">No completed postings</p>
-                <p className="text-[11px] text-white/35">Completed postings will appear here.</p>
-              </div>
-            )}
-          </div>
-
-          {/* Hiring Intelligence — xl:col-span-3 (bottom-RIGHT, after Job Postings) */}
-          <div className="md:col-span-2 xl:col-span-3 flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-base font-semibold text-white">Hiring Intelligence</h2>
-              <button type="button" className="text-white/35 hover:text-white/65">
-                <MoreHorizontal size={16} />
-              </button>
             </div>
+          </div>{/* end right panel */}
 
-            <div className="rounded-2xl flex flex-col gap-3 p-4" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
-              {INTEL.map((c, i) => (
-                <div key={i} className="rounded-xl p-4 flex flex-col gap-3" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                  <div className="flex items-center gap-2">
-                    <span style={{ color: c.iconColor }}>
-                      {c.icon === "down" ? <TrendingDown size={18} /> : <TrendingUp size={18} />}
-                    </span>
-                    <p className="text-base font-semibold text-white">{c.title}</p>
-                  </div>
-                  <p className="text-sm text-white/55 leading-relaxed">{c.body}</p>
-                  {"note" in c && c.note && (
-                    <p className="text-sm font-medium underline" style={{ color: "#1dc558" }}>{c.note}</p>
-                  )}
-                  <div>
-                    {"noAction" in c && c.noAction ? (
-                      <p className="text-sm text-white/35">{c.noAction}</p>
-                    ) : "cta" in c && c.cta ? (
-                      <button
-                        type="button"
-                        className="w-full py-2 px-4 rounded-lg text-sm font-medium text-white transition-colors"
-                        style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }}
-                      >
-                        {c.cta}
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-        </div>{/* end 12-col grid */}
+        </div>{/* end main layout */}
       </div>
     </motion.div>
   );

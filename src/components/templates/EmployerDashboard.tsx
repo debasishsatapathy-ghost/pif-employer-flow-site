@@ -1706,7 +1706,7 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
 
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden flex" style={{ zIndex: 100, position: "relative" }}>
+    <div className="relative w-screen h-screen overflow-hidden flex flex-col gap-6" style={{ zIndex: 100, position: "relative" }}>
       {/* Singleton timer — drives job progression regardless of active page */}
       <JobProgressionManager />
 
@@ -1722,6 +1722,86 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
           #09090b
         `,
       }} />
+
+      {/* ── Full-width Header — Figma 3921:21663 (1728px wide, h:96px, padding: 20px 32px) ── */}
+      <motion.header
+        initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, delay: 0.05 }}
+        className="relative z-20 w-full flex items-center justify-between px-8 py-5 flex-shrink-0">
+
+        {/* Left — Logo (flex: 1 0 0 to push nav to center) */}
+        <div className="flex items-center" style={{ flex: '1 0 0' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo-train-transparent.png"
+            alt="trAIn"
+            draggable={false}
+            style={{ height: 48, width: 'auto', display: 'block', userSelect: 'none' }}
+          />
+        </div>
+
+        {/* Center — nav pill (Home / Hiring / Workforce) */}
+        <div className="hidden sm:flex items-center p-2 gap-2 rounded-[100px] flex-shrink-0"
+          style={{
+            background: 'rgba(255,255,255,0.05)',
+            boxShadow: '0px 0px 48px 48px rgba(9,9,11,0.25)',
+          }}>
+          {(["home", "hiring", "workforce"] as NavTab[]).map((tab) => (
+            <button key={tab}
+              onClick={() => {
+                if (tab === "hiring" && activeTab === "hiring") setHiringKey((k) => k + 1);
+                setActiveTab(tab);
+                setChatMode(false);
+              }}
+              className={cn(
+                "flex items-center justify-center h-10 w-[132px] rounded-[100px] font-semibold text-base transition-all duration-200 whitespace-nowrap",
+                activeTab === tab && !chatMode ? "text-[#f4f4f5]" : "text-[#f4f4f5]/50 hover:text-[#f4f4f5]/75",
+              )}
+              style={activeTab === tab && !chatMode ? { background: 'rgba(255,255,255,0.10)' } : {}}>
+              {tab === "home" ? "Home" : tab === "hiring" ? "Hiring" : "Workforce"}
+            </button>
+          ))}
+        </div>
+
+        {/* Right — notification bell + user menu (flex: 1 0 0, justify-end) */}
+        <div className="flex items-center gap-3" style={{ flex: '1 0 0', justifyContent: 'flex-end' }}>
+          {chatMode && (
+            <button onClick={() => setChatMode(false)}
+              className="text-xs text-white/40 hover:text-white/70 transition-colors mr-1">
+              ← Dashboard
+            </button>
+          )}
+          {!chatMode && onBack && (
+            <button onClick={onBack}
+              className="hidden sm:flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 transition-colors"
+              style={{ background: 'rgba(255,255,255,0.05)', padding: '6px 12px', borderRadius: 100, border: '1px solid rgba(255,255,255,0.08)' }}>
+              ← Switch role
+            </button>
+          )}
+          {/* Notification bell — 40×40, rounded-[100px] */}
+          <div className="relative flex items-center justify-center flex-shrink-0 cursor-pointer rounded-[100px]"
+            style={{ width: 40, height: 40, background: 'rgba(255,255,255,0.05)' }}>
+            <Bell size={18} className="text-white/70" />
+            <span className="absolute top-0 right-0 w-3 h-3 rounded-full border-2 border-[#09090b]"
+              style={{ background: '#ff4040' }} />
+          </div>
+          {/* User menu pill — avatar + name + role + chevron */}
+          <button className="flex items-center gap-3 rounded-[100px] pl-2 pr-3 py-1.5 flex-shrink-0 hover:bg-white/5 transition-colors"
+            style={{ background: 'rgba(255,255,255,0.05)' }}>
+            <div className="w-7 h-7 rounded-full overflow-hidden flex items-center justify-center text-[11px] font-bold flex-shrink-0"
+              style={{ background: 'linear-gradient(135deg, #d2f3de, #a0e8b8)' }}>
+              <span style={{ color: '#09090b' }}>O</span>
+            </div>
+            <div className="hidden sm:flex flex-col items-start leading-none gap-0.5">
+              <span className="text-[14px] font-bold text-[#fafafa] leading-5">Omar S.</span>
+              <span className="text-[12px] leading-4" style={{ color: 'rgba(250,250,250,0.5)' }}>Hiring Manager</span>
+            </div>
+            <ChevronDown size={14} className="hidden sm:block flex-shrink-0" style={{ color: 'rgba(255,255,255,0.4)' }} />
+          </button>
+        </div>
+      </motion.header>
+
+      {/* ── Below-header row — sidebar (left) + centered content (right) ── */}
+      <div className="flex-1 min-h-0 flex overflow-hidden">
 
       {/* Left sidebar — Figma pill container */}
       <motion.aside
@@ -1744,95 +1824,10 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
         </div>
       </motion.aside>
 
-      {/* Main */}
-      <div className="relative z-10 flex-1 flex flex-col overflow-hidden">
-
-        {/* Header — Figma Employer Header */}
-        <motion.header
-          initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, delay: 0.05 }}
-          className="relative z-20 flex items-center justify-between px-6 sm:px-8 pt-4 pb-3 flex-shrink-0">
-
-          {/* Logo — transparent PNG (background stripped at build time) */}
-          <div className="flex items-center min-w-0" style={{ flex: '1 0 0' }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/logo-train-transparent.png"
-              alt="trAIn"
-              draggable={false}
-              style={{
-                height: 36,
-                width: 'auto',
-                display: 'block',
-                userSelect: 'none',
-              }}
-            />
-          </div>
-
-          {/* Center nav pill — Figma Top Nav */}
-          <div className="hidden sm:flex items-center p-2 gap-2 rounded-[100px] flex-shrink-0"
-            style={{
-              background: 'rgba(255,255,255,0.05)',
-              boxShadow: '0px 0px 48px 48px rgba(9,9,11,0.25)',
-            }}>
-            {(["home", "hiring", "workforce"] as NavTab[]).map((tab) => (
-              <button key={tab}
-                onClick={() => {
-                  if (tab === "hiring" && activeTab === "hiring") setHiringKey((k) => k + 1);
-                  setActiveTab(tab);
-                  setChatMode(false);
-                }}
-                className={cn(
-                  "flex items-center justify-center h-10 rounded-[100px] font-semibold text-base transition-all duration-200 whitespace-nowrap",
-                  "w-[110px] sm:w-[132px]",
-                  activeTab === tab && !chatMode
-                    ? "text-[#f4f4f5]"
-                    : "text-[#f4f4f5]/50 hover:text-[#f4f4f5]/75",
-                )}
-                style={activeTab === tab && !chatMode
-                  ? { background: 'rgba(255,255,255,0.10)' }
-                  : {}}>
-                {tab === "home" ? "Home" : tab === "hiring" ? "Hiring" : "Workforce"}
-              </button>
-            ))}
-          </div>
-
-          {/* Right controls */}
-          <div className="flex items-center gap-3" style={{ flex: '1 0 0', justifyContent: 'flex-end' }}>
-            {chatMode && (
-              <button onClick={() => setChatMode(false)}
-                className="text-xs text-white/40 hover:text-white/70 transition-colors mr-1">
-                ← Dashboard
-              </button>
-            )}
-            {!chatMode && onBack && (
-              <button onClick={onBack}
-                className="hidden sm:flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 transition-colors"
-                style={{ background: 'rgba(255,255,255,0.05)', padding: '6px 12px', borderRadius: 100, border: '1px solid rgba(255,255,255,0.08)' }}>
-                ← Switch role
-              </button>
-            )}
-            {/* Notification bell */}
-            <div className="relative flex items-center justify-center w-10 h-10 rounded-full cursor-pointer"
-              style={{ background: 'rgba(255,255,255,0.05)' }}>
-              <Bell size={18} className="text-white/70" />
-              <span className="absolute top-0 right-0 w-3 h-3 rounded-full border-2 border-[#09090b]"
-                style={{ background: '#ff4040' }} />
-            </div>
-            {/* User profile */}
-            <button className="flex items-center gap-3 rounded-[100px] pl-2 pr-3 py-1.5 hover:bg-white/5 transition-colors"
-              style={{ background: 'rgba(255,255,255,0.05)' }}>
-              <div className="w-7 h-7 rounded-full overflow-hidden flex items-center justify-center text-[11px] font-bold"
-                style={{ background: 'linear-gradient(135deg, #d2f3de, #a0e8b8)' }}>
-                <span style={{ color: '#09090b' }}>O</span>
-              </div>
-              <div className="hidden sm:flex flex-col items-start leading-none gap-0.5">
-                <span className="text-[14px] font-bold text-[#fafafa] leading-5">Omar S.</span>
-                <span className="text-[12px] text-[#fafafa]/50 leading-4">Hiring Manager</span>
-              </div>
-              <ChevronDown size={14} className="text-white/40 hidden sm:block" />
-            </button>
-          </div>
-        </motion.header>
+      {/* ── Centering wrapper — fills remaining space after sidebar ── */}
+      <div className="relative z-10 flex-1 flex justify-center overflow-hidden">
+      {/* ── Main frame — 1264px, centered ── */}
+      <div className="w-[1264px] flex-shrink-0 flex flex-col overflow-hidden min-h-0">
 
         {/* Mobile tab nav */}
         {!chatMode && (
@@ -1951,7 +1946,7 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
                 />
               )}
 
-              <div className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden${activeTab === "home" && !avatarMode && chatMode ? " hidden" : ""}`}>
+              <div className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden${(activeTab === "home" && !avatarMode && chatMode) || activeTab === "hiring" ? " hidden" : ""}`}>
 
                 {activeTab === "home" && (
                   <motion.div key="home"
@@ -2112,28 +2107,6 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
                 )}
 
 
-                {activeTab === "hiring" && (
-                  <motion.div key="hiring"
-                    initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                    className="flex-1 flex flex-col min-h-0 overflow-hidden">
-                    <HiringTabContent
-                      key={hiringKey}
-                      prefetchedJobs={sessionCreatedJobs}
-                      prefetchedJobsLoading={jobsFetching}
-                      onPostJob={() => {
-                        // Mirror the Home screen "Post a job" button behavior:
-                        // switch to the home tab, add the user bubble, enter chat
-                        // mode, then open the wizard after a brief animation pause.
-                        setActiveTab("home");
-                        setMessages(prev => [...prev, { id: `u-${Date.now()}`, role: "user", text: "Post a job" }]);
-                        setChatMode(true);
-                        setTimeout(() => setWizardOpen(true), 200);
-                      }}
-                    />
-                  </motion.div>
-                )}
-
                 {activeTab === "workforce" && (
                   <motion.div key="workforce"
                     initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
@@ -2143,6 +2116,27 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
                   </motion.div>
                 )}
               </div>
+
+              {/* Hiring tab — outside the scrollable wrapper so it never scrolls */}
+              {activeTab === "hiring" && (
+                <motion.div key="hiring"
+                  initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                  className="flex-1 min-h-0 flex flex-col overflow-hidden">
+                  <HiringTabContent
+                    key={hiringKey}
+                    prefetchedJobs={sessionCreatedJobs}
+                    prefetchedJobsLoading={jobsFetching}
+                    onPostJob={() => {
+                      setActiveTab("home");
+                      setMessages(prev => [...prev, { id: `u-${Date.now()}`, role: "user", text: "Post a job" }]);
+                      setChatMode(true);
+                      setTimeout(() => setWizardOpen(true), 200);
+                    }}
+                  />
+                </motion.div>
+              )}
+
             </motion.div>
         </AnimatePresence>
 
@@ -2237,7 +2231,9 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
             <span>{chatMode ? "Home" : "More"}</span>
           </button>
         </div>
-      </div>
+      </div>{/* end 1264px main frame */}
+      </div>{/* end centering wrapper */}
+      </div>{/* end below-header row */}
     </div>
   );
 }
