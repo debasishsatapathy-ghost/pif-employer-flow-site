@@ -2364,13 +2364,16 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
           open={hiringAvatarOpen}
           onClose={() => setHiringAvatarOpen(false)}
           onOptionClick={(label) => {
-            // Re-include [HIRING_ASSISTANT] context with every option click so
-            // the agent knows it is still in the hiring assistant overlay and
-            // which knowledge base to respond from. tellAgent() creates a real
-            // user turn that forces an agent speech response.
-            useVoiceSessionStore.getState().tellAgent(
-              `[HIRING_ASSISTANT] user selected: ${label}`
-            ).catch(() => {});
+            // Use the same sendText+lk.chat mechanism as the greeting kick —
+            // this is the path that WORKS (confirmed in logs: triggers
+            // callSiteFunction). performRpc/tellAgent silently fails when the
+            // avatar worker is active because agentParticipant may be pointing
+            // at the wrong participant. sendText with lk.chat always reaches
+            // the Mobeus platform and forces an agent speech turn.
+            const { room: liveRoom } = useVoiceSessionStore.getState();
+            liveRoom?.localParticipant
+              ?.sendText(`[HIRING_ASSISTANT] user selected: ${label}`, { topic: 'lk.chat' })
+              .catch(() => {});
           }}
         />
       )}
