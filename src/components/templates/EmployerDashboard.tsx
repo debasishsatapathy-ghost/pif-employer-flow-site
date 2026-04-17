@@ -5,6 +5,8 @@ import { registerSiteFunctions } from "@/site-functions/register";
 import { motion, AnimatePresence } from "framer-motion";
 // createJobPosting via direct RPC is not supported by the Mobeus agent.
 // The wizard sends a structured lk.chat message instead (see handleFinish).
+import { AvatarFAB } from "@/components/ui/AvatarFAB";
+import { HiringAvatarPopup } from "@/components/ui/HiringAvatarPopup";
 import { HiringPage } from "./HiringPage";
 import { JobPostingTemplate } from "./JobPostingTemplate";
 import WorkforcePage from "./WorkforcePage";
@@ -633,31 +635,39 @@ async function loadEmployerPrompt(): Promise<string> {
 /**
  * Suppresses all audio/video for the employer session.
  * Uses MutationObserver to mute any dynamically added media elements.
+ * Skips muting when skipRef.current is true (e.g. hiring avatar popup is open).
  */
-function startMuteLoop(): () => void {
+function startMuteLoop(skipRef?: React.RefObject<boolean>): () => void {
+  const skip = () => skipRef?.current === true;
+
   // Mute all existing media elements
   document.querySelectorAll("audio, video").forEach((el) => {
-    (el as HTMLMediaElement).muted = true;
-    (el as HTMLMediaElement).volume = 0;
+    if (!skip()) {
+      (el as HTMLMediaElement).muted = true;
+      (el as HTMLMediaElement).volume = 0;
+    }
   });
 
   // Watch for new media elements and mute them immediately
   const obs = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
       mutation.addedNodes.forEach((node) => {
+        if (skip()) return;
         if (node instanceof HTMLMediaElement) {
           node.muted = true;
           node.volume = 0;
         } else if (node instanceof HTMLElement) {
           node.querySelectorAll("audio, video").forEach((el) => {
-            (el as HTMLMediaElement).muted = true;
-            (el as HTMLMediaElement).volume = 0;
+            if (!skip()) {
+              (el as HTMLMediaElement).muted = true;
+              (el as HTMLMediaElement).volume = 0;
+            }
           });
         }
       });
     }
   });
-  
+
   obs.observe(document.body, { subtree: true, childList: true });
   return () => { obs.disconnect(); };
 }
@@ -1279,6 +1289,9 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
   const fetchJobsRequestedRef = useRef(false);
   const sessionStartedRef = useRef(false);
   const muteCleanupRef = useRef<(() => void) | null>(null);
+  const hiringAvatarActiveRef = useRef<boolean>(false);
+  const hiringAudioRef = useRef<HTMLAudioElement | null>(null);
+  const [hiringAvatarOpen, setHiringAvatarOpen] = useState(false);
   const promptOptionsRef = useRef<PromptStepOptions>({ step1: [], step2: [], step3: [] });
   const collectedJobRef = useRef<{ role?: string; experience?: string; location?: string }>({});
   const pendingFieldRef = useRef<"role" | "experience" | "location" | null>(null);
@@ -1545,8 +1558,8 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
           room.localParticipant.setMicrophoneEnabled(false).catch(() => {});
         }
         
-        // Mute all remote audio tracks
-        if (room.remoteParticipants) {
+        // Mute all remote audio tracks (skip when hiring avatar popup is open)
+        if (room.remoteParticipants && !hiringAvatarActiveRef.current) {
           room.remoteParticipants.forEach((participant: any) => {
             if (participant.audioTrackPublications) {
               participant.audioTrackPublications.forEach((pub: any) => {
@@ -1573,10 +1586,12 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
     ];
 
     const hideMatching = (root: ParentNode) => {
-      // Mute all media elements
+      // Mute all media elements (skip when hiring avatar popup is open)
       root.querySelectorAll("audio, video").forEach((el) => {
-        (el as HTMLMediaElement).muted = true;
-        (el as HTMLMediaElement).volume = 0;
+        if (!hiringAvatarActiveRef.current) {
+          (el as HTMLMediaElement).muted = true;
+          (el as HTMLMediaElement).volume = 0;
+        }
       });
       
       // Hide avatar UI elements
@@ -1593,6 +1608,7 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
     const observer = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
         mutation.addedNodes.forEach((node) => {
+          if (hiringAvatarActiveRef.current) return;
           if (node instanceof HTMLMediaElement) {
             node.muted = true;
             node.volume = 0;
@@ -1602,10 +1618,77 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
         });
       }
     });
-    
+
     observer.observe(document.body, { subtree: true, childList: true });
     return () => observer.disconnect();
   }, [chatMode]);
+
+  /* Manage audio and live avatar for the Hiring Avatar popup */
+  useEffect(() => {
+    hiringAvatarActiveRef.current = hiringAvatarOpen;
+
+    if (hiringAvatarOpen) {
+      // Stop mute loop so new audio elements are not silenced
+      muteCleanupRef.current?.();
+
+      const { avatarAvailable, avatarEnabled, toggleAvatarHard, sessionState, informAgent } =
+        useVoiceSessionStore.getState();
+
+      if (avatarAvailable && !avatarEnabled) {
+        // Enable the live Mobeus avatar (avatarToggle RPC → avatar worker joins → video track arrives ~2-5s later)
+        toggleAvatarHard().catch((e) => console.warn('[HiringAvatar] toggleAvatarHard(on) failed:', e));
+      } else if (!avatarAvailable) {
+        // Fallback: no live avatar — manually unmute agent TTS audio
+        const { agentAudioTrack, agentAudioElement } = useVoiceSessionStore.getState();
+        let audioEl: HTMLAudioElement | null = null;
+        if (agentAudioElement) {
+          agentAudioElement.muted = false;
+          agentAudioElement.volume = 1;
+          if (!document.body.contains(agentAudioElement)) document.body.appendChild(agentAudioElement);
+          audioEl = agentAudioElement;
+        } else if (agentAudioTrack) {
+          try {
+            audioEl = (agentAudioTrack as any).attach() as HTMLAudioElement;
+            audioEl.muted = false;
+            audioEl.volume = 1;
+            audioEl.autoplay = true;
+            document.body.appendChild(audioEl);
+            useVoiceSessionStore.setState({ agentAudioElement: audioEl });
+          } catch (e) {
+            console.warn('[HiringAvatar] Could not attach agent audio:', e);
+          }
+        }
+        hiringAudioRef.current = audioEl;
+      }
+
+      // Greet the employer — slight delay so the avatarToggle RPC fires first
+      if (sessionState === 'connected') {
+        setTimeout(() => {
+          useVoiceSessionStore.getState().informAgent(
+            'You just appeared as a hiring assistant overlay on the employer\'s hiring dashboard. ' +
+            'Say only these exact words, verbatim: "How can I help?"'
+          ).catch(() => {});
+        }, 500);
+      }
+    } else {
+      // CLOSE — disable live avatar, clean up, restart mute loop
+      const { avatarEnabled, toggleAvatarHard } = useVoiceSessionStore.getState();
+      if (avatarEnabled) {
+        toggleAvatarHard().catch((e) => console.warn('[HiringAvatar] toggleAvatarHard(off) failed:', e));
+      }
+      if (hiringAudioRef.current) {
+        hiringAudioRef.current.muted = true;
+        hiringAudioRef.current.volume = 0;
+        if (document.body.contains(hiringAudioRef.current)) hiringAudioRef.current.remove();
+        hiringAudioRef.current = null;
+      }
+      document.querySelectorAll('audio, video').forEach((el) => {
+        (el as HTMLMediaElement).muted = true;
+        (el as HTMLMediaElement).volume = 0;
+      });
+      muteCleanupRef.current = startMuteLoop(hiringAvatarActiveRef);
+    }
+  }, [hiringAvatarOpen]);
 
   /* Connect the AI session on mount via the Zustand store */
   useEffect(() => {
@@ -1616,7 +1699,7 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
     registerSiteFunctions();
 
     // Start mute loop immediately to suppress any platform audio/video overlays
-    muteCleanupRef.current = startMuteLoop();
+    muteCleanupRef.current = startMuteLoop(hiringAvatarActiveRef);
 
     // Load the employer system prompt for fallback option-chip extraction (non-fatal)
     loadEmployerPrompt()
@@ -2234,6 +2317,30 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
       </div>{/* end 1264px main frame */}
       </div>{/* end centering wrapper */}
       </div>{/* end below-header row */}
+
+      {/* Hiring Avatar Popup — only on hiring tab */}
+      {activeTab === 'hiring' && (
+        <HiringAvatarPopup
+          open={hiringAvatarOpen}
+          onClose={() => setHiringAvatarOpen(false)}
+          onOptionClick={(script) => {
+            // Avatar stays open and speaks the exact scripted response
+            useVoiceSessionStore.getState().tellAgent(
+              `Say only these exact words, verbatim, no changes, no additions: "${script}"`
+            ).catch(() => {});
+          }}
+        />
+      )}
+
+      {/* Glassmorphic AI Avatar FAB — bottom-right corner, all screens */}
+      <AvatarFAB
+        onPersonClick={() => {
+          if (activeTab === 'hiring') {
+            setHiringAvatarOpen(prev => !prev);
+          }
+        }}
+        hidden={hiringAvatarOpen && activeTab === 'hiring'}
+      />
     </div>
   );
 }

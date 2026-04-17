@@ -346,3 +346,7 @@ body.tele-nav-pending .nav-skeleton-overlay {
     color-mix(in srgb, var(--theme-scene-bg) 40%, transparent) 100%
   );
 }
+
+@keyframes hiring-avatar-spin {
+  to { transform: rotate(360deg); }
+}
