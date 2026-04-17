@@ -2696,7 +2696,7 @@ function CandidateProfileModal({
                 style={{ padding: "8px 24px", background: "#1dc558", color: "#18181b", borderRadius: 4, lineHeight: "24px" }}
                 onClick={onAddToHire ?? onMakeHiringDecision}
               >
-                {onAddToHire ? "Compare and Hire" : "Make Hiring Decision"}
+                {onAddToHire ? "Move to Compare / Hire" : "Make Hiring Decision"}
                 {onAddToHire && <Star size={20} className="flex-shrink-0" />}
               </button>
             )}
