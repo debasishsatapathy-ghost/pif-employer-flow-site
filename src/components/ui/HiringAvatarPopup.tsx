@@ -4,19 +4,19 @@ import { useRef, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useVoiceSessionStore } from '@/lib/stores/voice-session-store';
 
-// ─── Fallback option pills ────────────────────────────────────────────────────
-// Used when the agent has not yet called showHiringOptions. Once the agent
-// responds, agentOptions from the 'hiring-avatar-options' DOM event take over.
-const FALLBACK_PILLS = [
-  { label: 'Hiring Metrics',  value: 'hiring-metrics' },
-  { label: 'Best Applicants', value: 'best-applicants' },
-  { label: 'Market Trends',   value: 'market-trends' },
-] as const;
-
 interface HiringOption {
   label: string;
   value?: string;
 }
+
+// ─── Fallback option pills ────────────────────────────────────────────────────
+// Used when the agent has not yet called showHiringOptions. Once the agent
+// responds, agentOptions from the 'hiring-avatar-options' DOM event take over.
+const FALLBACK_PILLS: HiringOption[] = [
+  { label: 'Hiring Metrics',  value: 'hiring-metrics' },
+  { label: 'Best Applicants', value: 'best-applicants' },
+  { label: 'Market Trends',   value: 'market-trends' },
+];
 
 interface HiringAvatarPopupProps {
   open: boolean;
