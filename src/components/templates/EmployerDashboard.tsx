@@ -1293,6 +1293,8 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
   const hiringAudioRef = useRef<HTMLAudioElement | null>(null);
   // Prevents the agent greeting kick from firing more than once per popup open.
   const greetingFiredRef = useRef(false);
+  // Cleanup for the avatarVideoTrack subscription + fallback timer used by the greeting kick.
+  const greetingCleanupRef = useRef<(() => void) | null>(null);
   const [hiringAvatarOpen, setHiringAvatarOpen] = useState(false);
   const promptOptionsRef = useRef<PromptStepOptions>({ step1: [], step2: [], step3: [] });
   const collectedJobRef = useRef<{ role?: string; experience?: string; location?: string }>({});
@@ -1663,29 +1665,51 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
         hiringAudioRef.current = audioEl;
       }
 
-      // Kick the agent exactly once per popup open via lk.chat.
-      // lk.chat is the same channel as sendTextMessage — the Mobeus agent
-      // framework treats it as a real user turn and MUST respond with speech.
-      // We do NOT call sendTextMessage() (which adds to Zustand transcripts).
-      // Instead we call room.localParticipant.sendText directly — the same
-      // technique used by kickAgentTurn() in the trainco reference repo —
-      // so the message is invisible to the React UI but audible to the agent.
+      // Kick the agent AFTER the avatar video track arrives.
+      // Firing too early (before audio/video is attached) causes the agent to
+      // speak before the audio element exists, so the browser's autoplay
+      // policy blocks play() when the element eventually arrives.
+      // We subscribe to avatarVideoTrack changes; if the track never arrives
+      // (no avatar feature) a 10-second fallback fires anyway.
       if (sessionState === 'connected' && !greetingFiredRef.current) {
-        greetingFiredRef.current = true;
-        const { room: liveRoom } = useVoiceSessionStore.getState();
-        setTimeout(() => {
-          liveRoom?.localParticipant
-            ?.sendText(
-              '[HIRING_ASSISTANT] Greet the employer warmly (say "Hello! How can I help?") ' +
-              'then immediately call callSiteFunction showHiringOptions.',
-              { topic: 'lk.chat' }
-            )
-            .catch(() => {});
-        }, 800);
+        const sendGreeting = () => {
+          if (greetingFiredRef.current) return;
+          greetingFiredRef.current = true;
+          greetingCleanupRef.current?.();
+          greetingCleanupRef.current = null;
+          const { room: liveRoom, sessionState: ss } = useVoiceSessionStore.getState();
+          if (ss !== 'connected') return;
+          // Brief buffer so the audio element attaches before the agent speaks.
+          setTimeout(() => {
+            liveRoom?.localParticipant
+              ?.sendText('[HIRING_ASSISTANT]', { topic: 'lk.chat' })
+              .catch(() => {});
+          }, 400);
+        };
+
+        const { avatarVideoTrack: existingTrack } = useVoiceSessionStore.getState();
+        if (existingTrack) {
+          // Avatar already connected (e.g. popup opened twice in the same session)
+          sendGreeting();
+        } else {
+          // Wait for the video track to confirm the avatar is fully up.
+          // subscribeWithSelector is not used in this store, so we subscribe to
+          // the full state and check avatarVideoTrack inside the listener.
+          const unsubTrack = useVoiceSessionStore.subscribe((state) => {
+            if (state.avatarVideoTrack) sendGreeting();
+          });
+          const fallbackTimer = setTimeout(sendGreeting, 10_000);
+          greetingCleanupRef.current = () => {
+            unsubTrack();
+            clearTimeout(fallbackTimer);
+          };
+        }
       }
     } else {
-      // CLOSE — reset greeting guard, disable live avatar, clean up, restart mute loop
+      // CLOSE — reset greeting guard, cancel any pending greeting kick, clean up
       greetingFiredRef.current = false;
+      greetingCleanupRef.current?.();
+      greetingCleanupRef.current = null;
       useVoiceSessionStore.getState().clearScene();
 
       const { avatarEnabled, toggleAvatarHard } = useVoiceSessionStore.getState();

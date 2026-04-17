@@ -78,14 +78,40 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
     };
   }, [avatarVideoTrack]);
 
+  // ── Unlock AudioContext on popup open (user gesture just occurred) ───────────
+  // The popup opens from a user click. We use that gesture window to resume
+  // any suspended AudioContext so that play() won't be blocked when the avatar
+  // audio element arrives ~3-5 s later.
+  useEffect(() => {
+    if (!open) return;
+    try {
+      type AnyAudioCtx = typeof AudioContext;
+      const AudioCtx: AnyAudioCtx =
+        window.AudioContext ?? (window as unknown as { webkitAudioContext: AnyAudioCtx }).webkitAudioContext;
+      if (AudioCtx) {
+        const ctx = new AudioCtx();
+        if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+      }
+    } catch {}
+  }, [open]);
+
   // ── Forcefully unmute avatar audio ───────────────────────────────────────────
-  // applyAudioRouting in the store sets muted=false but never restores volume.
-  // We do both here as a belt-and-suspenders override.
+  // applyAudioRouting in the store sets muted=false but does not guarantee
+  // play() was called successfully (autoplay policy). We retry here.
   useEffect(() => {
     if (!open || !avatarAudioElement) return;
-    avatarAudioElement.muted = false;
-    avatarAudioElement.volume = 1;
-    avatarAudioElement.play().catch(() => {});
+
+    const tryPlay = () => {
+      avatarAudioElement.muted = false;
+      avatarAudioElement.volume = 1;
+      return avatarAudioElement.play();
+    };
+
+    tryPlay().catch(() => {
+      // One retry after 500 ms covers cases where the AudioContext resumes
+      // slightly after the element is attached.
+      setTimeout(() => tryPlay().catch(() => {}), 500);
+    });
   }, [avatarAudioElement, open]);
 
   // ── Listen for agent-driven option bubbles ───────────────────────────────────
