@@ -28,8 +28,6 @@ import {
   Building2,
   Users,
   BookOpen,
-  MessageCircle,
-  Sparkles,
   X,
   Pencil,
   AlertTriangle,
@@ -1554,30 +1552,17 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
   useEffect(() => {
     const room = useVoiceSessionStore.getState().room;
 
-    // Mute all audio via LiveKit if room is available
-    if (room) {
-      try {
-        // Ensure mic stays disabled
-        if (room.localParticipant) {
-          room.localParticipant.setMicrophoneEnabled(false).catch(() => {});
-        }
-        
-        // Mute all remote audio tracks (skip when hiring avatar popup is open)
-        if (room.remoteParticipants && !hiringAvatarActiveRef.current) {
-          room.remoteParticipants.forEach((participant: any) => {
-            if (participant.audioTrackPublications) {
-              participant.audioTrackPublications.forEach((pub: any) => {
-                if (pub.track) {
-                  pub.track.detach();
-                }
-              });
-            }
-          });
-        }
-      } catch (err) {
-        console.warn('[Employer] Failed to mute audio:', err);
-      }
+    // Keep microphone disabled (employer dashboard is always listen-only)
+    if (room?.localParticipant) {
+      room.localParticipant.setMicrophoneEnabled(false).catch(() => {});
     }
+    // NOTE: We intentionally do NOT call pub.track.detach() here.
+    // Detaching permanently removes the <audio> element from the DOM; when the
+    // hiring avatar popup later opens and applyAudioRouting() tries to unmute
+    // the avatar audio element, the agent element is orphaned and audio stays
+    // silent.  Muting via muted=true (done by hideMatching below) is sufficient
+    // to silence audio — LiveKit's own TrackUnsubscribed handler detaches when
+    // the track actually goes away.
 
     // Hide any avatar-related UI elements
     const avatarSelectors = [
@@ -2263,80 +2248,6 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
             </motion.div>
         </AnimatePresence>
 
-        {/* Floating bottom nav — Figma 3764:30678 */}
-        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-30">
-          <div className="flex items-center"
-            style={{
-              background: '#18181b',
-              border: '1px solid #27272a',
-              borderRadius: 100,
-              padding: '8px 8px',
-              gap: 8,
-              boxShadow: '0px 0px 8px 0px rgba(255,255,255,0.25)',
-            }}>
-
-            {/* ① Avatar button — selected when avatarMode on home tab (Figma: SelectedToggleItem) */}
-            <button
-              onClick={() => {
-                setAvatarMode(true);
-                setChatMode(false);
-                setActiveTab("home");
-              }}
-              className="flex items-center justify-center transition-all duration-200"
-              style={{
-                width: 56, height: 32, borderRadius: 100, outline: 'none', cursor: 'pointer',
-                ...(avatarMode && !chatMode && activeTab === "home"
-                  ? { background: '#1c1c1e', border: '1px solid #1ed25e', boxShadow: '0px 0px 8px 0px #1ed25e' }
-                  : { background: 'transparent', border: '1px solid transparent' }),
-              }}>
-              <Sparkles
-                size={18}
-                style={{
-                  color: avatarMode && !chatMode && activeTab === "home" ? '#1ed25e' : 'rgba(255,255,255,0.45)',
-                  transform: 'rotate(-90deg)',
-                  transition: 'color 0.2s',
-                }}
-              />
-            </button>
-
-            {/* ② Soundwave — center icon */}
-            <button
-              className="flex items-center justify-center transition-colors"
-              style={{ width: 24, height: 24, background: 'transparent', border: 'none', outline: 'none', cursor: 'pointer' }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="rgba(255,255,255,0.4)">
-                <rect x="2"  y="9" width="2" height="6"  rx="1" opacity="0.4" />
-                <rect x="6"  y="6" width="2" height="12" rx="1" opacity="0.6" />
-                <rect x="10" y="3" width="2" height="18" rx="1" />
-                <rect x="14" y="6" width="2" height="12" rx="1" opacity="0.6" />
-                <rect x="18" y="9" width="2" height="6"  rx="1" opacity="0.4" />
-              </svg>
-            </button>
-
-            {/* ③ Chat button — always navigates to home/landing view (image 2) */}
-            <button
-              onClick={() => {
-                setChatMode(false);
-                setAvatarMode(false);
-                setActiveTab("home");
-              }}
-              className="flex items-center justify-center transition-all duration-200"
-              style={{
-                width: 56, height: 32, borderRadius: 100, outline: 'none', cursor: 'pointer',
-                ...(chatMode
-                  ? { background: '#1c1c1e', border: '1px solid #1ed25e', boxShadow: '0px 0px 8px 0px #1ed25e' }
-                  : { background: 'transparent', border: '1px solid transparent' }),
-              }}>
-              <MessageCircle
-                size={17}
-                style={{
-                  color: chatMode ? '#1ed25e' : 'rgba(255,255,255,0.45)',
-                  transition: 'color 0.2s',
-                }}
-              />
-            </button>
-
-          </div>
-        </div>
 
         {/* Mobile tab bar (xs only) */}
         <div className="sm:hidden flex-shrink-0 flex items-center justify-around px-4 py-2"
