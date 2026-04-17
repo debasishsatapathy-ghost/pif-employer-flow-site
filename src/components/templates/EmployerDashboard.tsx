@@ -1291,6 +1291,8 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
   const muteCleanupRef = useRef<(() => void) | null>(null);
   const hiringAvatarActiveRef = useRef<boolean>(false);
   const hiringAudioRef = useRef<HTMLAudioElement | null>(null);
+  // Prevents the agent greeting kick from firing more than once per popup open.
+  const greetingFiredRef = useRef(false);
   const [hiringAvatarOpen, setHiringAvatarOpen] = useState(false);
   const promptOptionsRef = useRef<PromptStepOptions>({ step1: [], step2: [], step3: [] });
   const collectedJobRef = useRef<{ role?: string; experience?: string; location?: string }>({});
@@ -1631,11 +1633,11 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
       // Stop mute loop so new audio elements are not silenced
       muteCleanupRef.current?.();
 
-      const { avatarAvailable, avatarEnabled, toggleAvatarHard, sessionState, informAgent } =
+      const { avatarAvailable, avatarEnabled, toggleAvatarHard, sessionState } =
         useVoiceSessionStore.getState();
 
       if (avatarAvailable && !avatarEnabled) {
-        // Enable the live Mobeus avatar (avatarToggle RPC → avatar worker joins → video track arrives ~2-5s later)
+        // Enable the live Mobeus avatar (avatarToggle RPC → avatar worker joins → video ~2–5 s later)
         toggleAvatarHard().catch((e) => console.warn('[HiringAvatar] toggleAvatarHard(on) failed:', e));
       } else if (!avatarAvailable) {
         // Fallback: no live avatar — manually unmute agent TTS audio
@@ -1661,17 +1663,26 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
         hiringAudioRef.current = audioEl;
       }
 
-      // Greet the employer — slight delay so the avatarToggle RPC fires first
-      if (sessionState === 'connected') {
+      // Kick the agent exactly once per popup open.
+      // Uses informAgent (invisible context) so it does NOT appear in the
+      // conversation transcript. The agent is expected to:
+      //   1. Speak a natural greeting ("How can I help?")
+      //   2. Call callSiteFunction("showHiringOptions", { options: [...] }) to surface the bubbles
+      if (sessionState === 'connected' && !greetingFiredRef.current) {
+        greetingFiredRef.current = true;
         setTimeout(() => {
           useVoiceSessionStore.getState().informAgent(
-            'You just appeared as a hiring assistant overlay on the employer\'s hiring dashboard. ' +
-            'Say only these exact words, verbatim: "How can I help?"'
+            '[HIRING_ASSISTANT] You have appeared as the AI hiring assistant on the employer dashboard. ' +
+            'Greet the employer naturally (e.g. "How can I help?"), then immediately call ' +
+            'callSiteFunction("showHiringOptions") to display the three hiring option bubbles.'
           ).catch(() => {});
-        }, 500);
+        }, 600);
       }
     } else {
-      // CLOSE — disable live avatar, clean up, restart mute loop
+      // CLOSE — reset greeting guard, disable live avatar, clean up, restart mute loop
+      greetingFiredRef.current = false;
+      useVoiceSessionStore.getState().clearScene();
+
       const { avatarEnabled, toggleAvatarHard } = useVoiceSessionStore.getState();
       if (avatarEnabled) {
         toggleAvatarHard().catch((e) => console.warn('[HiringAvatar] toggleAvatarHard(off) failed:', e));
@@ -2323,10 +2334,12 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
         <HiringAvatarPopup
           open={hiringAvatarOpen}
           onClose={() => setHiringAvatarOpen(false)}
-          onOptionClick={(script) => {
-            // Avatar stays open and speaks the exact scripted response
+          onOptionClick={(label) => {
+            // Send the selection to the agent as a visible user turn.
+            // The agent processes the selection and responds naturally based on
+            // its knowledge of hiring metrics, applicants, and market trends.
             useVoiceSessionStore.getState().tellAgent(
-              `Say only these exact words, verbatim, no changes, no additions: "${script}"`
+              `user selected: ${label}`
             ).catch(() => {});
           }}
         />

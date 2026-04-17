@@ -19,6 +19,7 @@
  */
 
 import setTheme from './setTheme';
+import showHiringOptions from './showHiringOptions';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -59,6 +60,38 @@ export const siteFunctionManifest: Record<string, SiteFunctionEntry> = {
       required: ['theme'],
     },
     defaults: { theme: 'system' },
+  },
+
+  showHiringOptions: {
+    fn: showHiringOptions,
+    description:
+      'Display hiring assistant option bubbles in the employer hiring overlay popup. ' +
+      'Call this immediately after greeting the employer when the [HIRING_ASSISTANT] context is active.',
+    schema: {
+      type: 'object',
+      properties: {
+        options: {
+          type: 'array',
+          description: 'List of option bubbles to display',
+          items: {
+            type: 'object',
+            properties: {
+              label: { type: 'string', description: 'Display label for the bubble' },
+              value: { type: 'string', description: 'Optional machine-readable value' },
+            },
+            required: ['label'],
+          },
+        },
+      },
+      required: ['options'],
+    },
+    defaults: {
+      options: [
+        { label: 'Hiring Metrics',  value: 'hiring-metrics' },
+        { label: 'Best Applicants', value: 'best-applicants' },
+        { label: 'Market Trends',   value: 'market-trends' },
+      ],
+    },
   },
 };
 
