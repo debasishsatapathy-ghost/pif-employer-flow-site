@@ -47,9 +47,11 @@ interface HiringAvatarPopupProps {
 }
 
 export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatarPopupProps) {
-  const avatarVideoTrack = useVoiceSessionStore((s) => s.avatarVideoTrack);
-  const avatarEnabled    = useVoiceSessionStore((s) => s.avatarEnabled);
-  const avatarAvailable  = useVoiceSessionStore((s) => s.avatarAvailable);
+  const avatarVideoTrack   = useVoiceSessionStore((s) => s.avatarVideoTrack);
+  const avatarEnabled      = useVoiceSessionStore((s) => s.avatarEnabled);
+  const avatarAvailable    = useVoiceSessionStore((s) => s.avatarAvailable);
+  // Subscribe to audio element so we can forcefully unmute it the moment it arrives
+  const avatarAudioElement = useVoiceSessionStore((s) => s.avatarAudioElement);
 
   const videoElRef = useRef<HTMLVideoElement | null>(null);
 
@@ -66,6 +68,16 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
     };
   }, [avatarVideoTrack]);
 
+  // Forcefully unmute avatar audio the moment it arrives while popup is open.
+  // This overrides any muting applied by the platform-level mute loop in
+  // EmployerDashboard (which runs before hiringAvatarActiveRef is set to true).
+  useEffect(() => {
+    if (!open || !avatarAudioElement) return;
+    avatarAudioElement.muted = false;
+    avatarAudioElement.volume = 1;
+    avatarAudioElement.play().catch(() => {});
+  }, [avatarAudioElement, open]);
+
   // Close on Escape
   useEffect(() => {
     if (!open) return;
@@ -74,9 +86,12 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
     return () => window.removeEventListener('keydown', handler);
   }, [open, onClose]);
 
-  const showLiveVideo      = avatarEnabled && !!avatarVideoTrack;
-  const showLoading        = avatarAvailable && avatarEnabled && !avatarVideoTrack;
-  const showStaticFallback = !showLiveVideo && !showLoading;
+  const showLiveVideo = avatarEnabled && !!avatarVideoTrack;
+  // Show spinner any time the avatar is available but live video isn't here yet —
+  // this includes the brief window before toggleAvatarHard() response arrives.
+  const showLoading = avatarAvailable && !showLiveVideo;
+  // Only fall back to the static image when the avatar feature is genuinely unavailable.
+  const showStaticFallback = !showLiveVideo && !avatarAvailable;
 
   return (
     <AnimatePresence>
@@ -135,19 +150,23 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
               justifyContent: 'center',
             }}
           >
-            {/* LIVE video — always in DOM, hidden until track arrives */}
+            {/* LIVE video — always in DOM, hidden until track arrives.
+                CSS: scale 2.2× anchored at 50% 8% from the top — this zooms
+                into the upper face zone of a HeyGen portrait avatar video. */}
             <video
               ref={videoElRef}
               autoPlay
               playsInline
+              muted={false}
               style={{
                 position: 'absolute',
                 inset: 0,
                 width: '100%',
-                height: '115%',
+                height: '100%',
                 objectFit: 'cover',
-                objectPosition: 'top center',
-                marginTop: '-8px',
+                objectPosition: 'center top',
+                transform: 'scale(2.2)',
+                transformOrigin: '50% 8%',
                 display: showLiveVideo ? 'block' : 'none',
               }}
             />
@@ -176,7 +195,7 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
               </div>
             )}
 
-            {/* Static fallback — avatar not available or not yet enabled */}
+            {/* Static fallback — only shown when avatarAvailable is false */}
             {showStaticFallback && (
               <img
                 src="/avatar/avatar-full.png"
@@ -185,10 +204,11 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
                   position: 'absolute',
                   inset: 0,
                   width: '100%',
-                  height: '115%',
+                  height: '100%',
                   objectFit: 'cover',
-                  objectPosition: 'top center',
-                  marginTop: '-8px',
+                  objectPosition: 'center top',
+                  transform: 'scale(2.2)',
+                  transformOrigin: '50% 8%',
                 }}
               />
             )}
