@@ -1620,6 +1620,18 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
       // Stop mute loop so new audio elements are not silenced
       muteCleanupRef.current?.();
 
+      // Immediately unmute any existing avatar audio element that was muted when
+      // the popup last closed. hideMatching / startMuteLoop both set muted=true on
+      // the element but do NOT remove it from the store, so it may still exist.
+      // tryPlay in HiringAvatarPopup only fires when avatarAudioElement changes —
+      // if the SAME element was re-muted it won't re-fire. Fix that here.
+      const existing = useVoiceSessionStore.getState().avatarAudioElement;
+      if (existing) {
+        existing.muted = false;
+        existing.volume = 1;
+        existing.play().catch(() => {});
+      }
+
       const { avatarAvailable, avatarEnabled, toggleAvatarHard, sessionState } =
         useVoiceSessionStore.getState();
 
@@ -1673,14 +1685,24 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
 
         // Wait for 'hiring-avatar-video-ready' — dispatched by HiringAvatarPopup
         // when the <video> element fires canplay (actual frames flowing).
-        // This guarantees the agent speaks only AFTER the face is visible.
-        const onVideoReady = () => sendGreeting();
+        // 2-second grace delay after video-ready before sending [HIRING_ASSISTANT].
+        // Reason: if the user arrives from a chat session where the agent just
+        // said "Success! This role has been posted.", the Mobeus avatar may still
+        // be streaming that response when the popup opens. Sending the greeting
+        // immediately causes the agent to queue both responses and the user hears
+        // "Success!" then "How can I help?" in sequence. A 2 s pause lets any
+        // in-progress chat response finish before the greeting is triggered.
+        let greetingDelayTimer: ReturnType<typeof setTimeout> | null = null;
+        const onVideoReady = () => {
+          greetingDelayTimer = setTimeout(sendGreeting, 2000);
+        };
         window.addEventListener('hiring-avatar-video-ready', onVideoReady, { once: true });
         // Hard fallback: if the event never fires (no avatar feature / timeout),
         // greet after 20 s so the popup doesn't stay silent forever.
         const fallbackTimer = setTimeout(sendGreeting, 20_000);
         greetingCleanupRef.current = () => {
           window.removeEventListener('hiring-avatar-video-ready', onVideoReady);
+          if (greetingDelayTimer !== null) clearTimeout(greetingDelayTimer);
           clearTimeout(fallbackTimer);
         };
       }

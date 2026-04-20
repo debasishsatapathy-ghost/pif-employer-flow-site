@@ -1015,12 +1015,17 @@ export const useVoiceSessionStore = create<VoiceSessionState>((set, get) => ({
 function applyAudioRouting(get: () => VoiceSessionState) {
   const {
     avatarEnabled,
+    avatarTogglePending,
     isVolumeMuted,
     avatarAudioElement,
     agentAudioElement,
   } = get();
 
-  const useAvatarAudio = avatarEnabled && !!avatarAudioElement;
+  // Treat a pending toggle (RPC in-flight) the same as already-enabled so the
+  // avatar audio element is never muted during the 1–3 s RPC round-trip window.
+  // Without this, if the avatar audio track arrives before the RPC response
+  // confirms avatarEnabled=true, applyAudioRouting would incorrectly mute it.
+  const useAvatarAudio = (avatarEnabled || avatarTogglePending) && !!avatarAudioElement;
 
   if (agentAudioElement) {
     agentAudioElement.muted = isVolumeMuted || useAvatarAudio;
