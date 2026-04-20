@@ -15,6 +15,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   MoreHorizontal,
+  MoreVertical,
   TrendingDown,
   TrendingUp,
   ChevronLeft,
@@ -31,13 +32,15 @@ import {
   Pencil,
   Users,
   ArrowDown,
+  Clock,
+  LogOut,
 } from "lucide-react";
 import {
   type JobPostingResponse,
   type MockJobResponse,
 } from "@/lib/employerApi";
 /* ── palette ─────────────────────────────────────────────────────────────── */
-const CARD = { background: "rgba(255,255,255,0.045)", border: "1px solid rgba(255,255,255,0.09)" };
+const CARD = { background: "rgba(255,255,255,0.045)" };
 
 /* ── pipeline ────────────────────────────────────────────────────────────── */
 const ROLES = ["Cloud Engineer", "Senior AI Developer"];
@@ -51,36 +54,37 @@ const BAR = [
 /* ── hiring intelligence ─────────────────────────────────────────────────── */
 const INTEL = [
   {
-    icon: "down", iconColor: "#f97316",
+    icon: "down" as const, iconColor: "#f97316",
     title: "Pipeline dropoff",
     body: "Based on May's data, candidates were 15% more likely to drop out of the process when waiting over 7 days between interviews.",
     cta: "Review schedule",
   },
   {
-    icon: "up", iconColor: "#1ed25e",
+    icon: "up" as const, iconColor: "#1ed25e",
     title: "AI readiness in Jeddah",
     body: "Artificial intelligence graduates in Jeddah are showing a 5% higher skill readiness score than those in Riyadh.",
     noAction: "No action required.",
   },
   {
-    icon: "up", iconColor: "#f97316",
+    icon: "up" as const, iconColor: "#f97316",
     title: "AI Developer compensation",
     body: "A talent shortage has seen wage demands increase by 12% this quarter.",
-    note: "2 listings have fallen below the range.",
+    noteLink: "2 listings",
+    noteRest: " have fallen below the range.",
     cta: "Update salary range",
   },
-] as const;
+];
 
 /* ── job postings ────────────────────────────────────────────────────────── */
 type Visual =
-  | { t: "grid";    color: string; rows: number; cols: number }
+  | { t: "grid";    color: string; rows: number; cols: number; total?: number }
   | { t: "squares"; color: string; n: number }
   | { t: "avatars"; n: number }
   | { t: "grid-mixed"; rows: number; cols: number };  /* blue + 1 orange */
 
 interface Metric {
   num: string; label: string; visual: Visual;
-  sub?: string; subIcon?: "plus"|"check"|"warn"|"people"; subColor?: string;
+  sub?: string; subIcon?: "plus"|"check"|"warn"|"people"|"clock"|"exit"; subColor?: string;
 }
 
 /* dot colors per position — matches Figma progress dots exactly */
@@ -101,7 +105,7 @@ const JOBS: {
     },
     right: {
       num: "13", label: "talent pool",
-      visual: { t: "grid", color: "#9e36ff", rows: 2, cols: 8 },
+      visual: { t: "grid", color: "#9e36ff", rows: 2, cols: 8, total: 13 },
       sub: "8 new suggestions", subIcon: "people", subColor: "rgba(255,255,255,0.45)",
     },
   },
@@ -113,12 +117,12 @@ const JOBS: {
     left: {
       num: "6", label: "interviews booked",
       visual: { t: "avatars", n: 6 },
-      sub: "2 recently accepted", subIcon: "check", subColor: "#4ade80",
+      sub: "2 recently accepted", subIcon: "clock", subColor: "#4ade80",
     },
     right: {
       num: "17", label: "shortlisted",
       visual: { t: "grid-mixed", rows: 2, cols: 9 },
-      sub: "1 dropped out", subIcon: "warn", subColor: "#f97316",
+      sub: "1 dropped out", subIcon: "exit", subColor: "#f97316",
     },
   },
 ];
@@ -166,30 +170,42 @@ function StatusDots({ dots }: { dots: string[] }) {
   );
 }
 
-const DOT = "size-3 rounded-[4px] flex-shrink-0"; // 12px square, ~4px radius — matches Figma
+// Figma exact: W 11.90425px × H 11.90425px, border-radius 3.968px
+const DOT_SIZE = 11.904;
+const DOT_RADIUS = 3.968;
+const DOT_GAP = 3.968;
+const dotStyle = (bg: string): React.CSSProperties => ({
+  width: DOT_SIZE, height: DOT_SIZE,
+  borderRadius: DOT_RADIUS,
+  background: bg,
+  flexShrink: 0,
+});
 
-function VisualBlock({ v, jobIndex }: { v: Visual; jobIndex?: number }) {
+function VisualBlock({ v }: { v: Visual }) {
   if (v.t === "grid") {
-    /* Talent pool: all one color, wrapping rows */
-    const dots = Array.from({ length: v.rows * v.cols });
+    const total = v.total ?? (v.rows * v.cols);
     return (
-      <div className="flex flex-col gap-1">
-        {Array.from({ length: v.rows }).map((_, row) => (
-          <div key={row} className="flex gap-1">
-            {dots.slice(row * v.cols, (row + 1) * v.cols).map((_, i) => (
-              <span key={i} className={DOT} style={{ background: v.color }} />
-            ))}
-          </div>
-        ))}
+      <div className="flex flex-col" style={{ gap: DOT_GAP }}>
+        {Array.from({ length: v.rows }).map((_, row) => {
+          const rowStart = row * v.cols;
+          const rowEnd = Math.min(rowStart + v.cols, total);
+          if (rowStart >= total) return null;
+          return (
+            <div key={row} className="flex" style={{ gap: DOT_GAP }}>
+              {Array.from({ length: rowEnd - rowStart }).map((_, i) => (
+                <span key={i} style={dotStyle(v.color)} />
+              ))}
+            </div>
+          );
+        })}
       </div>
     );
   }
   if (v.t === "squares") {
-    /* screened applicants: 5 blue + 3 purple */
     return (
-      <div className="flex gap-1">
-        {[...Array(5)].map((_,i) => <span key={i} className={DOT} style={{background:"#3689ff"}} />)}
-        {[...Array(3)].map((_,i) => <span key={i} className={DOT} style={{background:"#9e36ff"}} />)}
+      <div className="flex" style={{ gap: DOT_GAP }}>
+        {[...Array(5)].map((_,i) => <span key={i} style={dotStyle("#3689ff")} />)}
+        {[...Array(3)].map((_,i) => <span key={i} style={dotStyle("#9e36ff")} />)}
       </div>
     );
   }
@@ -200,8 +216,8 @@ function VisualBlock({ v, jobIndex }: { v: Visual; jobIndex?: number }) {
         {Array.from({ length: v.n }).map((_, i) => (
           <div
             key={i}
-            className="size-10 rounded-full flex items-center justify-center text-[10px] font-bold text-white/80 flex-shrink-0"
-            style={{ background: bg[i % bg.length], border: "2px solid rgba(15,20,28,0.85)", marginLeft: i === 0 ? 0 : -10, zIndex: v.n - i }}
+            className="rounded-full flex items-center justify-center text-[10px] font-bold text-white/80 flex-shrink-0"
+            style={{ width: 40, height: 40, background: bg[i % bg.length], border: "2px solid rgba(15,20,28,0.85)", marginLeft: i === 0 ? 0 : -10, zIndex: v.n - i }}
           />
         ))}
       </div>
@@ -209,79 +225,93 @@ function VisualBlock({ v, jobIndex }: { v: Visual; jobIndex?: number }) {
   }
   /* grid-mixed: shortlisted — row1: 6 green + 3 blue, row2: 7 blue + 1 orange */
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex gap-1">
-        {[...Array(6)].map((_,i) => <span key={i} className={DOT} style={{background:"#1dc558"}} />)}
-        {[...Array(3)].map((_,i) => <span key={i} className={DOT} style={{background:"#3689ff"}} />)}
+    <div className="flex flex-col" style={{ gap: DOT_GAP }}>
+      <div className="flex" style={{ gap: DOT_GAP }}>
+        {[...Array(6)].map((_,i) => <span key={i} style={dotStyle("#1dc558")} />)}
+        {[...Array(3)].map((_,i) => <span key={i} style={dotStyle("#3689ff")} />)}
       </div>
-      <div className="flex gap-1">
-        {[...Array(7)].map((_,i) => <span key={i} className={DOT} style={{background:"#3689ff"}} />)}
-        <span className={DOT} style={{background:"#ff6b00"}} />
+      <div className="flex" style={{ gap: DOT_GAP }}>
+        {[...Array(7)].map((_,i) => <span key={i} style={dotStyle("#3689ff")} />)}
+        <span style={dotStyle("#ff6b00")} />
       </div>
     </div>
   );
 }
 
-function SubRow({ sub, icon, color }: { sub: string; icon?: "plus"|"check"|"warn"|"people"; color?: string }) {
-  const Ic = icon === "people" ? Users : icon === "plus" ? UserPlus : icon === "check" ? UserCheck : AlertCircle;
+function SubRow({ sub, icon, color }: { sub: string; icon?: "plus"|"check"|"warn"|"people"|"clock"|"exit"; color?: string }) {
+  const Ic = icon === "people" ? Users : icon === "plus" ? UserPlus : icon === "clock" ? Clock : icon === "exit" ? LogOut : icon === "check" ? UserCheck : AlertCircle;
   return (
-    <div className="flex items-center gap-1">
-      {icon && <Ic size={16} className="flex-shrink-0" style={{ color: color ?? "rgba(255,255,255,0.6)" }} />}
-      <span className="text-sm font-normal leading-5 text-white">{sub}</span>
+    <div className="flex items-start gap-1">
+      {icon && <Ic size={20} className="flex-shrink-0" style={{ color: color ?? "rgba(255,255,255,0.6)" }} />}
+      <span className="text-[14px] font-normal leading-5 text-white">{sub}</span>
     </div>
   );
 }
 
-function MetricCard({ m, jobIndex }: { m: Metric; jobIndex?: number }) {
+function MetricCard({ m }: { m: Metric }) {
   return (
-    <div className="rounded-xl p-4 flex flex-col flex-1 min-w-0 justify-between gap-3" style={{ background: "rgba(255,255,255,0.05)" }}>
-      {/* top: number + dots */}
-      <div className="flex flex-col gap-3">
-        <div className="flex items-end gap-2">
-          <span className="text-[40px] font-semibold leading-[48px]" style={{ color: "#f4f4f5" }}>{m.num}</span>
-          <span className="text-base font-normal leading-6 pb-[5px]" style={{ color: "#d4d4d8" }}>{m.label}</span>
+    <div
+      className="flex-1 flex flex-col justify-between min-w-0 rounded-xl overflow-hidden"
+      style={{ background: "rgba(255,255,255,0.05)", padding: 12 }}
+    >
+      {/* top: number + label row, then visual dots — gap-2 (8px) between */}
+      <div className="flex flex-col gap-2 items-start flex-shrink-0">
+        <div className="flex gap-2 items-end">
+          <span className="font-semibold" style={{ color: "#f4f4f5", fontSize: 32, lineHeight: "40px" }}>{m.num}</span>
+          <div className="flex items-center justify-center" style={{ paddingBottom: 3 }}>
+            <span className="font-normal whitespace-nowrap" style={{ color: "#d4d4d8", fontSize: 14, lineHeight: "20px" }}>{m.label}</span>
+          </div>
         </div>
-        <VisualBlock v={m.visual} jobIndex={jobIndex} />
+        <VisualBlock v={m.visual} />
       </div>
-      {/* bottom: sub-label */}
+      {/* bottom: sub-label, pinned to bottom by justify-between */}
       {m.sub && <SubRow sub={m.sub} icon={m.subIcon} color={m.subColor} />}
     </div>
   );
 }
 
-function DetailedJobCard({ job, jobIndex }: { job: typeof JOBS[0]; jobIndex?: number }) {
+function DetailedJobCard({ job, onClick }: { job: typeof JOBS[0]; onClick?: () => void }) {
+  const Tag = onClick ? "button" : "div";
   return (
-    <div
-      className="rounded-xl flex flex-col gap-4"
-      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.05)", padding: 20 }}
+    <Tag
+      {...(onClick ? { type: "button" as const, onClick } : {})}
+      className={`flex flex-col gap-3 flex-1 min-h-0 overflow-hidden w-full text-left${onClick ? " transition-opacity hover:opacity-90 active:opacity-75" : ""}`}
+      style={{
+        background: "rgba(255,255,255,0.05)",
+        padding: 16,
+        borderRadius: 12,
+      }}
     >
-      {/* header */}
-      <div className="flex flex-col gap-1">
-        {/* title + status */}
-        <div className="flex items-start justify-between gap-2">
+      {/* Header: gap-1 (4px) between title row and meta row */}
+      <div className="flex flex-col gap-1 flex-shrink-0 w-full">
+        {/* Title + status dots/label */}
+        <div className="flex items-center justify-between w-full">
           <p className="text-base font-semibold leading-6" style={{ color: "#fafafa" }}>{job.title}</p>
-          {/* status: dots stacked above label */}
           <div className="flex flex-col items-end gap-1 flex-shrink-0">
-            <StatusDots dots={job.dots} />
-            <span className="text-sm font-normal leading-5" style={{ color: "#d4d4d8" }}>{job.status}</span>
+            <div className="flex items-center gap-1">
+              {job.dots.map((color, i) => (
+                <span key={i} className="size-3 rounded-full flex-shrink-0" style={{ background: color }} />
+              ))}
+            </div>
+            <span className="text-[14px] font-normal leading-5 text-center" style={{ color: "#d4d4d8" }}>{job.status}</span>
           </div>
         </div>
-        {/* meta row with dot separators */}
+        {/* Meta row: text • text • text with 4px dot separators, gap-3 (12px) between all */}
         <div className="flex items-center gap-3">
           {job.metaParts.map((part, i) => (
             <React.Fragment key={i}>
               {i > 0 && <span className="size-1 rounded-full flex-shrink-0" style={{ background: "#d4d4d8" }} />}
-              <span className="text-sm font-normal leading-5" style={{ color: "#d4d4d8" }}>{part}</span>
+              <span className="text-[14px] font-normal leading-5" style={{ color: "#d4d4d8" }}>{part}</span>
             </React.Fragment>
           ))}
         </div>
       </div>
-      {/* two metric sub-cards */}
-      <div className="flex gap-4 flex-1">
-        <MetricCard m={job.left} jobIndex={jobIndex} />
-        <MetricCard m={job.right} jobIndex={jobIndex} />
+      {/* Metrics row: flex-1, default items-stretch ensures both cards same height */}
+      <div className="flex gap-4 flex-1 w-full" style={{ minHeight: 1 }}>
+        <MetricCard m={job.left} />
+        <MetricCard m={job.right} />
       </div>
-    </div>
+    </Tag>
   );
 }
 
@@ -309,34 +339,37 @@ function MiniCalendar() {
           </button>
         </div>
       </div>
-      {/* Weekday headers — 12px, #f4f4f5, size-9 cells, justify-between */}
-      <div className="flex items-start justify-between w-full">
-        {CAL_HEADS.map((h, i) => (
-          <div key={i} className="size-9 flex items-center justify-center text-[12px] font-normal leading-4" style={{ color: "#f4f4f5" }}>{h}</div>
-        ))}
-      </div>
-      {/* Date grid — flex rows, gap-1 between rows, pb-2 */}
-      <div className="flex flex-col gap-1 pb-2 items-center w-full">
-        {CAL_ROWS.map((row, ri) => (
-          <div key={ri} className="flex items-start justify-between w-full">
-            {row.map((c, ci) => (
-              <div key={ci} className="relative size-9 flex items-center justify-center">
-                <span
-                  className="size-9 flex items-center justify-center text-[14px] font-normal leading-5 rounded-full"
-                  style={
-                    !c.other && c.d === TODAY_D
-                      ? { background: "var(--accent)", color: "#ffffff", fontWeight: 600 }
-                      : c.other
-                      ? { color: "#71717b" }
-                      : { color: "#f4f4f5" }
-                  }
-                >
-                  {c.d}
-                </span>
-              </div>
-            ))}
-          </div>
-        ))}
+      {/* Sub-container: weekday row + date grid — no gap between them → H: 36+244=280px */}
+      <div className="flex flex-col items-center w-full">
+        {/* Weekday headers — 12px, #f4f4f5, size-9 cells, justify-between */}
+        <div className="flex items-start justify-between w-full">
+          {CAL_HEADS.map((h, i) => (
+            <div key={i} className="size-9 flex items-center justify-center text-[12px] font-normal leading-4" style={{ color: "#f4f4f5" }}>{h}</div>
+          ))}
+        </div>
+        {/* Date grid — flex rows, gap-1 (4px) between rows, pb-2 (8px) */}
+        <div className="flex flex-col gap-1 pb-2 items-center w-full">
+          {CAL_ROWS.map((row, ri) => (
+            <div key={ri} className="flex items-start justify-between w-full">
+              {row.map((c, ci) => (
+                <div key={ci} className="relative size-9 flex items-center justify-center">
+                  <span
+                    className="size-9 flex items-center justify-center text-[14px] font-normal leading-5 rounded-full"
+                    style={
+                      !c.other && c.d === TODAY_D
+                        ? { background: "#1ed25e", color: "#0d1117", fontWeight: 600 }
+                        : c.other
+                        ? { color: "#71717b" }
+                        : { color: "#f4f4f5" }
+                    }
+                  >
+                    {c.d}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -444,6 +477,8 @@ function LiveJobCard({ job, onClick }: { job: JobPostingResponse; onClick?: () =
         display: "flex",
         flexDirection: "column",
         gap: 16,
+        flex: "1 1 0",
+        minHeight: 0,
       }}
     >
       {/* ── Header: title + status (stacked) ── */}
@@ -482,11 +517,11 @@ function LiveJobCard({ job, onClick }: { job: JobPostingResponse; onClick?: () =
       </div>
 
       {/* ── Two metric sub-cards ── */}
-      <div style={{ display: "flex", gap: 16, width: "100%" }}>
+      <div style={{ display: "flex", gap: 16, width: "100%", flex: "1 1 0", minHeight: 0 }}>
         {/* Left — screened applicants */}
         <div style={{
           background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 16,
-          flex: "1 0 0", display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 12,
+          flex: "1 0 0", minHeight: 0, display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 12,
         }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {/* Big number + label */}
@@ -507,7 +542,7 @@ function LiveJobCard({ job, onClick }: { job: JobPostingResponse; onClick?: () =
         {/* Right — talent pool */}
         <div style={{
           background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 16,
-          flex: "1 0 0", display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 12,
+          flex: "1 0 0", minHeight: 0, display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 12,
         }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {/* Big number + label */}
@@ -1185,7 +1220,7 @@ export function HiringPage({ onSelectJob, onPostJob, apiJobs: externalJobs, apiJ
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-      className="flex-1 min-h-0 overflow-hidden flex flex-col"
+      className="flex-1 min-h-[956px] overflow-hidden flex flex-col"
     >
       <div className="flex flex-col items-center gap-10 px-8 pb-10 flex-1 min-h-0">
 
@@ -1212,16 +1247,16 @@ export function HiringPage({ onSelectJob, onPostJob, apiJobs: externalJobs, apiJ
         </div>
 
         {/* ── main layout: left content (flex-1) + right panel (316px fixed) ── */}
-        <div className="flex gap-5 flex-1 min-h-0 w-full">
+        <div className="flex gap-6 flex-1 min-h-0 w-full">
 
           {/* ── Left content ── */}
           <div className="flex-1 min-w-0 min-h-0 flex flex-col gap-6">
 
-            {/* Top stats row — 8-col grid (Pipeline×4 + Avg time×2 + Avg skill×2) */}
-            <div className="grid grid-cols-4 xl:grid-cols-8 gap-6">
+            {/* Top stats row — flex: Pipeline(flex-1) + Avg time(204px) + Avg skill(204px), gap-6 */}
+            <div className="flex gap-6 flex-shrink-0">
 
-              {/* Pipeline — col-span-4 */}
-              <Card className="col-span-2 xl:col-span-4 flex flex-col justify-between" style={{ height: 204 }}>
+              {/* Pipeline — fills remaining width */}
+              <Card className="flex-1 flex flex-col justify-between" style={{ height: 204 }}>
                 {/* header */}
                 <div className="flex items-center gap-3">
                   <span className="text-base font-normal leading-6" style={{ color: "#d4d4d8" }}>Pipeline</span>
@@ -1274,8 +1309,8 @@ export function HiringPage({ onSelectJob, onPostJob, apiJobs: externalJobs, apiJ
                 </div>
               </Card>
 
-              {/* Avg. time to match — col-span-2 */}
-              <Card className="col-span-1 xl:col-span-2 flex flex-col justify-between" style={{ height: 204 }}>
+              {/* Avg. time to match — 204px fixed */}
+              <Card className="w-[204px] flex-shrink-0 flex flex-col justify-between" style={{ height: 204 }}>
                 <span className="text-base text-white/55">Avg. time to match</span>
                 <div className="flex items-end gap-2">
                   <span className="text-[48px] font-semibold leading-none" style={{ color: "#1dc558" }}>4.2</span>
@@ -1287,8 +1322,8 @@ export function HiringPage({ onSelectJob, onPostJob, apiJobs: externalJobs, apiJ
                 </div>
               </Card>
 
-              {/* Avg. skill readiness — col-span-2 */}
-              <Card className="col-span-1 xl:col-span-2 flex flex-col justify-between" style={{ height: 204 }}>
+              {/* Avg. skill readiness — 204px fixed */}
+              <Card className="w-[204px] flex-shrink-0 flex flex-col justify-between" style={{ height: 204 }}>
                 <span className="text-base text-white/55">Avg. skill readiness</span>
                 <div className="flex items-end gap-2">
                   <span className="text-[48px] font-semibold leading-none" style={{ color: "#ff9040" }}>79</span>
@@ -1302,11 +1337,11 @@ export function HiringPage({ onSelectJob, onPostJob, apiJobs: externalJobs, apiJ
 
             </div>{/* end top stats row */}
 
-            {/* Bottom row — Job Postings (5/8) + Hiring Intelligence (3/8) */}
-            <div className="grid grid-cols-8 gap-6 flex-1 min-h-0">
+            {/* Bottom row — Job Postings (flex-1) + Hiring Intelligence (367px) */}
+            <div className="flex gap-6 flex-1 min-h-0">
 
-              {/* Job Postings — col-span-5 */}
-              <div className="col-span-5 flex flex-col gap-6 rounded-2xl p-5 min-h-0 overflow-y-auto" style={{ background: "rgba(255,255,255,0.05)" }}>
+              {/* Job Postings — flex-1 (takes ~533px) */}
+              <div className="flex-1 flex flex-col gap-6 rounded-2xl p-5 min-h-0 overflow-hidden" style={{ background: "rgba(255,255,255,0.05)" }}>
                 <div className="flex items-center justify-between">
                   <h2 className="text-base font-normal leading-6" style={{ color: "#d4d4d8" }}>Job Postings</h2>
                   <div className="flex gap-2">
@@ -1344,22 +1379,29 @@ export function HiringPage({ onSelectJob, onPostJob, apiJobs: externalJobs, apiJ
                   </div>
                 )}
 
-                {/* ── Job postings list ── */}
-                {!jobsLoading && !jobsError && jobTab === "Active" && (
-                  <div className="flex flex-col gap-3">
-                    {filteredJobs.map((job) => (
-                      <LiveJobCard
-                        key={job.id}
-                        job={job}
-                        onClick={() => {
-                          const j = { id: job.id, title: job.title, department: job.department || "Engineering", location: job.location || "", status: job.status, posted_at: relativeDate(job.created_at) };
-                          setSelectedJob(j);
-                          onSelectJob?.(job.id, j);
-                        }}
-                      />
-                    ))}
-                    <DetailedJobCard job={JOBS[1]} jobIndex={1} />
-                    {filteredJobs.length === 0 && <DetailedJobCard job={JOBS[0]} jobIndex={0} />}
+                {/* ── Job postings list — always show both mock cards to match Figma ── */}
+                {jobTab === "Active" && (
+                  <div className="flex flex-col gap-4 flex-1 min-h-0">
+                    <DetailedJobCard
+                      job={JOBS[0]}
+                      onClick={() => onSelectJob?.("mock-senior-ai-dev", {
+                        title: JOBS[0].title,
+                        department: JOBS[0].metaParts[0],
+                        location: JOBS[0].metaParts[1],
+                        status: JOBS[0].status,
+                        posted_at: JOBS[0].metaParts[2],
+                      })}
+                    />
+                    <DetailedJobCard
+                      job={JOBS[1]}
+                      onClick={() => onSelectJob?.("mock-cloud-engineer", {
+                        title: JOBS[1].title,
+                        department: JOBS[1].metaParts[0],
+                        location: JOBS[1].metaParts[1],
+                        status: JOBS[1].status,
+                        posted_at: JOBS[1].metaParts[2],
+                      })}
+                    />
                   </div>
                 )}
 
@@ -1372,47 +1414,83 @@ export function HiringPage({ onSelectJob, onPostJob, apiJobs: externalJobs, apiJ
                 )}
               </div>
 
-              {/* Hiring Intelligence — col-span-3 */}
-              <div className="col-span-3 flex flex-col gap-6 rounded-2xl p-5 min-h-0 overflow-y-auto" style={{ background: "rgba(255,255,255,0.05)" }}>
-                {/* section header */}
-                <div className="flex items-center justify-between">
+              {/* Hiring Intelligence — 367px fixed, Figma 10726:55251 */}
+              <div className="w-[367px] flex-shrink-0 flex flex-col gap-6 rounded-2xl p-5 min-h-0 overflow-hidden" style={{ background: "rgba(255,255,255,0.05)" }}>
+
+                {/* Section header — font-normal, #d4d4d8 + MoreVertical ⋮ icon */}
+                <div className="flex items-center justify-between flex-shrink-0">
                   <h2 className="text-base font-normal leading-6" style={{ color: "#d4d4d8" }}>Hiring intelligence</h2>
-                  <button type="button" className="text-white/35 hover:text-white/65">
-                    <MoreHorizontal size={16} />
+                  <button type="button" className="text-white/35 hover:text-white/65 flex-shrink-0">
+                    <MoreVertical size={20} />
                   </button>
                 </div>
 
-                {/* intel cards */}
-                <div className="flex flex-col gap-6">
-                  {INTEL.map((c, i) => (
-                    <div key={i} className="flex flex-col gap-3">
-                      {/* title row */}
+                {/* Cards list — flex-1 so it fills remaining height, gap-4 (16px) between cards */}
+                <div className="flex flex-col gap-4 flex-1 min-h-0">
+
+                  {/* Card 1 — Pipeline dropoff (flex-1 = equal 1/3 height) */}
+                  <div className="rounded-xl p-4 flex flex-col justify-between flex-1 min-h-0 overflow-hidden" style={{ background: "rgba(255,255,255,0.05)" }}>
+                    <div className="flex flex-col gap-1">
                       <div className="flex items-center gap-2">
-                        <span style={{ color: c.iconColor }}>
-                          {c.icon === "down" ? <TrendingDown size={18} /> : <TrendingUp size={18} />}
-                        </span>
-                        <p className="text-base font-semibold leading-6 text-white">{c.title}</p>
+                        <TrendingDown size={20} style={{ color: "#f97316" }} />
+                        <p className="text-base font-normal leading-6" style={{ color: "#f4f4f5" }}>Pipeline dropoff</p>
                       </div>
-                      {/* body — Body/sm: 14px, #D4D4D8, leading-5 */}
-                      <p className="text-[14px] font-normal leading-5 w-full" style={{ color: "#d4d4d8" }}>{c.body}</p>
-                      {/* note */}
-                      {"note" in c && c.note && (
-                        <p className="text-[14px] font-normal leading-5 underline" style={{ color: "#1dc558" }}>{c.note}</p>
-                      )}
-                      {/* action / no-action */}
-                      {"noAction" in c && c.noAction ? (
-                        <p className="text-[14px] font-normal leading-5" style={{ color: "rgba(255,255,255,0.35)" }}>{c.noAction}</p>
-                      ) : "cta" in c && c.cta ? (
-                        <button
-                          type="button"
-                          className="w-full py-2 px-4 rounded-xl text-[14px] font-normal leading-5 text-white transition-colors"
-                          style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }}
-                        >
-                          {c.cta}
-                        </button>
-                      ) : null}
+                      <p className="text-[14px] font-normal leading-5" style={{ color: "#d4d4d8" }}>
+                        Based on May&apos;s data, candidates were 15% more likely to drop out of the process when waiting over 7 days between interviews.
+                      </p>
                     </div>
-                  ))}
+                    <button
+                      type="button"
+                      className="w-full py-2 rounded-lg text-[14px] font-normal leading-5 text-white text-center transition-colors hover:opacity-80"
+                      style={{ background: "rgba(255,255,255,0.05)" }}
+                    >
+                      Review schedule
+                    </button>
+                  </div>
+
+                  {/* Card 2 — AI readiness in Jeddah (flex-1 = equal 1/3 height) */}
+                  <div className="rounded-xl p-4 flex flex-col justify-between flex-1 min-h-0 overflow-hidden" style={{ background: "rgba(255,255,255,0.05)" }}>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-2">
+                        <TrendingUp size={20} style={{ color: "#1ed25e" }} />
+                        <p className="text-base font-normal leading-6" style={{ color: "#f4f4f5" }}>AI readiness in Jeddah</p>
+                      </div>
+                      <p className="text-[14px] font-normal leading-5" style={{ color: "#d4d4d8" }}>
+                        Artificial intelligence graduates in Jeddah are showing a 5% higher skill readiness score than those in Riyadh.
+                      </p>
+                    </div>
+                    <div className="w-full py-2 rounded-lg flex items-center justify-center" style={{ background: "rgba(255,255,255,0.02)" }}>
+                      <p className="text-[14px] font-normal leading-5 text-center" style={{ color: "rgba(255,255,255,0.4)" }}>No action required.</p>
+                    </div>
+                  </div>
+
+                  {/* Card 3 — AI Developer compensation (flex-1 = equal 1/3 height) */}
+                  <div className="rounded-xl p-4 flex flex-col justify-between flex-1 min-h-0 overflow-hidden" style={{ background: "rgba(255,255,255,0.05)" }}>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-2">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src="/arrow_upward.png" alt="" width={20} height={20} style={{ flexShrink: 0 }} />
+                        <p className="text-base font-normal leading-6" style={{ color: "#f4f4f5" }}>AI Developer compensation</p>
+                      </div>
+                      <p className="text-[14px] font-normal leading-5" style={{ color: "#d4d4d8" }}>
+                        A talent shortage has seen wage demands increase by 12% this quarter.
+                      </p>
+                    </div>
+                    <div className="flex flex-col gap-3">
+                      <p className="text-[14px] font-normal leading-5">
+                        <span className="underline cursor-pointer" style={{ color: "#1dc558" }}>2 listings</span>
+                        <span style={{ color: "#f4f4f5" }}> have fallen below the range.</span>
+                      </p>
+                      <button
+                        type="button"
+                        className="w-full py-2 rounded-lg text-[14px] font-normal leading-5 text-white text-center transition-colors hover:opacity-80"
+                        style={{ background: "rgba(255,255,255,0.05)" }}
+                      >
+                        Update salary range
+                      </button>
+                    </div>
+                  </div>
+
                 </div>
               </div>
 
@@ -1422,18 +1500,18 @@ export function HiringPage({ onSelectJob, onPostJob, apiJobs: externalJobs, apiJ
 
           {/* ── Right panel — Upcoming Interviews, fixed 316px ── */}
           <div
-            className="w-[316px] flex-shrink-0 flex flex-col justify-between rounded-2xl p-5 self-stretch"
+            className="w-[316px] flex-shrink-0 flex flex-col rounded-2xl p-5 self-stretch overflow-hidden"
             style={{ background: "rgba(255,255,255,0.05)" }}
           >
-            {/* top: title + icon */}
-            <div className="flex items-center justify-between">
+            {/* top: title + icon — fixed gap to calendar, never grows */}
+            <div className="flex items-center justify-between flex-shrink-0 mb-5">
               <h2 className="text-base font-normal leading-6" style={{ color: "#d4d4d8" }}>Upcoming Interviews</h2>
               <button type="button" className="text-white/35 hover:text-white/65">
                 <MoreHorizontal size={16} />
               </button>
             </div>
 
-            {/* bottom: calendar + toggle + interviews */}
+            {/* calendar + toggle + interviews — sits right after the title; spare space goes below */}
             <div className="flex flex-col gap-3 w-full">
               <MiniCalendar />
 

@@ -1596,18 +1596,17 @@ function KanbanCardItem({ candidate, onDragStart, onClick }: {
       draggable
       onDragStart={onDragStart}
       onClick={onClick}
-      className="flex flex-col gap-3 p-4 rounded-xl select-none transition-colors hover:bg-white/10"
+      className="flex flex-col gap-3 p-4 rounded-xl w-full select-none transition-colors hover:bg-white/10"
       style={{
         background: "rgba(255,255,255,0.05)",
-        border: "1px solid rgba(255,255,255,0.08)",
         cursor: onClick ? "pointer" : "grab",
       }}
     >
-      <div className="flex items-center gap-3">
+      <div className="flex items-start gap-3 w-full">
         <CandidateAvatar name={candidate.name} avatar={candidate.avatar} />
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-white leading-tight truncate">{candidate.name}</p>
-          <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>{candidate.role}</p>
+          <p className="text-base font-semibold leading-6 truncate" style={{ color: "#fafafa" }}>{candidate.name}</p>
+          <p className="text-[14px] font-normal leading-5" style={{ color: "#d4d4d8" }}>{candidate.role}</p>
         </div>
         <ScoreCircle score={candidate.score} scoreIncreased={candidate.scoreIncreased} />
       </div>
@@ -1654,30 +1653,28 @@ function KanbanColumnPanel({
 }) {
   return (
     <div
-      className="flex-1 flex flex-col gap-3 p-4 rounded-xl min-w-0 transition-colors"
+      className="flex-1 flex flex-col items-start gap-4 p-4 rounded-xl min-w-0 transition-colors"
       style={{
-        background: isDragOver ? "rgba(29,197,88,0.04)" : "rgba(255,255,255,0.04)",
-        border: isDragOver
-          ? "1px solid rgba(29,197,88,0.35)"
-          : "1px solid rgba(255,255,255,0.08)",
+        background: isDragOver ? "rgba(29,197,88,0.04)" : "rgba(255,255,255,0.05)",
+        border: isDragOver ? "1px solid rgba(29,197,88,0.35)" : "none",
         minWidth: 0,
       }}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
     >
-      {/* Column header pill */}
+      {/* Column header pill — Figma: rgba(255,255,255,0.05), text-base, py-[2px] */}
       <div className="flex-shrink-0">
         <span
-          className="inline-block px-3 py-1 rounded-full text-sm"
-          style={{ background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.9)" }}
+          className="inline-block px-3 py-[2px] rounded-full text-base font-normal"
+          style={{ background: "rgba(255,255,255,0.05)", color: "#f4f4f5" }}
         >
           {KANBAN_LABELS[col]}
         </span>
       </div>
 
       {candidates.length > 0 ? (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-4 w-full">
           {candidates.map((c) => (
             <KanbanCardItem
               key={c.id}
@@ -1689,10 +1686,10 @@ function KanbanColumnPanel({
         </div>
       ) : (
         <div
-          className="flex-1 flex items-center justify-center rounded-xl"
+          className="w-full flex items-center justify-center rounded-xl"
           style={{
             border: "1.5px dashed rgba(255,255,255,0.15)",
-            minHeight: 80,
+            minHeight: 120,
           }}
         >
           <p
@@ -1738,6 +1735,7 @@ function CandidateProfileModal({
 }) {
   // Only one accordion open at a time
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
+  const [showScoreInfo,   setShowScoreInfo]   = useState(false);
   // Booking flow: "profile" → "booking" (AI) → "confirmed" (AI) OR "booking-next" (human) → "next-confirmed"
   const [bookingStep, setBookingStep] = useState<"profile" | "booking" | "confirmed" | "booking-next" | "next-confirmed">("profile");
 
@@ -1770,14 +1768,14 @@ function CandidateProfileModal({
     onClose();
   };
 
-  return (
+  return createPortal(
     <motion.div
       key="peek-backdrop"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2 }}
-      className="fixed inset-0 z-50 flex items-center justify-end"
+      className="fixed inset-0 z-[99999] flex items-center justify-end"
       style={{ background: "rgba(0,0,0,0.45)" }}
       onClick={handleClose}
     >
@@ -1796,7 +1794,6 @@ function CandidateProfileModal({
             background: "rgba(255,255,255,0.05)",
             backdropFilter: "blur(32px)",
             WebkitBackdropFilter: "blur(32px)",
-            border: "1px solid rgba(255,255,255,0.08)",
             marginRight: 16,
           }}
         >
@@ -1896,7 +1893,7 @@ function CandidateProfileModal({
               </div>
 
               {/* Footer */}
-              <div className="flex flex-col gap-4 flex-shrink-0 p-8 pt-4" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+              <div className="flex flex-col gap-4 flex-shrink-0 p-8 pt-4">
                 <button
                   type="button"
                   onClick={() => setBookingStep("confirmed")}
@@ -2004,7 +2001,7 @@ function CandidateProfileModal({
               </div>
 
               {/* Footer */}
-              <div className="flex flex-col gap-4 flex-shrink-0 p-8 pt-4" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+              <div className="flex flex-col gap-4 flex-shrink-0 p-8 pt-4">
                 <button
                   type="button"
                   onClick={() => setBookingStep("next-confirmed")}
@@ -2284,7 +2281,14 @@ function CandidateProfileModal({
                     {/* Label row: "Match score" + info icon */}
                     <div className="flex items-center gap-1 mb-0.5">
                       <span className="text-sm text-[#f4f4f5]" style={{ lineHeight: "20px" }}>Match score</span>
-                      <Info size={14} style={{ color: "rgba(244,244,245,0.6)", flexShrink: 0 }} />
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setShowScoreInfo((v) => !v); }}
+                        className="flex items-center justify-center"
+                        style={{ lineHeight: 0 }}
+                      >
+                        <Info size={14} style={{ color: showScoreInfo ? "#4ad179" : "rgba(244,244,245,0.6)", flexShrink: 0 }} />
+                      </button>
                     </div>
                     <p className="text-base text-[#f4f4f5]" style={{ lineHeight: "24px" }}>
                       <span className="font-semibold">Strong match </span>
@@ -2311,28 +2315,41 @@ function CandidateProfileModal({
                       style={{ overflow: "hidden" }}
                     >
                       <div className="px-4 pb-4 flex flex-col gap-3">
-                        {/* HOW THIS SCORE IS CALCULATED — Figma 8895:37963 */}
-                        <div style={{
-                          background: "rgba(119,220,155,0.05)",
-                          border: "1px solid #4ad179",
-                          borderRadius: 12,
-                          padding: "16px",
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: 8,
-                        }}>
-                          <p style={{ fontSize: 12, fontWeight: 600, color: "#d2f3de", letterSpacing: "0.05em", lineHeight: "16px" }}>
-                            HOW THIS SCORE IS CALCULATED
-                          </p>
-                          <div style={{ display: "flex", gap: 16, fontSize: 14, lineHeight: "20px" }}>
-                            <span style={{ color: "#d4d4d8" }}>Skills <span style={{ color: "#f4f4f5" }}>60%</span></span>
-                            <span style={{ color: "#d4d4d8" }}>Experience <span style={{ color: "#f4f4f5" }}>25%</span></span>
-                            <span style={{ color: "#d4d4d8" }}>Certifications <span style={{ color: "#f4f4f5" }}>15%</span></span>
-                          </div>
-                          <p style={{ fontSize: 12, color: "#d2f3de", lineHeight: "16px" }}>
-                            Skills are weighted by how closely a candidate matches your role requirements. Scores above 80 indicate a strong fit.
-                          </p>
-                        </div>
+                        {/* HOW THIS SCORE IS CALCULATED — shown only when info icon is active */}
+                        <AnimatePresence initial={false}>
+                          {showScoreInfo && (
+                            <motion.div
+                              key="score-info"
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+                              style={{ overflow: "hidden" }}
+                            >
+                              <div style={{
+                                background: "rgba(119,220,155,0.05)",
+                                border: "1px solid #4ad179",
+                                borderRadius: 12,
+                                padding: "16px",
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 8,
+                              }}>
+                                <p style={{ fontSize: 12, fontWeight: 600, color: "#d2f3de", letterSpacing: "0.05em", lineHeight: "16px" }}>
+                                  HOW THIS SCORE IS CALCULATED
+                                </p>
+                                <div style={{ display: "flex", gap: 16, fontSize: 14, lineHeight: "20px" }}>
+                                  <span style={{ color: "#d4d4d8" }}>Skills <span style={{ color: "#f4f4f5" }}>60%</span></span>
+                                  <span style={{ color: "#d4d4d8" }}>Experience <span style={{ color: "#f4f4f5" }}>25%</span></span>
+                                  <span style={{ color: "#d4d4d8" }}>Certifications <span style={{ color: "#f4f4f5" }}>15%</span></span>
+                                </div>
+                                <p style={{ fontSize: 12, color: "#d2f3de", lineHeight: "16px" }}>
+                                  Skills are weighted by how closely a candidate matches your role requirements. Scores above 80 indicate a strong fit.
+                                </p>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                         {/* Skill rows */}
                         {profile.skills.map((skill, idx) => (
                           <div key={idx} className="flex items-center justify-between">
@@ -2628,7 +2645,6 @@ function CandidateProfileModal({
           {/* ── Sticky footer: View full profile + Invite to apply ── */}
           <div
             className="flex gap-4 flex-shrink-0 p-8 pt-4"
-            style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
           >
             {/* View full profile — Figma: bg rgba(255,255,255,0.05), rounded-[4px] */}
             <button
@@ -2714,7 +2730,8 @@ function CandidateProfileModal({
           </>
           )}
         </motion.div>
-    </motion.div>
+    </motion.div>,
+    document.body
   );
 }
 
@@ -3129,8 +3146,12 @@ export function JobPostingTemplate({
       return;
     }
 
+    // No progression tracked for this job (e.g. a mock/static card) — the
+    // defaultKanban was already applied on mount; leave it intact.
+    if (!progression) return;
+
     // First time opening this job - initialize from progression
-    if (!progression || progression.stage === 'initial') {
+    if (progression.stage === 'initial') {
       setKanban(KANBAN_CANDIDATES_EMPTY);
       return;
     }
@@ -3495,8 +3516,8 @@ export function JobPostingTemplate({
                     </div>
                   </div>
 
-                  {/* Kanban board — 4 equal columns */}
-                  <div className="flex gap-4 flex-1 min-h-0">
+                  {/* Kanban board — 4 equal columns, items-start so each column hugs its content height */}
+                  <div className="flex gap-4 items-start overflow-y-auto">
                     {(["screening", "shortlist", "interview", "hire"] as KanbanCol[]).map((col) => {
                       if (col === "hire" && (saraInterviewState === "hire" || saraInterviewState === "contract_offered" || saraInterviewState === "contract_accepted")) {
                         // Hire column with custom Compare UI
@@ -3506,8 +3527,8 @@ export function JobPostingTemplate({
                         return (
                           <div
                             key="hire"
-                            className="flex-1 flex flex-col gap-3 p-4 rounded-xl min-w-0"
-                            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+                            className="flex-1 flex flex-col gap-3 p-4 rounded-xl min-w-0 self-start"
+                            style={{ background: "rgba(255,255,255,0.05)" }}
                           >
                             <div className="flex-shrink-0">
                               <span className="inline-block px-3 py-1 rounded-full text-sm" style={{ background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.9)" }}>
