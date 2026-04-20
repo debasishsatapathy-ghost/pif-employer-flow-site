@@ -4674,7 +4674,7 @@ function CandidateComparisonModal({ onClose, onViewSara, onViewOmar, onMakeHirin
         position: "fixed", inset: 0, zIndex: 200,
         background: "rgba(0,0,0,0.75)",
         display: "flex", alignItems: "center", justifyContent: "center",
-        padding: 24, overflowY: "auto",
+        padding: 24,
       }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
@@ -4688,6 +4688,7 @@ function CandidateComparisonModal({ onClose, onViewSara, onViewOmar, onMakeHirin
           backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
           borderRadius: 16, border: "1px solid rgba(255,255,255,0.08)",
           width: "100%", maxWidth: 760,
+          height: "min(90vh, 840px)",
           display: "flex", flexDirection: "column", gap: 32,
           padding: 32, flexShrink: 0,
         }}
@@ -4726,9 +4727,9 @@ function CandidateComparisonModal({ onClose, onViewSara, onViewOmar, onMakeHirin
         </div>
 
         {/* ── Main panel (tabs + content) ── */}
-        <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 16, padding: 24, display: "flex", flexDirection: "column", gap: 24 }}>
+        <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 16, padding: 24, display: "flex", flexDirection: "column", gap: 24, flex: 1, minHeight: 0 }}>
           {/* Tabs */}
-          <div style={{ display: "flex", gap: 24, borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: 0 }}>
+          <div style={{ display: "flex", gap: 24 }}>
             {tabs.map((t) => (
               <button
                 key={t.key}
@@ -4748,6 +4749,7 @@ function CandidateComparisonModal({ onClose, onViewSara, onViewOmar, onMakeHirin
           </div>
 
           {/* Tab content */}
+          <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
           {activeTab === "recommendation" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
               {/* Panel Verdict */}
@@ -4824,12 +4826,12 @@ function CandidateComparisonModal({ onClose, onViewSara, onViewOmar, onMakeHirin
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 <p style={{ fontSize: 16, fontWeight: 600, color: "white", lineHeight: "24px" }}>Key Strengths</p>
                 <div style={{ display: "flex", gap: 16 }}>
-                  <div style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: 17 }}>
-                    <p style={{ fontSize: 11, fontWeight: 600, color: "#1dc558", letterSpacing: "0.08em", lineHeight: "16px", marginBottom: 12 }}>SARA'S EDGE</p>
-                    <p style={{ fontSize: 14, color: "#d4d4d8", lineHeight: "20px" }}>Published Prompt Engineering research. Gen AI score of 85 — highest of all applicants for this role.</p>
+                  <div style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderLeft: "4px solid #10b981", borderRadius: 10, paddingTop: 17, paddingBottom: 17, paddingLeft: 20, paddingRight: 17 }}>
+                    <p style={{ fontSize: 12, fontWeight: 600, color: "#10b981", letterSpacing: "0.6px", lineHeight: "20px", marginBottom: 12, textTransform: "uppercase" }}>SARA'S EDGE</p>
+                    <p style={{ fontSize: 14, color: "#d4d4d8", lineHeight: "20px" }}>Published Prompt Engineering research. Gen AI score of 95 — highest of all applicants for this role.</p>
                   </div>
-                  <div style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: 17 }}>
-                    <p style={{ fontSize: 11, fontWeight: 600, color: "#5ea1ff", letterSpacing: "0.08em", lineHeight: "16px", marginBottom: 12 }}>OMAR'S EDGE</p>
+                  <div style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderLeft: "4px solid #60a5fa", borderRadius: 10, paddingTop: 17, paddingBottom: 17, paddingLeft: 20, paddingRight: 17 }}>
+                    <p style={{ fontSize: 12, fontWeight: 600, color: "#60a5fa", letterSpacing: "0.6px", lineHeight: "20px", marginBottom: 12, textTransform: "uppercase" }}>OMAR'S EDGE</p>
                     <p style={{ fontSize: 14, color: "#d4d4d8", lineHeight: "20px" }}>Stronger on system architecture and production deployment — better fit if the roadmap is infrastructure-heavy.</p>
                   </div>
                 </div>
@@ -4838,12 +4840,12 @@ function CandidateComparisonModal({ onClose, onViewSara, onViewOmar, onMakeHirin
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 <p style={{ fontSize: 16, fontWeight: 600, color: "white", lineHeight: "24px" }}>Development Areas</p>
                 <div style={{ display: "flex", gap: 16 }}>
-                  <div style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: 17 }}>
-                    <p style={{ fontSize: 11, fontWeight: 600, color: "#9f9fa9", letterSpacing: "0.08em", lineHeight: "16px", marginBottom: 12 }}>SARA — WATCH</p>
+                  <div style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderLeft: "4px solid #fbbf24", borderRadius: 10, paddingTop: 17, paddingBottom: 17, paddingLeft: 20, paddingRight: 17 }}>
+                    <p style={{ fontSize: 12, fontWeight: 600, color: "#fbbf24", letterSpacing: "0.6px", lineHeight: "20px", marginBottom: 12, textTransform: "uppercase" }}>SARA — WATCH</p>
                     <p style={{ fontSize: 14, color: "#d4d4d8", lineHeight: "20px" }}>MLOps depth was light in both sessions. Will need early mentoring or pairing on CI/CD pipelines.</p>
                   </div>
-                  <div style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: 17 }}>
-                    <p style={{ fontSize: 11, fontWeight: 600, color: "#9f9fa9", letterSpacing: "0.08em", lineHeight: "16px", marginBottom: 12 }}>OMAR — WATCH</p>
+                  <div style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderLeft: "4px solid #fbbf24", borderRadius: 10, paddingTop: 17, paddingBottom: 17, paddingLeft: 20, paddingRight: 17 }}>
+                    <p style={{ fontSize: 12, fontWeight: 600, color: "#fbbf24", letterSpacing: "0.6px", lineHeight: "20px", marginBottom: 12, textTransform: "uppercase" }}>OMAR — WATCH</p>
                     <p style={{ fontSize: 14, color: "#d4d4d8", lineHeight: "20px" }}>Higher stress markers (31 vs 18) and reduced fluency when switching topics rapidly under pressure.</p>
                   </div>
                 </div>
@@ -4856,6 +4858,7 @@ function CandidateComparisonModal({ onClose, onViewSara, onViewOmar, onMakeHirin
               <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 14 }}>Content coming soon</p>
             </div>
           )}
+          </div>
         </div>
 
         {/* ── Footer ── */}
@@ -5335,7 +5338,7 @@ function OfferContractModal({ activeTab, onTabChange, onBack, onClose, onSendOff
             </div>
 
             {/* Tab content — fixed height so switching tabs doesn't resize the modal */}
-            <div style={{ minHeight: TAB_CONTENT_MIN_H }}>
+            <div style={{ height: TAB_CONTENT_MIN_H, overflowY: "auto" }}>
               {activeTab === "summary" ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
                   {summaryRows.map(({ label, value, green }) => (
