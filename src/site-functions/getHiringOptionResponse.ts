@@ -12,7 +12,7 @@
 
 const RESPONSES: Record<string, string> = {
   'hiring-metrics':
-    "Here's a quick look at your hiring. You have 31 active applicants " +
+    "Here's a quick look at your hiring. You have 107 active applicants " +
     "with a strong average match time of 4.2 days. Skill readiness has dropped to 79% " +
     "— down 5% since last month — leading to increased screening time. " +
     "Your pipeline is healthy, but refining your job descriptions will close this quality gap.",
