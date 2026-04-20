@@ -33,8 +33,20 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
 
   // ── Phase state ─────────────────────────────────────────────────────────────
   // 'loading' — avatar is starting up; show only the pulsing circle + spinner.
-  // 'ready'   — live video has actual frames (canplay fired) OR 20 s fallback.
+  // 'ready'   — live video has actual frames (canplay fired) AND replay
+  //             suppression window has elapsed, OR avatar feature unavailable.
   const [popupPhase, setPopupPhase] = useState<'loading' | 'ready'>('loading');
+
+  // ── Replay suppression window ─────────────────────────────────────────────
+  // When the Mobeus avatar worker reconnects (e.g. after a chat session that
+  // said "Success! This role has been posted."), it replays the last TTS on
+  // the new audio track. We suppress this by keeping the live video hidden and
+  // the audio element muted for REPLAY_SUPPRESS_MS after the popup opens.
+  // After that window both are enabled simultaneously so the user never sees
+  // silent lip-sync — they see the static photo, then the avatar appears
+  // fully-formed and audible on its first word ("How can I help?").
+  const REPLAY_SUPPRESS_MS = 2500;
+  const [replaySuppressed, setReplaySuppressed] = useState(false);
 
   // True only when the <video> element has actual decoded frames.
   // avatarVideoTrack being non-null only means LiveKit subscribed the track —
@@ -56,14 +68,6 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
   // filtering out any in-flight greeting or stale Back-response transcripts.
   const optionClickTimeRef = useRef<Date | null>(null);
   const CAPTION_GRACE_MS = 600;
-
-  // Timestamp when the popup last became open. Used to compute how much of the
-  // audio swallow window (AUDIO_SWALLOW_MS) has already elapsed when the avatar
-  // audio element arrives, so unmuting is delayed relative to popup-open time
-  // rather than element-arrival time. This swallows any "Success! This role has
-  // been posted." speech that the Mobeus platform replays on avatar reconnect.
-  const popupOpenTimeRef = useRef<number | null>(null);
-  const AUDIO_SWALLOW_MS = 2500;
 
   // Live transcript subscription for real-time closed captions
   const transcripts = useVoiceSessionStore((s) => s.transcripts);
@@ -138,7 +142,8 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
   );
 
   // ── Transition to ready when video is truly streaming ───────────────────────
-  const showLiveVideo = avatarEnabled && !!avatarVideoTrack && videoReady;
+  // replaySuppressed must be true so we never show live video while muted.
+  const showLiveVideo = avatarEnabled && !!avatarVideoTrack && videoReady && replaySuppressed;
 
   useEffect(() => {
     if (showLiveVideo || !avatarAvailable) {
@@ -147,12 +152,13 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
   }, [showLiveVideo, avatarAvailable]);
 
   // ── Notify EmployerDashboard when video is ready so it fires the greeting ────
-  // The greeting kick (sendText lk.chat) is sent AFTER frames are flowing so the
-  // agent speaks only once the avatar face is already visible in the circle.
+  // Fires only when showLiveVideo becomes true — i.e. frames are flowing AND
+  // the replay suppression window has elapsed. At that exact moment the audio
+  // is also unmuted, so the greeting arrives into a fully-live, audible avatar.
   useEffect(() => {
-    if (!videoReady || !open) return;
+    if (!showLiveVideo || !open) return;
     window.dispatchEvent(new CustomEvent('hiring-avatar-video-ready'));
-  }, [videoReady, open]);
+  }, [showLiveVideo, open]);
 
   // ── Unlock AudioContext on popup open (user gesture just occurred) ───────────
   // The popup opens from a user click. We use that gesture window to resume
@@ -171,41 +177,36 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
     } catch {}
   }, [open]);
 
-  // ── Record popup-open timestamp ──────────────────────────────────────────────
+  // ── Replay suppression timer ──────────────────────────────────────────────
+  // Starts the REPLAY_SUPPRESS_MS countdown on popup open. When it expires,
+  // replaySuppressed → true, which simultaneously enables the live video AND
+  // unmutes the audio (see effect below). Both happen in the same React render
+  // so there is never a moment of audible-but-invisible or visible-but-muted.
   useEffect(() => {
-    popupOpenTimeRef.current = open ? Date.now() : null;
+    if (!open) {
+      setReplaySuppressed(false);
+      return;
+    }
+    const timer = setTimeout(() => setReplaySuppressed(true), REPLAY_SUPPRESS_MS);
+    return () => clearTimeout(timer);
   }, [open]);
 
-  // ── Unmute avatar audio after swallow window ──────────────────────────────────
-  // We delay unmuting by up to AUDIO_SWALLOW_MS from popup-open time. If the
-  // avatar audio element arrives late (e.g. slow reconnect), the remaining delay
-  // is (AUDIO_SWALLOW_MS - elapsed). If it arrives early, the full delay applies.
-  // This silently discards any replayed prior-session speech (e.g. "Success! This
-  // role has been posted.") that the Mobeus platform streams when the avatar
-  // worker reconnects. The greeting ([HIRING_ASSISTANT]) is sent 2 s after video-
-  // ready, which is always well past the swallow window.
+  // ── Unmute avatar audio once replay suppression window has elapsed ────────
+  // replaySuppressed transitions to true at the same time showLiveVideo does,
+  // so audio and video are enabled in lock-step — no silent lip movement.
   useEffect(() => {
-    if (!open || !avatarAudioElement) return;
-
-    const elapsed = popupOpenTimeRef.current ? Date.now() - popupOpenTimeRef.current : 0;
-    const delay = Math.max(0, AUDIO_SWALLOW_MS - elapsed);
-
-    const doUnmute = () => {
-      avatarAudioElement.muted = false;
-      avatarAudioElement.volume = 1;
-      avatarAudioElement.play().catch(() => {
-        // One retry — covers AudioContext resuming slightly after attachment.
-        setTimeout(() => {
-          avatarAudioElement.muted = false;
-          avatarAudioElement.volume = 1;
-          avatarAudioElement.play().catch(() => {});
-        }, 500);
-      });
-    };
-
-    const timer = setTimeout(doUnmute, delay);
-    return () => clearTimeout(timer);
-  }, [avatarAudioElement, open]);
+    if (!open || !avatarAudioElement || !replaySuppressed) return;
+    avatarAudioElement.muted = false;
+    avatarAudioElement.volume = 1;
+    avatarAudioElement.play().catch(() => {
+      // One retry — covers AudioContext resuming slightly after attachment.
+      setTimeout(() => {
+        avatarAudioElement.muted = false;
+        avatarAudioElement.volume = 1;
+        avatarAudioElement.play().catch(() => {});
+      }, 500);
+    });
+  }, [avatarAudioElement, open, replaySuppressed]);
 
   // ── Listen for agent-driven option bubbles ───────────────────────────────────
   // The Mobeus agent calls callSiteFunction("showHiringOptions", { options: [...] })

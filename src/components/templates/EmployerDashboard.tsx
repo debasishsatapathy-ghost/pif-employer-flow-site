@@ -1672,25 +1672,17 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
         };
 
         // Wait for 'hiring-avatar-video-ready' — dispatched by HiringAvatarPopup
-        // when the <video> element fires canplay (actual frames flowing).
-        // 2-second grace delay after video-ready before sending [HIRING_ASSISTANT].
-        // Reason: if the user arrives from a chat session where the agent just
-        // said "Success! This role has been posted.", the Mobeus avatar may still
-        // be streaming that response when the popup opens. Sending the greeting
-        // immediately causes the agent to queue both responses and the user hears
-        // "Success!" then "How can I help?" in sequence. A 2 s pause lets any
-        // in-progress chat response finish before the greeting is triggered.
-        let greetingDelayTimer: ReturnType<typeof setTimeout> | null = null;
-        const onVideoReady = () => {
-          greetingDelayTimer = setTimeout(sendGreeting, 2000);
-        };
+        // once both conditions are true: (a) the <video> canplay event has fired
+        // (actual frames flowing) AND (b) the replay suppression window has elapsed.
+        // By the time this event fires the audio is already unmuted, so sending the
+        // greeting immediately is safe — there is no separate delay needed here.
+        const onVideoReady = () => sendGreeting();
         window.addEventListener('hiring-avatar-video-ready', onVideoReady, { once: true });
         // Hard fallback: if the event never fires (no avatar feature / timeout),
         // greet after 20 s so the popup doesn't stay silent forever.
         const fallbackTimer = setTimeout(sendGreeting, 20_000);
         greetingCleanupRef.current = () => {
           window.removeEventListener('hiring-avatar-video-ready', onVideoReady);
-          if (greetingDelayTimer !== null) clearTimeout(greetingDelayTimer);
           clearTimeout(fallbackTimer);
         };
       }
