@@ -44,18 +44,38 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
   // Agent-driven option bubbles received via callSiteFunction → showHiringOptions
   const [agentOptions, setAgentOptions] = useState<HiringOption[]>([]);
 
+  // Two-phase view: show option pills OR show live captions while agent speaks
+  const [popupView, setPopupView] = useState<'options' | 'speaking'>('options');
+
+  // Accumulates the labels of every option the user has clicked (never cleared
+  // within a session — used to filter remaining pills on subsequent phases).
+  const [selectedOptionLabels, setSelectedOptionLabels] = useState<string[]>([]);
+
+  // Snapshot of agent transcript IDs that existed BEFORE the most recent option
+  // click. Used to isolate captions that belong to the current answer only.
+  const baseTranscriptIdsRef = useRef<Set<string>>(new Set());
+
+  // Live transcript subscription for real-time closed captions
+  const transcripts = useVoiceSessionStore((s) => s.transcripts);
+
   // Stores cleanup for the current video element's listeners + track detach.
   const videoCleanupRef = useRef<(() => void) | null>(null);
 
-  // ── Reset on each open ───────────────────────────────────────────────────────
+  // ── Reset on each open/close ─────────────────────────────────────────────────
   useEffect(() => {
     if (!open) {
       setVideoReady(false);
+      setPopupView('options');
+      setSelectedOptionLabels([]);
+      baseTranscriptIdsRef.current = new Set();
       return;
     }
     setPopupPhase('loading');
     setAgentOptions([]);
     setVideoReady(false);
+    setPopupView('options');
+    setSelectedOptionLabels([]);
+    baseTranscriptIdsRef.current = new Set();
 
     // Hard fallback: show full UI after 20 s if video never becomes ready.
     const fallbackTimer = setTimeout(() => setPopupPhase('ready'), 20_000);
@@ -198,6 +218,48 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
   const displayOptions: HiringOption[] =
     agentOptions.length > 0 ? agentOptions : FALLBACK_PILLS;
 
+  // Caption text that arrived strictly AFTER the current option click.
+  // Shows the most recent agent segment (final or non-final) for real-time
+  // closed-caption feel. Returns null while waiting for the agent to start.
+  const liveCaptionText = (() => {
+    const newAgentSegments = transcripts.filter(
+      (t) => t.isAgent && !baseTranscriptIdsRef.current.has(t.id),
+    );
+    if (newAgentSegments.length === 0) return null;
+    return newAgentSegments[newAgentSegments.length - 1].text || null;
+  })();
+
+  // Remaining selectable options = all display options minus already-clicked ones.
+  const remainingOptions = displayOptions.filter(
+    (opt) => !selectedOptionLabels.includes(opt.label),
+  );
+
+  // Question text changes after the first selection to feel conversational.
+  const questionText = selectedOptionLabels.length === 0 ? 'How can I help?' : 'Anything else?';
+
+  // ── Option pill click handler ────────────────────────────────────────────────
+  // Snapshots existing agent transcript IDs so liveCaptionText only shows
+  // segments that arrive AFTER this click (isolates this answer's captions).
+  const handleOptionClick = (label: string) => {
+    baseTranscriptIdsRef.current = new Set(
+      transcripts.filter((t) => t.isAgent).map((t) => t.id),
+    );
+    setSelectedOptionLabels((prev) => [...prev, label]);
+    setPopupView('speaking');
+    onOptionClick(label);
+  };
+
+  // ── Back button handler ──────────────────────────────────────────────────────
+  // Transitions the UI back to the options view and triggers the agent to ask
+  // "Do you need anything else?" so the follow-up feels conversational.
+  const handleBack = () => {
+    setPopupView('options');
+    const { room: liveRoom } = useVoiceSessionStore.getState();
+    liveRoom?.localParticipant
+      ?.sendText('[HIRING_ASSISTANT] back to options', { topic: 'lk.chat' })
+      .catch(() => {});
+  };
+
   // ─────────────────────────────────────────────────────────────────────────────
 
   return (
@@ -215,7 +277,7 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
             right: 0,
             zIndex: 40,
             width: 460,
-            height: 300,
+            height: 420,        // FIX 2: expanded from 300 to clear speech bubble + pills
             pointerEvents: 'none',
           }}
         >
@@ -279,7 +341,7 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
                 objectFit: 'cover',
                 objectPosition: 'right top',
                 transform: 'scale(2)',
-                transformOrigin: '85% 20%',
+                transformOrigin: '90% 10%',   // FIX 1: was '85% 20%' — shifts crop right+up
                 display: showLiveVideo ? 'block' : 'none',
               }}
             />
@@ -321,26 +383,31 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
                   objectFit: 'cover',
                   objectPosition: 'right top',
                   transform: 'scale(2)',
-                  transformOrigin: '85% 20%',
+                  transformOrigin: '90% 10%',  // FIX 1: was '85% 20%' — shifts crop right+up
                 }}
               />
             )}
           </motion.div>
 
-          {/* ── Speech bubble + option pills — only in 'ready' phase ─────── */}
-          <AnimatePresence>
-            {popupPhase === 'ready' && (
-              <>
-                {/* Speech bubble */}
+          {/* ── Speech bubble + option pills / captions — only in 'ready' phase */}
+          <AnimatePresence mode="wait">
+            {popupPhase === 'ready' && popupView === 'options' && (
+              <motion.div
+                key="phase-options"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}
+              >
+                {/* Question speech bubble */}
                 <motion.div
-                  key="speech-bubble"
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
                   transition={{ duration: 0.25, delay: 0.05 }}
                   style={{
                     position: 'absolute',
-                    bottom: 210,
+                    bottom: 325,             // FIX 2: was 210 — pushed up to clear pills
                     right: 130,
                     background: 'rgba(39, 39, 42, 0.88)',
                     backdropFilter: 'blur(12px)',
@@ -364,7 +431,7 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
                       lineHeight: '24px',
                     }}
                   >
-                    How can I help?
+                    {questionText}
                   </span>
                   <button
                     onClick={onClose}
@@ -386,12 +453,11 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
                   </button>
                 </motion.div>
 
-                {/* Option bubbles — agent-provided or fallback */}
+                {/* Option pills — remaining unselected options, or "That's all" */}
                 <div
-                  key="option-pills"
                   style={{
                     position: 'absolute',
-                    bottom: 70,
+                    bottom: 175,             // FIX 2: was 70 — raised to clear avatar circle
                     right: 165,
                     display: 'flex',
                     flexDirection: 'column',
@@ -400,21 +466,60 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
                     pointerEvents: 'auto',
                   }}
                 >
-                  {displayOptions.map((opt, i) => (
+                  {remainingOptions.length > 0 ? (
+                    remainingOptions.map((opt, i) => (
+                      <motion.button
+                        key={opt.value ?? opt.label}
+                        initial={{ opacity: 0, x: 20, scale: 0.85 }}
+                        animate={{ opacity: 1, x: 0, scale: 1 }}
+                        exit={{ opacity: 0, x: 16, scale: 0.85 }}
+                        transition={{
+                          duration: 0.22,
+                          ease: [0.34, 1.56, 0.64, 1],
+                          delay: 0.15 + i * 0.07,
+                        }}
+                        onClick={() => handleOptionClick(opt.label)}
+                        style={{
+                          background: 'rgba(255,255,255,0.05)',
+                          border: '1px solid rgba(255,255,255,0.14)',
+                          borderRadius: 24,
+                          padding: '10px 18px',
+                          backdropFilter: 'blur(14px)',
+                          WebkitBackdropFilter: 'blur(14px)',
+                          cursor: 'pointer',
+                          outline: 'none',
+                          whiteSpace: 'nowrap',
+                          transition: 'background 0.15s ease, border-color 0.15s ease',
+                          fontFamily: "'Outfit', sans-serif",
+                          fontSize: 15,
+                          fontWeight: 400,
+                          color: '#f4f4f5',
+                          lineHeight: '24px',
+                          boxShadow: '0 2px 12px rgba(0,0,0,0.25)',
+                        }}
+                        onMouseEnter={(e) => {
+                          (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.10)';
+                          (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.22)';
+                        }}
+                        onMouseLeave={(e) => {
+                          (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.05)';
+                          (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.14)';
+                        }}
+                      >
+                        {opt.label}
+                      </motion.button>
+                    ))
+                  ) : (
+                    /* All options used — graceful exit pill */
                     <motion.button
-                      key={opt.value ?? opt.label}
+                      key="thats-all"
                       initial={{ opacity: 0, x: 20, scale: 0.85 }}
                       animate={{ opacity: 1, x: 0, scale: 1 }}
-                      exit={{ opacity: 0, x: 16, scale: 0.85 }}
-                      transition={{
-                        duration: 0.22,
-                        ease: [0.34, 1.56, 0.64, 1],
-                        delay: 0.15 + i * 0.07,
-                      }}
-                      onClick={() => onOptionClick(opt.label)}
+                      transition={{ duration: 0.22, ease: [0.34, 1.56, 0.64, 1], delay: 0.1 }}
+                      onClick={onClose}
                       style={{
-                        background: 'rgba(255, 255, 255, 0.05)',
-                        border: '1px solid rgba(255, 255, 255, 0.14)',
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(255,255,255,0.14)',
                         borderRadius: 24,
                         padding: '10px 18px',
                         backdropFilter: 'blur(14px)',
@@ -422,7 +527,6 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
                         cursor: 'pointer',
                         outline: 'none',
                         whiteSpace: 'nowrap',
-                        transition: 'background 0.15s ease, border-color 0.15s ease',
                         fontFamily: "'Outfit', sans-serif",
                         fontSize: 15,
                         fontWeight: 400,
@@ -430,20 +534,101 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
                         lineHeight: '24px',
                         boxShadow: '0 2px 12px rgba(0,0,0,0.25)',
                       }}
-                      onMouseEnter={(e) => {
-                        (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.10)';
-                        (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.22)';
-                      }}
-                      onMouseLeave={(e) => {
-                        (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.05)';
-                        (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.14)';
+                    >
+                      That&apos;s all
+                    </motion.button>
+                  )}
+                </div>
+              </motion.div>
+            )}
+
+            {/* ── PHASE B: speaking — real-time closed captions + Back button ── */}
+            {popupPhase === 'ready' && popupView === 'speaking' && (
+              <motion.div
+                key="phase-speaking"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                style={{
+                  position: 'absolute',
+                  bottom: 60,
+                  right: 185,
+                  maxWidth: 245,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-end',
+                  gap: 10,
+                  pointerEvents: 'auto',
+                }}
+              >
+                {/* Caption bubble */}
+                <div
+                  style={{
+                    background: 'rgba(39, 39, 42, 0.92)',
+                    backdropFilter: 'blur(12px)',
+                    WebkitBackdropFilter: 'blur(12px)',
+                    borderRadius: '16px 16px 0 16px',
+                    padding: '14px 18px',
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+                    width: '100%',
+                    minHeight: 52,
+                    display: 'flex',
+                    alignItems: liveCaptionText ? 'flex-start' : 'center',
+                    justifyContent: liveCaptionText ? 'flex-start' : 'center',
+                  }}
+                >
+                  {liveCaptionText ? (
+                    <span
+                      style={{
+                        fontFamily: "'Outfit', sans-serif",
+                        fontSize: 15,
+                        fontWeight: 400,
+                        color: '#f4f4f5',
+                        lineHeight: '22px',
                       }}
                     >
-                      {opt.label}
-                    </motion.button>
-                  ))}
+                      {liveCaptionText}
+                    </span>
+                  ) : (
+                    /* Waiting for agent to begin speaking */
+                    <div
+                      style={{
+                        width: 22,
+                        height: 22,
+                        borderRadius: '50%',
+                        border: '2px solid rgba(255,255,255,0.15)',
+                        borderTopColor: 'rgba(134,239,172,0.85)',
+                        animation: 'hiring-avatar-spin 0.8s linear infinite',
+                      }}
+                    />
+                  )}
                 </div>
-              </>
+
+                {/* Back button */}
+                <button
+                  onClick={handleBack}
+                  style={{
+                    background: 'rgba(255,255,255,0.06)',
+                    border: '1px solid rgba(255,255,255,0.14)',
+                    borderRadius: 24,
+                    padding: '8px 18px',
+                    cursor: 'pointer',
+                    outline: 'none',
+                    fontFamily: "'Outfit', sans-serif",
+                    fontSize: 14,
+                    fontWeight: 400,
+                    color: 'rgba(255,255,255,0.60)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    backdropFilter: 'blur(14px)',
+                    WebkitBackdropFilter: 'blur(14px)',
+                  }}
+                >
+                  ← Back
+                </button>
+              </motion.div>
             )}
           </AnimatePresence>
         </motion.div>
