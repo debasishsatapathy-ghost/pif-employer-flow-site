@@ -51,9 +51,11 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
   // within a session — used to filter remaining pills on subsequent phases).
   const [selectedOptionLabels, setSelectedOptionLabels] = useState<string[]>([]);
 
-  // Snapshot of agent transcript IDs that existed BEFORE the most recent option
-  // click. Used to isolate captions that belong to the current answer only.
-  const baseTranscriptIdsRef = useRef<Set<string>>(new Set());
+  // Timestamp of the most recent option pill click. Only transcripts that
+  // arrive CAPTION_GRACE_MS after this time are shown as live captions,
+  // filtering out any in-flight greeting or stale Back-response transcripts.
+  const optionClickTimeRef = useRef<Date | null>(null);
+  const CAPTION_GRACE_MS = 600;
 
   // Live transcript subscription for real-time closed captions
   const transcripts = useVoiceSessionStore((s) => s.transcripts);
@@ -67,7 +69,7 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
       setVideoReady(false);
       setPopupView('options');
       setSelectedOptionLabels([]);
-      baseTranscriptIdsRef.current = new Set();
+      optionClickTimeRef.current = null;
       return;
     }
     setPopupPhase('loading');
@@ -75,7 +77,7 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
     setVideoReady(false);
     setPopupView('options');
     setSelectedOptionLabels([]);
-    baseTranscriptIdsRef.current = new Set();
+    optionClickTimeRef.current = null;
 
     // Hard fallback: show full UI after 20 s if video never becomes ready.
     const fallbackTimer = setTimeout(() => setPopupPhase('ready'), 20_000);
@@ -218,12 +220,16 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
   const displayOptions: HiringOption[] =
     agentOptions.length > 0 ? agentOptions : FALLBACK_PILLS;
 
-  // Caption text that arrived strictly AFTER the current option click.
-  // Shows the most recent agent segment (final or non-final) for real-time
-  // closed-caption feel. Returns null while waiting for the agent to start.
+  // Caption text for the current answer — only shows transcripts that arrived
+  // at least CAPTION_GRACE_MS after the option was clicked. This filters out
+  // any in-flight greeting ("Hello! How can I help?") or stale Back-response
+  // transcript that races with the snapshot. The agent's actual answer always
+  // arrives 1–3 s after the click, well outside the 600 ms grace window.
   const liveCaptionText = (() => {
+    if (!optionClickTimeRef.current) return null;
+    const cutoff = new Date(optionClickTimeRef.current.getTime() + CAPTION_GRACE_MS);
     const newAgentSegments = transcripts.filter(
-      (t) => t.isAgent && !baseTranscriptIdsRef.current.has(t.id),
+      (t) => t.isAgent && t.timestamp > cutoff,
     );
     if (newAgentSegments.length === 0) return null;
     return newAgentSegments[newAgentSegments.length - 1].text || null;
@@ -238,26 +244,21 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
   const questionText = selectedOptionLabels.length === 0 ? 'How can I help?' : 'Anything else?';
 
   // ── Option pill click handler ────────────────────────────────────────────────
-  // Snapshots existing agent transcript IDs so liveCaptionText only shows
-  // segments that arrive AFTER this click (isolates this answer's captions).
+  // Records the click timestamp so liveCaptionText can filter out any
+  // in-flight transcripts (greeting / stale Back response) via the grace window.
   const handleOptionClick = (label: string) => {
-    baseTranscriptIdsRef.current = new Set(
-      transcripts.filter((t) => t.isAgent).map((t) => t.id),
-    );
+    optionClickTimeRef.current = new Date();
     setSelectedOptionLabels((prev) => [...prev, label]);
     setPopupView('speaking');
     onOptionClick(label);
   };
 
   // ── Back button handler ──────────────────────────────────────────────────────
-  // Transitions the UI back to the options view and triggers the agent to ask
-  // "Do you need anything else?" so the follow-up feels conversational.
+  // Silently returns to the options view. No sendText — sending [HIRING_ASSISTANT]
+  // here caused the agent to re-fire its greeting ("Hello! How can I help?")
+  // which then raced with the next option click and appeared as a stale caption.
   const handleBack = () => {
     setPopupView('options');
-    const { room: liveRoom } = useVoiceSessionStore.getState();
-    liveRoom?.localParticipant
-      ?.sendText('[HIRING_ASSISTANT] back to options', { topic: 'lk.chat' })
-      .catch(() => {});
   };
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -335,13 +336,16 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
               muted={false}
               style={{
                 position: 'absolute',
-                inset: 0,
-                width: '100%',
-                height: '100%',
+                // Portrait-container approach: extend the video above and beyond
+                // the circle so the face (top of the video feed) falls within the
+                // visible 174px ring. The circle's overflow:hidden clips everything
+                // outside. No scale() needed — no more hair-clipping math issues.
+                top: '-55%',
+                left: '-5%',
+                width: '110%',
+                height: '210%',
                 objectFit: 'cover',
-                objectPosition: 'right top',
-                transform: 'scale(2)',
-                transformOrigin: '90% 10%',   // FIX 1: was '85% 20%' — shifts crop right+up
+                objectPosition: '70% top',
                 display: showLiveVideo ? 'block' : 'none',
               }}
             />
@@ -377,13 +381,12 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
                 alt="AI Assistant"
                 style={{
                   position: 'absolute',
-                  inset: 0,
-                  width: '100%',
-                  height: '100%',
+                  top: '-55%',
+                  left: '-5%',
+                  width: '110%',
+                  height: '210%',
                   objectFit: 'cover',
-                  objectPosition: 'right top',
-                  transform: 'scale(2)',
-                  transformOrigin: '90% 10%',  // FIX 1: was '85% 20%' — shifts crop right+up
+                  objectPosition: '70% top',
                 }}
               />
             )}
