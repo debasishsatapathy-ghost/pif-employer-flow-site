@@ -303,27 +303,45 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
           transition={{ duration: 0.25 }}
           style={{
             position: 'fixed',
-            bottom: 0,
-            right: 0,
+            bottom: 16,
+            right: 16,
             zIndex: 40,
-            width: 460,
-            height: 420,        // FIX 2: expanded from 300 to clear speech bubble + pills
+            width: 480,
+            height: 440,
             pointerEvents: 'none',
           }}
         >
-          {/* ── Green radial glow ─────────────────────────────────────────── */}
+          {/* ── Glow — two-layer radial to match Figma 10954:73901 + 10954:73902 ─── */}
+          {/* Layer 1: dark deep-teal base (Figma 10954:73901 / 12055:28623).
+              The Figma asset is ~757×813 px centered behind the avatar area. */}
           <div
             style={{
               position: 'absolute',
-              bottom: -70,
-              right: -70,
-              width: 320,
-              height: 320,
-             
+              top: '50%',
+              left: '72%',
+              transform: 'translate(-50%, -50%)',
+              width: 760,
+              height: 820,
               borderRadius: '50%',
               background:
-                'radial-gradient(ellipse 55.48% 55.48% at 50.00% 43.01%, rgba(30, 210, 94, 0.60) 34%, rgba(54, 137, 255, 0.60) 100%)',
-              filter: 'blur(96px)',
+                'radial-gradient(ellipse at center, rgba(5,42,26,0.97) 0%, rgba(3,25,15,0.72) 42%, transparent 68%)',
+              filter: 'blur(30px)',
+              pointerEvents: 'none',
+            }}
+          />
+          {/* Layer 2: bright teal-green overlay (Figma 10954:73902). */}
+          <div
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '72%',
+              transform: 'translate(-50%, -50%)',
+              width: 760,
+              height: 820,
+              borderRadius: '50%',
+              background:
+                'radial-gradient(ellipse at center, rgba(22,120,70,0.46) 0%, rgba(12,78,44,0.22) 44%, transparent 70%)',
+              filter: 'blur(55px)',
               pointerEvents: 'none',
             }}
           />
@@ -480,11 +498,13 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
                   transition={{ duration: 0.25, delay: 0.05 }}
                   style={{
                     position: 'absolute',
-                    bottom: 185,
-                    right: 130,
+                    bottom: 45,
+                    right: 183,
+                    width: 'max-content',
+                    maxWidth: 215,
                     display: 'flex',
                     flexDirection: 'column',
-                    alignItems: 'flex-end',
+                    alignItems: 'flex-start',
                     gap: 12,
                     pointerEvents: 'none',
                   }}
@@ -541,7 +561,7 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
                     style={{
                       display: 'flex',
                       flexDirection: 'column',
-                      alignItems: 'flex-end',
+                      alignItems: 'flex-start',
                       gap: 8,
                       pointerEvents: 'auto',
                     }}
@@ -633,12 +653,13 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
                 transition={{ duration: 0.2 }}
                 style={{
                   position: 'absolute',
-                  bottom: 60,
-                  right: 185,
-                  maxWidth: 245,
+                  bottom: 45,
+                  right: 195,
+                  width: 'max-content',
+                  maxWidth: 260,
                   display: 'flex',
                   flexDirection: 'column',
-                  alignItems: 'flex-end',
+                  alignItems: 'flex-start',
                   gap: 10,
                   pointerEvents: 'auto',
                 }}
