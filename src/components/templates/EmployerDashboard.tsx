@@ -14,10 +14,7 @@ import { JobProgressionManager } from "@/components/JobProgressionManager";
 import type { JobPostingResponse } from "@/lib/employerApi";
 import type { SidebarJob } from "@/components/employer/JobPostingSidebar";
 import {
-  Search,
   MapPin,
-  Mail,
-  GraduationCap,
   Plus,
   Bell,
   ChevronDown,
@@ -791,11 +788,11 @@ function parseJobData(text: string): {
 
 /* ── Sidebar icons ───────────────────────────────────────────────────────── */
 const sidebarIcons = [
-  { icon: Search, label: "Search" },
-  { icon: MapPin, label: "Locations" },
-  { icon: Mail, label: "Messages" },
-  { icon: GraduationCap, label: "Training" },
-  { icon: Plus, label: "New" },
+  { img: "/Agentic Assist Icons.png", label: "Talent Search Agent" },
+  { img: "/Agentic Assist Icons (1).png", label: "Screening Agent" },
+  { img: "/Agentic Assist Icons (2).png", label: "Communications Agent" },
+  { img: "/Agentic Assist Icons (3).png", label: "Training Agent" },
+  { img: "/Agentic Assist Icons (4).png", label: "Add Agents" },
 ];
 
 /* ── Sparkle icon ────────────────────────────────────────────────────────── */
@@ -1267,6 +1264,7 @@ function ChatView({
 export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
   const [activeTab, setActiveTab] = useState<NavTab>("home");
   const [hiringKey, setHiringKey] = useState(0);
+  const [hoveredSidebarIcon, setHoveredSidebarIcon] = useState<number | null>(null);
   const [chatMode, setChatMode] = useState(false);
   const [avatarMode, setAvatarMode] = useState(false); // default: text home (image 2); avatar (image 1) on explicit click
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -1923,26 +1921,83 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
       </motion.header>
 
       {/* ── Below-header row — sidebar (left) + centered content (right) ── */}
-      <div className={`flex-1 min-h-0 flex ${activeTab === "hiring" ? "overflow-y-hidden overflow-x-auto" : "overflow-hidden"}`}>
+      <div className={`flex-1 min-h-0 flex pl-8 ${activeTab === "hiring" ? "overflow-y-hidden overflow-x-auto" : "overflow-hidden"}`}>
 
-      {/* Left sidebar — Figma pill container */}
+      {/* Left sidebar — Figma pill container: 396px from viewport top (header=96px, so 300px top-pad here) */}
       <motion.aside
         initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.45 }}
-        className="hidden md:flex relative z-20 flex-col items-center justify-center"
-        style={{ width: 68, flexShrink: 0 }}>
-        <div className="flex flex-col items-center gap-2 p-2 rounded-[100px]"
-          style={{ background: 'rgba(255,255,255,0.05)' }}>
-          {sidebarIcons.map(({ icon: Icon, label }, i) => (
-            <button key={label} aria-label={label}
-              className="w-10 h-10 rounded-full flex items-center justify-center transition-colors"
-              style={i === 1
-                ? { background: 'rgba(30,210,94,0.15)', color: '#1ed25e' }
-                : { color: 'rgba(255,255,255,0.35)' }}
-              onMouseEnter={(e) => { if (i !== 1) (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.7)'; }}
-              onMouseLeave={(e) => { if (i !== 1) (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.35)'; }}>
-              <Icon size={20} />
-            </button>
-          ))}
+        className="hidden md:flex relative z-20 items-start justify-center"
+        style={{ width: 68, flexShrink: 0, paddingTop: 300 }}>
+        <div
+          style={{
+            display: 'flex',
+            padding: 8,
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            gap: 8,
+            borderRadius: '100px',
+            background: 'rgba(255, 255, 255, 0.05)',
+          }}
+        >
+          {sidebarIcons.map(({ img, label }, i) => {
+            const isHovered = hoveredSidebarIcon === i;
+            return (
+              <div key={label} style={{ position: 'relative' }}>
+                <button
+                  aria-label={label}
+                  className="transition-all duration-200"
+                  style={{
+                    boxSizing: 'border-box',
+                    display: 'flex',
+                    width: 40,
+                    height: 40,
+                    padding: 4,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    gap: 8,
+                    borderRadius: '100px',
+                    background: isHovered ? 'rgba(255,255,255,0.10)' : 'transparent',
+                  }}
+                  onMouseEnter={() => setHoveredSidebarIcon(i)}
+                  onMouseLeave={() => setHoveredSidebarIcon(null)}
+                >
+                  <img
+                    src={img}
+                    alt={label}
+                    style={{
+                      display: 'block',
+                      objectFit: 'contain',
+                      width: 32,
+                      height: 32,
+                      filter: (i >= 2 && !isHovered)
+                        ? 'brightness(0) saturate(0) invert(47%) opacity(0.85)'
+                        : 'none',
+                    }}
+                  />
+                </button>
+
+                {/* Tooltip label — appears to the right on hover */}
+                {isHovered && (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      left: 'calc(100% + 20px)',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      whiteSpace: 'nowrap',
+                      color: '#f4f4f5',
+                      fontSize: '14px',
+                      fontWeight: 400,
+                      lineHeight: '20px',
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    {label}
+                  </span>
+                )}
+              </div>
+            );
+          })}
         </div>
       </motion.aside>
 
@@ -2272,10 +2327,10 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
         {/* Mobile tab bar (xs only) */}
         <div className="sm:hidden flex-shrink-0 flex items-center justify-around px-4 py-2"
           style={{ background: "var(--surface-sidebar)", borderTop: "1px solid var(--surface-elevated)" }}>
-          {sidebarIcons.slice(0, 4).map(({ icon: Icon, label }) => (
+          {sidebarIcons.slice(0, 4).map(({ img, label }) => (
             <button key={label} aria-label={label}
               className="flex flex-col items-center gap-1 text-white/30 hover:text-white/60 transition-colors">
-              <Icon size={18} />
+              <img src={img} alt={label} width={18} height={18} style={{ display: 'block', objectFit: 'contain', opacity: 0.5 }} />
             </button>
           ))}
           <button
