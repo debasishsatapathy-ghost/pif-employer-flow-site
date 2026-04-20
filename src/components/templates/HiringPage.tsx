@@ -43,7 +43,7 @@ import {
 const CARD = { background: "rgba(255,255,255,0.045)" };
 
 /* ── pipeline ────────────────────────────────────────────────────────────── */
-const ROLES = ["Cloud Engineer", "Senior AI Developer"];
+const ROLES = ["Full Pipeline", "Senior AI Developer", "Cloud Engineer"];
 const BAR = [
   { label: "Interview",   color: "#1dc558", pct: 26 },
   { label: "Shortlisted", color: "#3689ff", pct: 46 },
@@ -1258,18 +1258,27 @@ export function HiringPage({ onSelectJob, onPostJob, apiJobs: externalJobs, apiJ
               {/* Pipeline — fills remaining width */}
               <Card className="flex-1 flex flex-col justify-between" style={{ height: 204 }}>
                 {/* header */}
-                <div className="flex items-center gap-3">
-                  <span className="text-base font-normal leading-6" style={{ color: "#d4d4d8" }}>Pipeline</span>
-                  <div className="ml-auto flex gap-2">
+                <div className="flex items-center">
+                  <div className="flex gap-2">
                     {ROLES.map((r) => (
                       <button
                         key={r} type="button"
                         onClick={() => setRole(r)}
-                        className="px-3 py-1 rounded-full text-sm font-normal leading-5 transition-colors"
+                        className="transition-all"
                         style={{
-                          background: role === r ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.05)",
+                          display: "flex",
+                          padding: "4px 12px",
+                          justifyContent: "center",
+                          alignItems: "center",
+                          gap: "4px",
+                          borderRadius: "100px",
+                          border: role === r ? "1px solid rgba(255, 255, 255, 0.10)" : "1px solid transparent",
+                          background: role === r ? "rgba(255, 255, 255, 0.15)" : "rgba(255, 255, 255, 0.05)",
                           color: "#f4f4f5",
-                          border: role === r ? "1px solid rgba(255,255,255,0.1)" : "none",
+                          fontSize: "14px",
+                          fontWeight: 400,
+                          lineHeight: "20px",
+                          whiteSpace: "nowrap",
                         }}
                       >
                         {r}
