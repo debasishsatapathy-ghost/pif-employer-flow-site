@@ -57,6 +57,14 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
   const optionClickTimeRef = useRef<Date | null>(null);
   const CAPTION_GRACE_MS = 600;
 
+  // Timestamp when the popup last became open. Used to compute how much of the
+  // audio swallow window (AUDIO_SWALLOW_MS) has already elapsed when the avatar
+  // audio element arrives, so unmuting is delayed relative to popup-open time
+  // rather than element-arrival time. This swallows any "Success! This role has
+  // been posted." speech that the Mobeus platform replays on avatar reconnect.
+  const popupOpenTimeRef = useRef<number | null>(null);
+  const AUDIO_SWALLOW_MS = 2500;
+
   // Live transcript subscription for real-time closed captions
   const transcripts = useVoiceSessionStore((s) => s.transcripts);
 
@@ -163,23 +171,40 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
     } catch {}
   }, [open]);
 
-  // ── Forcefully unmute avatar audio ───────────────────────────────────────────
-  // applyAudioRouting in the store sets muted=false but does not guarantee
-  // play() was called successfully (autoplay policy). We retry here.
+  // ── Record popup-open timestamp ──────────────────────────────────────────────
+  useEffect(() => {
+    popupOpenTimeRef.current = open ? Date.now() : null;
+  }, [open]);
+
+  // ── Unmute avatar audio after swallow window ──────────────────────────────────
+  // We delay unmuting by up to AUDIO_SWALLOW_MS from popup-open time. If the
+  // avatar audio element arrives late (e.g. slow reconnect), the remaining delay
+  // is (AUDIO_SWALLOW_MS - elapsed). If it arrives early, the full delay applies.
+  // This silently discards any replayed prior-session speech (e.g. "Success! This
+  // role has been posted.") that the Mobeus platform streams when the avatar
+  // worker reconnects. The greeting ([HIRING_ASSISTANT]) is sent 2 s after video-
+  // ready, which is always well past the swallow window.
   useEffect(() => {
     if (!open || !avatarAudioElement) return;
 
-    const tryPlay = () => {
+    const elapsed = popupOpenTimeRef.current ? Date.now() - popupOpenTimeRef.current : 0;
+    const delay = Math.max(0, AUDIO_SWALLOW_MS - elapsed);
+
+    const doUnmute = () => {
       avatarAudioElement.muted = false;
       avatarAudioElement.volume = 1;
-      return avatarAudioElement.play();
+      avatarAudioElement.play().catch(() => {
+        // One retry — covers AudioContext resuming slightly after attachment.
+        setTimeout(() => {
+          avatarAudioElement.muted = false;
+          avatarAudioElement.volume = 1;
+          avatarAudioElement.play().catch(() => {});
+        }, 500);
+      });
     };
 
-    tryPlay().catch(() => {
-      // One retry after 500 ms covers cases where the AudioContext resumes
-      // slightly after the element is attached.
-      setTimeout(() => tryPlay().catch(() => {}), 500);
-    });
+    const timer = setTimeout(doUnmute, delay);
+    return () => clearTimeout(timer);
   }, [avatarAudioElement, open]);
 
   // ── Listen for agent-driven option bubbles ───────────────────────────────────
@@ -303,6 +328,16 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
           />
 
           {/* ── Avatar circle — 174×174 px ────────────────────────────────── */}
+          {/*
+            The border and the overflow:hidden clip are on SEPARATE elements
+            intentionally. When overflow:hidden and border-radius share a
+            container with a scale(2)-transformed child, browsers can produce
+            dark rectangular artifacts at the rounded corners where GPU
+            compositing doesn't align perfectly with the CSS clip. Separating
+            them ensures the border is drawn cleanly and the inner clip element
+            uses translateZ(0) + WebkitMaskImage to force a dedicated GPU layer
+            that clips the scaled video without any bleed-through.
+          */}
           <motion.div
             initial={{ scale: 0.7, opacity: 0, y: 30 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -315,71 +350,42 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
               width: 174,
               height: 174,
               borderRadius: 1000,
-              overflow: 'hidden',
               // Pulsing border while loading, solid border when ready
               border: popupPhase === 'loading'
                 ? '12px solid rgba(22,163,74,0.35)'
-                : '12px solid rgba(255,255,255,0.05)',
+                : '12px solid rgba(22,163,74,0.55)',
               animation: popupPhase === 'loading' ? 'hiring-avatar-pulse 1.6s ease-in-out infinite' : 'none',
               background: 'radial-gradient(circle at 40% 40%, rgba(22,163,74,0.5), rgba(5,46,22,0.8))',
               pointerEvents: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
             }}
           >
-            {/* LIVE video — useCallback ref (videoRef) attaches the LiveKit
-                track when EITHER this element mounts OR the track arrives,
-                solving the race condition where track arrives before popup opens.
-                Hidden until videoReady (canplay fired) so the circle never
-                shows a black frame while the stream warms up. */}
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted={false}
+            {/* Inner clip layer — separated from the border element so that
+                overflow:hidden + border-radius correctly clips the scaled video
+                without dark rectangular corner artifacts. GPU compositing via
+                translateZ(0) and WebkitMaskImage ensures a clean circular clip. */}
+            <div
               style={{
                 position: 'absolute',
                 inset: 0,
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                objectPosition: 'right top',
-                transform: 'scale(2)',
-                transformOrigin: '100% 2.5%',
-                display: showLiveVideo ? 'block' : 'none',
+                borderRadius: 1000,
+                overflow: 'hidden',
+                transform: 'translateZ(0)',
+                WebkitMaskImage: '-webkit-radial-gradient(white, black)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
-            />
-
-            {/* Spinner while avatar worker is connecting */}
-            {showLoading && (
-              <div
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <div
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: '50%',
-                    border: '3px solid rgba(255,255,255,0.15)',
-                    borderTopColor: 'rgba(255,255,255,0.7)',
-                    animation: 'hiring-avatar-spin 0.8s linear infinite',
-                  }}
-                />
-              </div>
-            )}
-
-            {/* Static fallback — only when avatarAvailable is false */}
-            {showStaticFallback && (
-              <img
-                src="/avatar/avatar-full.png"
-                alt="AI Assistant"
+            >
+              {/* LIVE video — useCallback ref (videoRef) attaches the LiveKit
+                  track when EITHER this element mounts OR the track arrives,
+                  solving the race condition where track arrives before popup opens.
+                  Hidden until videoReady (canplay fired) so the circle never
+                  shows a black frame while the stream warms up. */}
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted={false}
                 style={{
                   position: 'absolute',
                   inset: 0,
@@ -389,9 +395,52 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
                   objectPosition: 'right top',
                   transform: 'scale(2)',
                   transformOrigin: '100% 2.5%',
+                  display: showLiveVideo ? 'block' : 'none',
                 }}
               />
-            )}
+
+              {/* Spinner while avatar worker is connecting */}
+              {showLoading && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: '50%',
+                      border: '3px solid rgba(255,255,255,0.15)',
+                      borderTopColor: 'rgba(255,255,255,0.7)',
+                      animation: 'hiring-avatar-spin 0.8s linear infinite',
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* Static fallback — only when avatarAvailable is false */}
+              {showStaticFallback && (
+                <img
+                  src="/avatar/avatar-full.png"
+                  alt="AI Assistant"
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    objectPosition: 'right top',
+                    transform: 'scale(2)',
+                    transformOrigin: '100% 2.5%',
+                  }}
+                />
+              )}
+            </div>
           </motion.div>
 
           {/* ── Speech bubble + option pills / captions — only in 'ready' phase */}

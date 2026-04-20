@@ -1620,18 +1620,6 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
       // Stop mute loop so new audio elements are not silenced
       muteCleanupRef.current?.();
 
-      // Immediately unmute any existing avatar audio element that was muted when
-      // the popup last closed. hideMatching / startMuteLoop both set muted=true on
-      // the element but do NOT remove it from the store, so it may still exist.
-      // tryPlay in HiringAvatarPopup only fires when avatarAudioElement changes —
-      // if the SAME element was re-muted it won't re-fire. Fix that here.
-      const existing = useVoiceSessionStore.getState().avatarAudioElement;
-      if (existing) {
-        existing.muted = false;
-        existing.volume = 1;
-        existing.play().catch(() => {});
-      }
-
       const { avatarAvailable, avatarEnabled, toggleAvatarHard, sessionState } =
         useVoiceSessionStore.getState();
 
