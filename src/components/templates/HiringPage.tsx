@@ -1222,7 +1222,7 @@ export function HiringPage({ onSelectJob, onPostJob, apiJobs: externalJobs, apiJ
       transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
       className="flex-1 min-h-[956px] overflow-hidden flex flex-col"
     >
-      <div className="flex flex-col items-center gap-10 px-8 pb-10 flex-1 min-h-0">
+      <div className="flex flex-col gap-10 pb-10 flex-1 min-h-0">
 
         {/* ── header ── */}
         <div className="flex items-center justify-between flex-shrink-0 w-full">
@@ -1253,7 +1253,7 @@ export function HiringPage({ onSelectJob, onPostJob, apiJobs: externalJobs, apiJ
           <div className="flex-1 min-w-0 min-h-0 flex flex-col gap-6">
 
             {/* Top stats row — flex: Pipeline(flex-1) + Avg time(204px) + Avg skill(204px), gap-6 */}
-            <div className="flex gap-6 flex-shrink-0">
+            <div className="flex gap-6 flex-shrink-0 w-full">
 
               {/* Pipeline — fills remaining width */}
               <Card className="flex-1 flex flex-col justify-between" style={{ height: 204 }}>
@@ -1318,8 +1318,8 @@ export function HiringPage({ onSelectJob, onPostJob, apiJobs: externalJobs, apiJ
                 </div>
               </Card>
 
-              {/* Avg. time to match — 204px fixed */}
-              <Card className="w-[204px] flex-shrink-0 flex flex-col justify-between" style={{ height: 204 }}>
+              {/* Avg. time to match — 204px fixed, p-4 (16px) + rounded-xl (12px) per Figma */}
+              <Card className="w-[204px] flex-shrink-0 flex flex-col justify-between" style={{ height: 204, padding: 16, borderRadius: 12 }}>
                 <span className="text-base text-white/55">Avg. time to match</span>
                 <div className="flex items-end gap-2">
                   <span className="text-[48px] font-semibold leading-none" style={{ color: "#1dc558" }}>4.2</span>
@@ -1331,8 +1331,8 @@ export function HiringPage({ onSelectJob, onPostJob, apiJobs: externalJobs, apiJ
                 </div>
               </Card>
 
-              {/* Avg. skill readiness — 204px fixed */}
-              <Card className="w-[204px] flex-shrink-0 flex flex-col justify-between" style={{ height: 204 }}>
+              {/* Avg. skill readiness — 204px fixed, p-4 (16px) + rounded-xl (12px) per Figma */}
+              <Card className="w-[204px] flex-shrink-0 flex flex-col justify-between" style={{ height: 204, padding: 16, borderRadius: 12 }}>
                 <span className="text-base text-white/55">Avg. skill readiness</span>
                 <div className="flex items-end gap-2">
                   <span className="text-[48px] font-semibold leading-none" style={{ color: "#ff9040" }}>79</span>
