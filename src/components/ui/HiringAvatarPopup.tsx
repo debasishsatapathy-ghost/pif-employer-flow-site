@@ -346,14 +346,9 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
                 width: '100%',
                 height: '100%',
                 objectFit: 'cover',
-                // '60% top' biases the crop slightly right of center and anchors
-                // the face to the very top of the element (circle top).
-                objectPosition: '60% top',
-                // Scale from the top so the pivot is at y=0 — the face stays AT
-                // the circle top edge and is never pushed above the overflow clip.
-                // (transformOrigin y=0% → 2×0−0=0 → no upward displacement.)
-                transform: 'scale(1.8)',
-                transformOrigin: '60% 0%',
+                objectPosition: 'right top',
+                transform: 'scale(2)',
+                transformOrigin: '90% 10%',
                 display: showLiveVideo ? 'block' : 'none',
               }}
             />
@@ -393,9 +388,9 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
                   width: '100%',
                   height: '100%',
                   objectFit: 'cover',
-                  objectPosition: '60% top',
-                  transform: 'scale(1.8)',
-                  transformOrigin: '60% 0%',
+                  objectPosition: 'right top',
+                  transform: 'scale(2)',
+                  transformOrigin: '90% 10%',
                 }}
               />
             )}
