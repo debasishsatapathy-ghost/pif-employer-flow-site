@@ -2229,12 +2229,12 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
                 )}
               </div>
 
-              {/* Hiring tab — outside the scrollable wrapper so it never scrolls */}
+              {/* Hiring tab — scrollable container; content sets its own minimum height */}
               {activeTab === "hiring" && (
                 <motion.div key="hiring"
                   initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                  className="flex-1 min-h-0 flex flex-col overflow-hidden">
+                  className="flex-1 min-h-0 flex flex-col overflow-y-auto">
                   <HiringTabContent
                     key={hiringKey}
                     prefetchedJobs={sessionCreatedJobs}

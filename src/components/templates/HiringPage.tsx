@@ -1220,7 +1220,7 @@ export function HiringPage({ onSelectJob, onPostJob, apiJobs: externalJobs, apiJ
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-      className="flex-1 min-h-0 overflow-hidden flex flex-col"
+      className="flex-1 min-h-[956px] overflow-hidden flex flex-col"
     >
       <div className="flex flex-col items-center gap-10 px-8 pb-10 flex-1 min-h-0">
 
