@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef, type ReactNode } fro
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  ChevronRight, ChevronDown, ChevronLeft, Star, Sparkles, MessageCircle, X, Pencil,
+  ChevronRight, ChevronDown, ChevronLeft, Star, Sparkles, X, Pencil,
   TrendingUp, Calendar, CheckCircle, ClipboardList, AlertCircle, ChevronsUp, Circle,
   ArrowUpDown, ListFilter, Mail, Briefcase, GraduationCap, Info, User, ArrowLeft,
 } from "lucide-react";
@@ -3769,18 +3769,6 @@ export function JobPostingTemplate({
           </AnimatePresence>
         </div>
 
-        {/* Floating Action Button */}
-        <motion.button
-          initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.4, delay: 0.3 }}
-          className="fixed bottom-6 right-6 px-5 py-3 rounded-full flex items-center gap-2 shadow-lg transition-all hover:scale-105 active:scale-95"
-          style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}
-        >
-          <MessageCircle size={18} />
-          <span className="text-sm font-semibold">
-            {mainTab === "talentPool" ? "Chat about talent pool" : "Chat about candidates"}
-          </span>
-        </motion.button>
 
       </div>
     </div>
