@@ -254,11 +254,17 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
   };
 
   // ── Back button handler ──────────────────────────────────────────────────────
-  // Silently returns to the options view. No sendText — sending [HIRING_ASSISTANT]
-  // here caused the agent to re-fire its greeting ("Hello! How can I help?")
-  // which then raced with the next option click and appeared as a stale caption.
+  // Returns to options view and triggers the agent to speak. The [HIRING_ASSISTANT]
+  // message causes the agent to say "Hello! How can I help?" as the audio cue —
+  // the UI bubble shows "Anything else?" for context. The 600 ms caption grace
+  // window (CAPTION_GRACE_MS) already prevents this greeting from leaking into
+  // the NEXT option click's captions, so the stale-caption bug is gone.
   const handleBack = () => {
     setPopupView('options');
+    const { room: liveRoom } = useVoiceSessionStore.getState();
+    liveRoom?.localParticipant
+      ?.sendText('[HIRING_ASSISTANT]', { topic: 'lk.chat' })
+      .catch(() => {});
   };
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -336,16 +342,18 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
               muted={false}
               style={{
                 position: 'absolute',
-                // Portrait-container approach: extend the video above and beyond
-                // the circle so the face (top of the video feed) falls within the
-                // visible 174px ring. The circle's overflow:hidden clips everything
-                // outside. No scale() needed — no more hair-clipping math issues.
-                top: '-55%',
-                left: '-5%',
-                width: '110%',
-                height: '210%',
+                inset: 0,
+                width: '100%',
+                height: '100%',
                 objectFit: 'cover',
-                objectPosition: '70% top',
+                // '60% top' biases the crop slightly right of center and anchors
+                // the face to the very top of the element (circle top).
+                objectPosition: '60% top',
+                // Scale from the top so the pivot is at y=0 — the face stays AT
+                // the circle top edge and is never pushed above the overflow clip.
+                // (transformOrigin y=0% → 2×0−0=0 → no upward displacement.)
+                transform: 'scale(1.8)',
+                transformOrigin: '60% 0%',
                 display: showLiveVideo ? 'block' : 'none',
               }}
             />
@@ -381,12 +389,13 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
                 alt="AI Assistant"
                 style={{
                   position: 'absolute',
-                  top: '-55%',
-                  left: '-5%',
-                  width: '110%',
-                  height: '210%',
+                  inset: 0,
+                  width: '100%',
+                  height: '100%',
                   objectFit: 'cover',
-                  objectPosition: '70% top',
+                  objectPosition: '60% top',
+                  transform: 'scale(1.8)',
+                  transformOrigin: '60% 0%',
                 }}
               />
             )}
@@ -403,85 +412,135 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
                 transition={{ duration: 0.2 }}
                 style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}
               >
-                {/* Question speech bubble */}
+                {/*
+                  Single flex column anchored at bottom: 185, right: 130.
+                  Bubble sits on top, pills stack below with a fixed 12px gap.
+                  This eliminates the fixed-position empty space that appeared
+                  when fewer pills were shown (e.g. after one option is selected).
+                */}
                 <motion.div
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.25, delay: 0.05 }}
                   style={{
                     position: 'absolute',
-                    bottom: 325,             // FIX 2: was 210 — pushed up to clear pills
+                    bottom: 185,
                     right: 130,
-                    background: 'rgba(39, 39, 42, 0.88)',
-                    backdropFilter: 'blur(12px)',
-                    WebkitBackdropFilter: 'blur(12px)',
-                    borderRadius: '16px 16px 0 16px',
-                    padding: '12px 16px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    whiteSpace: 'nowrap',
-                    pointerEvents: 'auto',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
-                  }}
-                >
-                  <span
-                    style={{
-                      fontFamily: "'Outfit', sans-serif",
-                      fontSize: 18,
-                      fontWeight: 400,
-                      color: '#f4f4f5',
-                      lineHeight: '24px',
-                    }}
-                  >
-                    {questionText}
-                  </span>
-                  <button
-                    onClick={onClose}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      color: 'rgba(255,255,255,0.5)',
-                      fontSize: 18,
-                      lineHeight: 1,
-                      padding: '0 2px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      outline: 'none',
-                    }}
-                    aria-label="Close"
-                  >
-                    ×
-                  </button>
-                </motion.div>
-
-                {/* Option pills — remaining unselected options, or "That's all" */}
-                <div
-                  style={{
-                    position: 'absolute',
-                    bottom: 175,             // FIX 2: was 70 — raised to clear avatar circle
-                    right: 165,
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'flex-end',
-                    gap: 8,
-                    pointerEvents: 'auto',
+                    gap: 12,
+                    pointerEvents: 'none',
                   }}
                 >
-                  {remainingOptions.length > 0 ? (
-                    remainingOptions.map((opt, i) => (
+                  {/* Question speech bubble */}
+                  <div
+                    style={{
+                      background: 'rgba(39, 39, 42, 0.88)',
+                      backdropFilter: 'blur(12px)',
+                      WebkitBackdropFilter: 'blur(12px)',
+                      borderRadius: '16px 16px 0 16px',
+                      padding: '12px 16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      whiteSpace: 'nowrap',
+                      pointerEvents: 'auto',
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontFamily: "'Outfit', sans-serif",
+                        fontSize: 18,
+                        fontWeight: 400,
+                        color: '#f4f4f5',
+                        lineHeight: '24px',
+                      }}
+                    >
+                      {questionText}
+                    </span>
+                    <button
+                      onClick={onClose}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: 'rgba(255,255,255,0.5)',
+                        fontSize: 18,
+                        lineHeight: 1,
+                        padding: '0 2px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        outline: 'none',
+                      }}
+                      aria-label="Close"
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  {/* Option pills — remaining unselected options, or "That's all" */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'flex-end',
+                      gap: 8,
+                      pointerEvents: 'auto',
+                    }}
+                  >
+                    {remainingOptions.length > 0 ? (
+                      remainingOptions.map((opt, i) => (
+                        <motion.button
+                          key={opt.value ?? opt.label}
+                          initial={{ opacity: 0, x: 20, scale: 0.85 }}
+                          animate={{ opacity: 1, x: 0, scale: 1 }}
+                          exit={{ opacity: 0, x: 16, scale: 0.85 }}
+                          transition={{
+                            duration: 0.22,
+                            ease: [0.34, 1.56, 0.64, 1],
+                            delay: 0.15 + i * 0.07,
+                          }}
+                          onClick={() => handleOptionClick(opt.label)}
+                          style={{
+                            background: 'rgba(255,255,255,0.05)',
+                            border: '1px solid rgba(255,255,255,0.14)',
+                            borderRadius: 24,
+                            padding: '10px 18px',
+                            backdropFilter: 'blur(14px)',
+                            WebkitBackdropFilter: 'blur(14px)',
+                            cursor: 'pointer',
+                            outline: 'none',
+                            whiteSpace: 'nowrap',
+                            transition: 'background 0.15s ease, border-color 0.15s ease',
+                            fontFamily: "'Outfit', sans-serif",
+                            fontSize: 15,
+                            fontWeight: 400,
+                            color: '#f4f4f5',
+                            lineHeight: '24px',
+                            boxShadow: '0 2px 12px rgba(0,0,0,0.25)',
+                          }}
+                          onMouseEnter={(e) => {
+                            (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.10)';
+                            (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.22)';
+                          }}
+                          onMouseLeave={(e) => {
+                            (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.05)';
+                            (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.14)';
+                          }}
+                        >
+                          {opt.label}
+                        </motion.button>
+                      ))
+                    ) : (
+                      /* All options used — graceful exit pill */
                       <motion.button
-                        key={opt.value ?? opt.label}
+                        key="thats-all"
                         initial={{ opacity: 0, x: 20, scale: 0.85 }}
                         animate={{ opacity: 1, x: 0, scale: 1 }}
-                        exit={{ opacity: 0, x: 16, scale: 0.85 }}
-                        transition={{
-                          duration: 0.22,
-                          ease: [0.34, 1.56, 0.64, 1],
-                          delay: 0.15 + i * 0.07,
-                        }}
-                        onClick={() => handleOptionClick(opt.label)}
+                        transition={{ duration: 0.22, ease: [0.34, 1.56, 0.64, 1], delay: 0.1 }}
+                        onClick={onClose}
                         style={{
                           background: 'rgba(255,255,255,0.05)',
                           border: '1px solid rgba(255,255,255,0.14)',
@@ -492,7 +551,6 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
                           cursor: 'pointer',
                           outline: 'none',
                           whiteSpace: 'nowrap',
-                          transition: 'background 0.15s ease, border-color 0.15s ease',
                           fontFamily: "'Outfit', sans-serif",
                           fontSize: 15,
                           fontWeight: 400,
@@ -500,48 +558,12 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
                           lineHeight: '24px',
                           boxShadow: '0 2px 12px rgba(0,0,0,0.25)',
                         }}
-                        onMouseEnter={(e) => {
-                          (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.10)';
-                          (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.22)';
-                        }}
-                        onMouseLeave={(e) => {
-                          (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.05)';
-                          (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.14)';
-                        }}
                       >
-                        {opt.label}
+                        That&apos;s all
                       </motion.button>
-                    ))
-                  ) : (
-                    /* All options used — graceful exit pill */
-                    <motion.button
-                      key="thats-all"
-                      initial={{ opacity: 0, x: 20, scale: 0.85 }}
-                      animate={{ opacity: 1, x: 0, scale: 1 }}
-                      transition={{ duration: 0.22, ease: [0.34, 1.56, 0.64, 1], delay: 0.1 }}
-                      onClick={onClose}
-                      style={{
-                        background: 'rgba(255,255,255,0.05)',
-                        border: '1px solid rgba(255,255,255,0.14)',
-                        borderRadius: 24,
-                        padding: '10px 18px',
-                        backdropFilter: 'blur(14px)',
-                        WebkitBackdropFilter: 'blur(14px)',
-                        cursor: 'pointer',
-                        outline: 'none',
-                        whiteSpace: 'nowrap',
-                        fontFamily: "'Outfit', sans-serif",
-                        fontSize: 15,
-                        fontWeight: 400,
-                        color: '#f4f4f5',
-                        lineHeight: '24px',
-                        boxShadow: '0 2px 12px rgba(0,0,0,0.25)',
-                      }}
-                    >
-                      That&apos;s all
-                    </motion.button>
-                  )}
-                </div>
+                    )}
+                  </div>
+                </motion.div>
               </motion.div>
             )}
 
