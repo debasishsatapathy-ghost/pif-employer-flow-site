@@ -315,21 +315,33 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
           <div
             style={{
               position: 'absolute',
-              bottom: -30,
-              right: -30,
+              bottom: -70,
+              right: -70,
               width: 320,
               height: 320,
+             
               borderRadius: '50%',
               background:
-                'radial-gradient(circle, rgba(22,163,74,0.45) 0%, rgba(16,185,129,0.22) 35%, transparent 70%)',
-              filter: 'blur(28px)',
+                'radial-gradient(ellipse 55.48% 55.48% at 50.00% 43.01%, rgba(30, 210, 94, 0.60) 34%, rgba(54, 137, 255, 0.60) 100%)',
+              filter: 'blur(96px)',
               pointerEvents: 'none',
             }}
           />
+       
+
 
           {/* ── Avatar circle — 174×174 px ────────────────────────────────── */}
           {/*
-            The border and the overflow:hidden clip are on SEPARATE elements
+<div style={{
+  position: 'absolute',
+  left: '0',
+  top: '0',
+  width: '96px',
+  height: '96px',
+  background: 'radial-gradient(ellipse 55.48% 55.48% at 50.00% 43.01%, rgba(30, 210, 94, 0.60) 34%, rgba(54, 137, 255, 0.60) 100%)',
+  borderRadius: '50%',
+  blur: '96px',
+}}></div>
             intentionally. When overflow:hidden and border-radius share a
             container with a scale(2)-transformed child, browsers can produce
             dark rectangular artifacts at the rounded corners where GPU
@@ -374,6 +386,7 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                backgroundColor: popupPhase === 'ready' ? '#5B676B' : 'transparent',
               }}
             >
               {/* LIVE video — useCallback ref (videoRef) attaches the LiveKit
@@ -394,8 +407,9 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
                   objectFit: 'cover',
                   objectPosition: 'right top',
                   transform: 'scale(2)',
-                  transformOrigin: '100% 2.5%',
+                  transformOrigin: '103% 2.5%',
                   display: showLiveVideo ? 'block' : 'none',
+                  
                 }}
               />
 
