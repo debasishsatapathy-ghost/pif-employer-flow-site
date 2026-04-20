@@ -4579,22 +4579,32 @@ function FeedbackModal({ onClose, onSubmit }: { onClose: () => void; onSubmit?: 
               <div style={{ display: "flex", flexDirection: "column", gap: 16, width: "100%", flexShrink: 0 }}>
                 <p style={{ fontSize: 16, fontWeight: 600, color: "white", lineHeight: "24px" }}>Hiring recommendation</p>
                 <div style={{ display: "flex", gap: 16 }}>
-                  {recOptions.map((opt) => (
-                    <button
-                      key={opt}
-                      onClick={() => setRecommendation(opt)}
-                      style={{
-                        flex: "1 0 0", padding: "10px 20px", borderRadius: 12,
-                        display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: 16,
-                        background: recommendation === opt ? "rgba(29,197,88,0.15)" : "rgba(255,255,255,0.05)",
-                        border: recommendation === opt ? "1px solid #1dc558" : "1px solid rgba(255,255,255,0.05)",
-                        color: "white", fontWeight: 600, fontSize: 16, lineHeight: "24px",
-                        cursor: "pointer", transition: "all 0.15s",
-                      }}
-                    >
-                      {opt}
-                    </button>
-                  ))}
+                  {recOptions.map((opt) => {
+                    const isNegative = opt === "No" || opt === "Strong No";
+                    const isSelected = recommendation === opt;
+                    const bg = isSelected ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.05)";
+                    const border = isSelected
+                      ? (isNegative ? "1px solid #FF4040" : "1px solid #1DC558")
+                      : "1px solid rgba(255,255,255,0.05)";
+                    const color = isSelected
+                      ? (isNegative ? "#FF8080" : "#1DC558")
+                      : "white";
+                    return (
+                      <button
+                        key={opt}
+                        onClick={() => setRecommendation(opt)}
+                        style={{
+                          flex: "1 0 0", padding: "10px 20px", borderRadius: 12,
+                          display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: 16,
+                          background: bg, border, color,
+                          fontWeight: 600, fontSize: 16, lineHeight: "24px",
+                          cursor: "pointer", transition: "all 0.15s",
+                        }}
+                      >
+                        {opt}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -5185,15 +5195,26 @@ function HiringDecisionConfirmModal({ vote, onVote, onClose, onNext }: {
           <div style={{ display: "flex", gap: 16 }}>
             {["No", "Stall", "Yes"].map((opt) => {
               const selected = vote === opt.toLowerCase();
+              const isNo = opt === "No";
+              const isYes = opt === "Yes";
+              const bg = selected ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.05)";
+              const border = selected
+                ? isNo  ? "1px solid #FF4040"
+                : isYes ? "1px solid #1DC558"
+                :         "1px solid rgba(245,158,11,0.7)"
+                : "1px solid rgba(255,255,255,0.05)";
+              const color = selected
+                ? isNo  ? "#FF8080"
+                : isYes ? "#1DC558"
+                :         "#f59e0b"
+                : "white";
               return (
                 <button
                   key={opt}
                   onClick={() => onVote(opt.toLowerCase())}
                   style={{
                     flex: 1, padding: "10px 20px", borderRadius: 12, fontSize: 16, fontWeight: 600, cursor: "pointer", lineHeight: "24px",
-                    background: selected ? "transparent" : "rgba(255,255,255,0.05)",
-                    border: selected ? "1.5px solid #1dc558" : "1px solid rgba(255,255,255,0.05)",
-                    color: selected ? "#1dc558" : "white",
+                    background: bg, border, color,
                     transition: "all 0.15s",
                   }}
                 >
