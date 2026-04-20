@@ -346,7 +346,7 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
                 objectFit: 'cover',
                 objectPosition: 'right top',
                 transform: 'scale(2)',
-                transformOrigin: '80% 0%',
+                transformOrigin: '100% 2.5%',
                 display: showLiveVideo ? 'block' : 'none',
               }}
             />
@@ -388,7 +388,7 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
                   objectFit: 'cover',
                   objectPosition: 'right top',
                   transform: 'scale(2)',
-                  transformOrigin: '80% 0%',
+                  transformOrigin: '100% 2.5%',
                 }}
               />
             )}
