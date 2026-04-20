@@ -1913,7 +1913,7 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
       </motion.header>
 
       {/* ── Below-header row — sidebar (left) + centered content (right) ── */}
-      <div className="flex-1 min-h-0 flex overflow-hidden">
+      <div className={`flex-1 min-h-0 flex ${activeTab === "hiring" ? "overflow-y-hidden overflow-x-auto" : "overflow-hidden"}`}>
 
       {/* Left sidebar — Figma pill container */}
       <motion.aside
@@ -1937,9 +1937,9 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
       </motion.aside>
 
       {/* ── Centering wrapper — fills remaining space after sidebar ── */}
-      <div className="relative z-10 flex-1 flex justify-center overflow-hidden">
-      {/* ── Main frame — 1264px, centered ── */}
-      <div className="w-[1264px] flex-shrink-0 flex flex-col overflow-hidden min-h-0">
+      <div className={`relative z-10 flex-1 flex justify-center overflow-hidden ${(activeTab === "home" && chatMode) || activeTab === "hiring" ? "h-full" : "min-h-full"}`}>
+      {/* ── Main frame — responsive up to 1264px, centered ── */}
+      <div className={`w-full max-w-[1264px] flex flex-col ${activeTab === "home" && chatMode ? "h-full overflow-hidden" : activeTab === "hiring" ? "h-full" : "min-h-full"}`}>
 
         {/* Mobile tab nav */}
         {!chatMode && (
@@ -2234,7 +2234,8 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
                 <motion.div key="hiring"
                   initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                  className="flex-1 min-h-0 flex flex-col overflow-y-auto">
+                  className="flex-1 min-h-0 flex flex-col overflow-y-auto"
+                  style={{ maxHeight: 1040 }}>
                   <HiringTabContent
                     key={hiringKey}
                     prefetchedJobs={sessionCreatedJobs}

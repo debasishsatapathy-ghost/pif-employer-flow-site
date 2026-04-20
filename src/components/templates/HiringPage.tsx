@@ -251,7 +251,7 @@ function SubRow({ sub, icon, color }: { sub: string; icon?: "plus"|"check"|"warn
 function MetricCard({ m }: { m: Metric }) {
   return (
     <div
-      className="flex-1 flex flex-col justify-between min-w-0 rounded-xl overflow-hidden"
+      className="flex-1 flex flex-col justify-between min-w-0 rounded-xl overflow-hidden max-h-[150px]"
       style={{ background: "rgba(255,255,255,0.05)", padding: 12 }}
     >
       {/* top: number + label row, then visual dots — gap-2 (8px) between */}
