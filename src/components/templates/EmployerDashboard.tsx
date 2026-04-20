@@ -890,11 +890,14 @@ function HiringTabContent({
   onPostJob,
   prefetchedJobs,
   prefetchedJobsLoading,
+  onJobDetailChange,
 }: {
   onPostJob?: () => void;
   /** Jobs pre-fetched by the parent on mount — skips the internal fetch when provided. */
   prefetchedJobs?: JobPostingResponse[];
   prefetchedJobsLoading?: boolean;
+  /** Notifies the parent when a job detail page is opened (true) or closed (false). */
+  onJobDetailChange?: (isOpen: boolean) => void;
 }) {
   const [selectedJob, setSelectedJob] = useState<SelectedJob | null>(null);
   // Seed from parent-provided data; stays in sync via the effect below.
@@ -916,13 +919,15 @@ function HiringTabContent({
   const handleSelectJob = useCallback(
     (id: string, job: { title: string; department: string; location: string; status: string; posted_at?: string }) => {
       setSelectedJob({ id, ...job });
+      onJobDetailChange?.(true);
     },
-    [],
+    [onJobDetailChange],
   );
 
   const handleBackToHiring = useCallback(() => {
     setSelectedJob(null);
-  }, []);
+    onJobDetailChange?.(false);
+  }, [onJobDetailChange]);
 
   if (selectedJob) {
     return (
@@ -940,6 +945,8 @@ function HiringTabContent({
             status: job.status,
             posted_at: job.postedAt,
           });
+          // Already in job detail view — stays true, no state change needed
+          onJobDetailChange?.(true);
         }}
       />
     );
@@ -1294,6 +1301,9 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
   // Cleanup for the avatarVideoTrack subscription + fallback timer used by the greeting kick.
   const greetingCleanupRef = useRef<(() => void) | null>(null);
   const [hiringAvatarOpen, setHiringAvatarOpen] = useState(false);
+  // True when the user has drilled into a JobPostingTemplate within the hiring tab.
+  // The avatar popup must not be shown or openable on that sub-page.
+  const [isJobDetailOpen, setIsJobDetailOpen] = useState(false);
   const promptOptionsRef = useRef<PromptStepOptions>({ step1: [], step2: [], step3: [] });
   const collectedJobRef = useRef<{ role?: string; experience?: string; location?: string }>({});
   const pendingFieldRef = useRef<"role" | "experience" | "location" | null>(null);
@@ -2240,6 +2250,11 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
                     key={hiringKey}
                     prefetchedJobs={sessionCreatedJobs}
                     prefetchedJobsLoading={jobsFetching}
+                    onJobDetailChange={(isOpen) => {
+                      setIsJobDetailOpen(isOpen);
+                      // Auto-close the avatar popup when navigating into a job detail
+                      if (isOpen) setHiringAvatarOpen(false);
+                    }}
                     onPostJob={() => {
                       setActiveTab("home");
                       setMessages(prev => [...prev, { id: `u-${Date.now()}`, role: "user", text: "Post a job" }]);
@@ -2274,8 +2289,8 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
       </div>{/* end centering wrapper */}
       </div>{/* end below-header row */}
 
-      {/* Hiring Avatar Popup — only on hiring tab */}
-      {activeTab === 'hiring' && (
+      {/* Hiring Avatar Popup — only on hiring dashboard, not job detail sub-page */}
+      {activeTab === 'hiring' && !isJobDetailOpen && (
         <HiringAvatarPopup
           open={hiringAvatarOpen}
           onClose={() => setHiringAvatarOpen(false)}
@@ -2297,11 +2312,11 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
       {/* Glassmorphic AI Avatar FAB — bottom-right corner, all screens */}
       <AvatarFAB
         onPersonClick={() => {
-          if (activeTab === 'hiring') {
+          if (activeTab === 'hiring' && !isJobDetailOpen) {
             setHiringAvatarOpen(prev => !prev);
           }
         }}
-        hidden={hiringAvatarOpen && activeTab === 'hiring'}
+        hidden={hiringAvatarOpen && activeTab === 'hiring' && !isJobDetailOpen}
       />
     </div>
   );
