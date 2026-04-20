@@ -254,16 +254,14 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
   };
 
   // ── Back button handler ──────────────────────────────────────────────────────
-  // Returns to options view and triggers the agent to speak. The [HIRING_ASSISTANT]
-  // message causes the agent to say "Hello! How can I help?" as the audio cue —
-  // the UI bubble shows "Anything else?" for context. The 600 ms caption grace
-  // window (CAPTION_GRACE_MS) already prevents this greeting from leaking into
-  // the NEXT option click's captions, so the stale-caption bug is gone.
+  // Sends [HIRING_BACK] which triggers HA-3 in the system prompt. HA-3 calls
+  // showHiringOptions then speaks "Do you need anything else?" — distinct from
+  // [HIRING_ASSISTANT] (HA-1) which would incorrectly say "Hello! How can I help?".
   const handleBack = () => {
     setPopupView('options');
     const { room: liveRoom } = useVoiceSessionStore.getState();
     liveRoom?.localParticipant
-      ?.sendText('[HIRING_ASSISTANT]', { topic: 'lk.chat' })
+      ?.sendText('[HIRING_BACK]', { topic: 'lk.chat' })
       .catch(() => {});
   };
 
@@ -348,7 +346,7 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
                 objectFit: 'cover',
                 objectPosition: 'right top',
                 transform: 'scale(2)',
-                transformOrigin: '90% 10%',
+                transformOrigin: '80% 0%',
                 display: showLiveVideo ? 'block' : 'none',
               }}
             />
@@ -390,7 +388,7 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
                   objectFit: 'cover',
                   objectPosition: 'right top',
                   transform: 'scale(2)',
-                  transformOrigin: '90% 10%',
+                  transformOrigin: '80% 0%',
                 }}
               />
             )}
