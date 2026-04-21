@@ -58,9 +58,11 @@ function handleBtnMouseLeave(e: React.MouseEvent<HTMLButtonElement>) {
 interface AvatarFABProps {
   onPersonClick?: () => void;
   hidden?: boolean;
+  /** When false (track not yet received) the person button shows a spinner and ignores clicks */
+  avatarReady?: boolean;
 }
 
-export function AvatarFAB({ onPersonClick, hidden }: AvatarFABProps) {
+export function AvatarFAB({ onPersonClick, hidden, avatarReady = false }: AvatarFABProps) {
   const [hovered, setHovered] = useState(false);
   if (hidden) return null;
 
@@ -102,13 +104,30 @@ export function AvatarFAB({ onPersonClick, hidden }: AvatarFABProps) {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 16, scale: 0.75 }}
               transition={{ duration: 0.22, ease: expandEasing, delay: 0 }}
-              style={glassBtnStyle}
-              aria-label="AI Avatar"
-              onClick={onPersonClick}
-              onMouseEnter={handleBtnMouseEnter}
-              onMouseLeave={handleBtnMouseLeave}
+              style={{
+                ...glassBtnStyle,
+                cursor: avatarReady ? 'pointer' : 'default',
+                opacity: avatarReady ? 1 : 0.55,
+              }}
+              aria-label={avatarReady ? 'AI Avatar' : 'AI Avatar connecting…'}
+              onClick={avatarReady ? onPersonClick : undefined}
+              onMouseEnter={avatarReady ? handleBtnMouseEnter : undefined}
+              onMouseLeave={avatarReady ? handleBtnMouseLeave : undefined}
             >
-              <PersonAIIcon />
+              {avatarReady ? (
+                <PersonAIIcon />
+              ) : (
+                <div
+                  style={{
+                    width: 20,
+                    height: 20,
+                    borderRadius: '50%',
+                    border: '2px solid rgba(255,255,255,0.18)',
+                    borderTopColor: 'rgba(255,255,255,0.75)',
+                    animation: 'hiring-avatar-spin 0.8s linear infinite',
+                  }}
+                />
+              )}
             </motion.button>
           </motion.div>
         ) : (

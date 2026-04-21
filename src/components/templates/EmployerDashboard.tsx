@@ -1280,6 +1280,10 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
   // sessionReady is derived from the Zustand store's real connection state
   const sessionState = useVoiceSessionStore((s) => s.sessionState);
   const sessionReady = sessionState === 'connected';
+  // Gate the avatar FAB: only allow opening the popup once the video track has
+  // been received from the avatar worker. This eliminates the race where the
+  // user opens the popup before the track arrives (which caused infinite loading).
+  const avatarVideoTrackReady = useVoiceSessionStore((s) => !!s.avatarVideoTrack);
   const [wizardInitialData, setWizardInitialData] = useState<Partial<JobFormData>>({});
 
   // Jobs available in the Hiring tab. Populated two ways:
@@ -2525,6 +2529,7 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
 
       {/* Glassmorphic AI Avatar FAB — bottom-right corner, all screens */}
       <AvatarFAB
+        avatarReady={avatarVideoTrackReady}
         onPersonClick={() => {
           if (activeTab === 'hiring' && !isJobDetailOpen) {
             setAvatarEverStarted(true);
