@@ -72,12 +72,17 @@ export function HiringAvatarPopup({
   // within a session — used to filter remaining pills on subsequent phases).
   const [selectedOptionLabels, setSelectedOptionLabels] = useState<string[]>([]);
 
-  // Sentence-by-sentence caption state.
-  // sentenceList is populated via the 'hiring-option-sentences' DOM event that
-  // getHiringOptionResponse dispatches when the agent calls it. sentenceIdx is
-  // advanced by a transcript-watching effect as each sentence is spoken.
-  const [sentenceList, setSentenceList] = useState<string[]>([]);
-  const [sentenceIdx, setSentenceIdx] = useState(0);
+  // Tracks the label of the most recently clicked option (lower-cased).
+  // Used to look up the expected sentence count for the back-button visibility.
+  const [lastClickedOption, setLastClickedOption] = useState('');
+
+  // How many isFinal=true agent segments we expect for each option.
+  // The back button appears once this many final segments have arrived.
+  const OPTION_SENTENCE_COUNT: Record<string, number> = {
+    'hiring metrics':  4,
+    'best applicants': 4,
+    'market trends':   4,
+  };
 
   // Timestamp of the most recent option pill click. Only transcripts that
   // arrive CAPTION_GRACE_MS after this time are shown as live captions,
@@ -119,8 +124,7 @@ export function HiringAvatarPopup({
     setSelectedOptionLabels([]);
     setPopupView('options');
     optionClickTimeRef.current = null;
-    setSentenceList([]);
-    setSentenceIdx(0);
+    setLastClickedOption('');
   }, [visuallyHidden]);
 
   // ── Reset on each open/close ─────────────────────────────────────────────────
@@ -130,8 +134,7 @@ export function HiringAvatarPopup({
       setPopupView('options');
       setSelectedOptionLabels([]);
       optionClickTimeRef.current = null;
-      setSentenceList([]);
-      setSentenceIdx(0);
+      setLastClickedOption('');
       return;
     }
     setPopupPhase('loading');
@@ -148,11 +151,12 @@ export function HiringAvatarPopup({
     setPopupView('options');
     setSelectedOptionLabels([]);
     optionClickTimeRef.current = null;
-    setSentenceList([]);
-    setSentenceIdx(0);
+    setLastClickedOption('');
 
-    // Hard fallback: show full UI after 20 s if video never becomes ready.
-    const fallbackTimer = setTimeout(() => setPopupPhase('ready'), 20_000);
+    // Hard fallback: show full UI after 8 s if video never becomes ready.
+    // (was 20 s — reduced because the polling loop in videoRef now actively
+    // retries play() and checks readyState, so 20 s is far too conservative.)
+    const fallbackTimer = setTimeout(() => setPopupPhase('ready'), 8_000);
     return () => clearTimeout(fallbackTimer);
   }, [open]);
 
@@ -192,15 +196,33 @@ export function HiringAvatarPopup({
 
       el.addEventListener('canplay', onReady);
       el.addEventListener('playing', onReady);
+      el.addEventListener('loadeddata', onReady);
+      el.addEventListener('loadedmetadata', onReady);
 
       // Already has frames (e.g. popup opened a second time in the same session)
       if (el.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
         setVideoReady(true);
       }
 
+      // Polling fallback: retries play() every 500 ms to overcome the expired
+      // user-gesture window (the FAB click gesture expires before the track
+      // arrives when the avatar session is still warming up). Also checks
+      // readyState directly in case canplay/playing/loadeddata never fire.
+      const poller = setInterval(() => {
+        if (el.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+          setVideoReady(true);
+          clearInterval(poller);
+          return;
+        }
+        el.play().catch(() => {});
+      }, 500);
+
       videoCleanupRef.current = () => {
+        clearInterval(poller);
         el.removeEventListener('canplay', onReady);
         el.removeEventListener('playing', onReady);
+        el.removeEventListener('loadeddata', onReady);
+        el.removeEventListener('loadedmetadata', onReady);
         // Null srcObject BEFORE calling LiveKit detach(). LiveKit's detach()
         // internally calls ur() which does element.srcObject.removeTrack(track).
         // If multiple popup instances share the same track (home→hiring reuse),
@@ -323,50 +345,6 @@ export function HiringAvatarPopup({
     return () => window.removeEventListener('hiring-avatar-options', handler);
   }, [open, staticOptions]);
 
-  // ── Receive sentence list from getHiringOptionResponse ──────────────────────
-  // getHiringOptionResponse dispatches 'hiring-option-sentences' synchronously
-  // (before the agent starts speaking) so sentenceList is populated before the
-  // first transcript arrives. sentenceIdx starts at 0 — first sentence shows
-  // immediately, subsequent ones advance as the transcript grows.
-  useEffect(() => {
-    if (!open || visuallyHidden) return;
-    const handler = (e: Event) => {
-      const { sentences } = (e as CustomEvent<{ sentences: string[] }>).detail ?? {};
-      if (Array.isArray(sentences) && sentences.length > 0) {
-        setSentenceList(sentences);
-        setSentenceIdx(0);
-      }
-    };
-    window.addEventListener('hiring-option-sentences', handler);
-    return () => window.removeEventListener('hiring-option-sentences', handler);
-  }, [open, visuallyHidden]);
-
-  // ── Advance sentence index as agent speaks ───────────────────────────────────
-  // Watches the live transcript and advances sentenceIdx when the opening words
-  // of the next sentence appear in the accumulated agent text. This ensures each
-  // sentence bubble updates exactly when the agent starts speaking it, not at a
-  // fixed timer interval.
-  useEffect(() => {
-    if (popupView !== 'speaking' || sentenceList.length === 0) return;
-    if (sentenceIdx >= sentenceList.length - 1) return;
-    if (!optionClickTimeRef.current) return;
-
-    const cutoff = new Date(optionClickTimeRef.current.getTime() + CAPTION_GRACE_MS);
-    const fullText = transcripts
-      .filter((t) => t.isAgent && t.timestamp > cutoff)
-      .map((t) => t.text)
-      .join(' ');
-
-    // Match the first ~18 chars of the next sentence — enough to be unique
-    // but short enough to appear early in the streamed transcript.
-    const nextSentence = sentenceList[sentenceIdx + 1];
-    const matchStr = nextSentence.substring(0, Math.min(18, nextSentence.length));
-
-    if (fullText.toLowerCase().includes(matchStr.toLowerCase())) {
-      setSentenceIdx((prev) => Math.min(prev + 1, sentenceList.length - 1));
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [transcripts, sentenceList, sentenceIdx, popupView]);
 
   // ── Close on Escape ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -388,34 +366,31 @@ export function HiringAvatarPopup({
       ? staticOptions
       : agentOptions.length > 0 ? agentOptions : FALLBACK_PILLS;
 
-  // Caption text for the current answer — only shows transcripts that arrived
-  // at least CAPTION_GRACE_MS after the option was clicked. This filters out
-  // any in-flight greeting ("Hello! How can I help?") or stale Back-response
-  // transcript that races with the snapshot. The agent's actual answer always
-  // arrives 1–3 s after the click, well outside the 600 ms grace window.
-  const liveCaptionText = (() => {
-    if (!optionClickTimeRef.current) return null;
+  // isFinal=true agent transcript segments that arrived after the grace window.
+  // Each element corresponds to one fully-spoken sentence from the agent.
+  // Showing only the LAST one creates the sentence-by-sentence effect: each new
+  // sentence replaces the previous bubble as the agent finishes speaking it.
+  const finalSegments = (() => {
+    if (!optionClickTimeRef.current) return [];
     const cutoff = new Date(optionClickTimeRef.current.getTime() + CAPTION_GRACE_MS);
-    const newAgentSegments = transcripts.filter(
-      (t) => t.isAgent && t.timestamp > cutoff,
+    return transcripts.filter(
+      (t) => t.isAgent && t.isFinal && t.timestamp > cutoff,
     );
-    if (newAgentSegments.length === 0) return null;
-    return newAgentSegments[newAgentSegments.length - 1].text || null;
   })();
 
-  // Sentence-by-sentence caption display.
-  // When sentenceList is available (getHiringOptionResponse returned sentences),
-  // show the current sentence rather than the raw rolling transcript text. This
-  // gives clean, complete sentences rather than streaming partial words.
-  // Falls back to liveCaptionText for the Back-response path (no sentences event).
+  // Show only the most recently completed sentence.
   const captionDisplay: string | null =
-    sentenceList.length > 0 ? sentenceList[sentenceIdx] : liveCaptionText;
+    finalSegments.length > 0
+      ? finalSegments[finalSegments.length - 1].text || null
+      : null;
 
-  // Back button is only shown on the last sentence (or immediately when no
-  // sentence list is available — preserves existing behaviour for HIRING_BACK).
-  const isLastSentence = sentenceList.length > 0
-    ? sentenceIdx === sentenceList.length - 1
-    : true;
+  // Back button appears once the expected number of sentences have been spoken.
+  // Falls back to showing the back button after any sentence if the option is
+  // unknown (e.g. future options not yet in OPTION_SENTENCE_COUNT).
+  const expectedSentences = OPTION_SENTENCE_COUNT[lastClickedOption] ?? 0;
+  const isLastSentence = expectedSentences > 0
+    ? finalSegments.length >= expectedSentences
+    : finalSegments.length > 0;
 
   // Remaining selectable options = all display options minus already-clicked ones.
   const remainingOptions = displayOptions.filter(
@@ -431,8 +406,7 @@ export function HiringAvatarPopup({
   const handleOptionClick = (label: string) => {
     if (silent) return; // display-only mode — pills are non-interactive
     optionClickTimeRef.current = new Date();
-    setSentenceList([]);   // cleared now; repopulated by 'hiring-option-sentences' event
-    setSentenceIdx(0);
+    setLastClickedOption(label.toLowerCase());
     setSelectedOptionLabels((prev) => [...prev, label]);
     setPopupView('speaking');
     onOptionClick(label);
@@ -443,9 +417,8 @@ export function HiringAvatarPopup({
   // showHiringOptions then speaks "Do you need anything else?" — distinct from
   // [HIRING_ASSISTANT] (HA-1) which would incorrectly say "Hello! How can I help?".
   const handleBack = () => {
-    setSentenceList([]);
-    setSentenceIdx(0);
     setPopupView('options');
+    optionClickTimeRef.current = null;
     const { room: liveRoom } = useVoiceSessionStore.getState();
     liveRoom?.localParticipant
       ?.sendText('[HIRING_BACK]', { topic: 'lk.chat' })
@@ -873,10 +846,10 @@ export function HiringAvatarPopup({
                   pointerEvents: 'auto',
                 }}
               >
-                {/* Caption bubble — sentence-by-sentence when sentences available */}
+                {/* Caption bubble — one isFinal segment at a time, each replacing the last */}
                 <AnimatePresence mode="wait">
                   <motion.div
-                    key={sentenceList.length > 0 ? sentenceIdx : 'raw'}
+                    key={finalSegments.length}
                     initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -6 }}

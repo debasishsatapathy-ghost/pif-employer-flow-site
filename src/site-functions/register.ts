@@ -20,7 +20,6 @@
 
 import setTheme from './setTheme';
 import showHiringOptions from './showHiringOptions';
-import getHiringOptionResponse from './getHiringOptionResponse';
 import suppressResponse from './suppressResponse';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -96,26 +95,6 @@ export const siteFunctionManifest: Record<string, SiteFunctionEntry> = {
         { label: 'Market Trends',   value: 'market-trends' },
       ],
     },
-  },
-
-  getHiringOptionResponse: {
-    fn: getHiringOptionResponse,
-    description:
-      'Get the scripted spoken response for a hiring dashboard option selection. ' +
-      'Call this FIRST (before speaking) when [HIRING_ASSISTANT] user selects an option. ' +
-      'The result contains a speakText field — speak that text VERBATIM, then call showHiringOptions.',
-    schema: {
-      type: 'object',
-      properties: {
-        option: {
-          type: 'string',
-          enum: ['hiring-metrics', 'best-applicants', 'market-trends'],
-          description: 'The option value selected by the employer',
-        },
-      },
-      required: ['option'],
-    },
-    defaults: { option: 'hiring-metrics' },
   },
 
   suppressResponse: {
