@@ -235,82 +235,49 @@ export function HiringAvatarPopup({
     return () => clearTimeout(fallbackTimer);
   }, [open, clearSentenceTimers]);
 
-  // ── useCallback ref — the candidate-experiment-site pattern ─────────────────
-  // Unlike useRef + useEffect([avatarVideoTrack]):
-  //   • When the track arrives BEFORE the popup opens, useRef.current is null
-  //     so the effect returns early — attach() is never called.
-  //   • useCallback ref fires every time EITHER the element mounts OR
-  //     avatarVideoTrack changes, covering both orderings.
+  // ── useCallback ref — simplified reference pattern ───────────────────────────
+  // The <video> element is only rendered when avatarVideoTrack is non-null
+  // (see JSX below), so this ref is ALWAYS called with both el and
+  // avatarVideoTrack available simultaneously — the null-track race condition
+  // that caused the loading-forever bug is eliminated at the rendering level.
+  //
+  // With autoPlay + muted the browser starts playback automatically without
+  // needing a user gesture. No explicit el.play() call or polling needed.
   const videoRef = useCallback(
     (el: HTMLVideoElement | null) => {
-      // Keep a direct DOM reference so the visuallyHidden effect can call
-      // play() within the user gesture window if the track was attached
-      // while the element was inside a display:none container.
       videoElRef.current = el;
 
-      // Run any previous cleanup (detach old track, remove old listeners)
       videoCleanupRef.current?.();
       videoCleanupRef.current = null;
 
-      if (!el) {
+      if (!el || !avatarVideoTrack) {
         setVideoReady(false);
         return;
       }
-      if (!avatarVideoTrack) return;
 
       // Attach LiveKit track → sets el.srcObject = new MediaStream([track])
       avatarVideoTrack.attach(el);
-      // Explicitly call play() after attach. LiveKit's lr() helper only schedules
-      // play() on Safari/iOS; on Chrome it relies on the `autoplay` attribute.
-      // When the track is re-attached to a new element (e.g. hiring popup opening
-      // after home popup already used this track), Chrome may not auto-start
-      // because the element was just created and the browser hasn't received a
-      // user-gesture-linked play() call for this specific element yet.
-      el.play().catch(() => {});
       console.log('[HiringAvatar] track attached to <video>, waiting for canplay…');
 
       const onReady = () => {
-        console.log('[HiringAvatar] video ready (canplay/playing) — frames flowing');
+        console.log('[HiringAvatar] video ready — frames flowing');
         setVideoReady(true);
       };
 
       el.addEventListener('canplay', onReady);
       el.addEventListener('playing', onReady);
-      el.addEventListener('loadeddata', onReady);
-      el.addEventListener('loadedmetadata', onReady);
 
-      // Already has frames (e.g. popup opened a second time in the same session)
+      // Already has frames (e.g. home→hiring reuse, track already warm)
       if (el.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
         setVideoReady(true);
       }
 
-      // Polling fallback: retries play() every 500 ms to overcome the expired
-      // user-gesture window (the FAB click gesture expires before the track
-      // arrives when the avatar session is still warming up). Also checks
-      // readyState directly in case canplay/playing/loadeddata never fire.
-      const poller = setInterval(() => {
-        if (el.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
-          setVideoReady(true);
-          clearInterval(poller);
-          return;
-        }
-        el.play().catch(() => {});
-      }, 500);
-
       videoCleanupRef.current = () => {
-        clearInterval(poller);
         el.removeEventListener('canplay', onReady);
         el.removeEventListener('playing', onReady);
-        el.removeEventListener('loadeddata', onReady);
-        el.removeEventListener('loadedmetadata', onReady);
-        // Null srcObject BEFORE calling LiveKit detach(). LiveKit's detach()
-        // internally calls ur() which does element.srcObject.removeTrack(track).
-        // If multiple popup instances share the same track (home→hiring reuse),
-        // that removeTrack call can corrupt the track's MediaStream state so that
-        // subsequent attach() on the next element gets an empty stream and canplay
-        // never fires. Nulling srcObject first makes ur() see null and skip the
-        // removeTrack call; detach() then only removes el from LiveKit's
-        // attachedElements tracking list, which is exactly what we want.
+        // Null srcObject BEFORE calling LiveKit detach() to prevent
+        // removeTrack() from corrupting the shared MediaStream when the
+        // same track is reused across home→hiring popup transitions.
         try { el.srcObject = null; } catch {}
         try { avatarVideoTrack.detach(el); } catch {}
         setVideoReady(false);
@@ -723,29 +690,34 @@ export function HiringAvatarPopup({
                 backgroundColor: popupPhase === 'ready' ? '#5B676B' : 'transparent',
               }}
             >
-              {/* LIVE video — useCallback ref (videoRef) attaches the LiveKit
-                  track when EITHER this element mounts OR the track arrives,
-                  solving the race condition where track arrives before popup opens.
-                  Hidden until videoReady (canplay fired) so the circle never
-                  shows a black frame while the stream warms up. */}
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  objectPosition: 'right top',
-                  transform: 'scale(2)',
-                  transformOrigin: '103% 2.5%',
-                  display: showLiveVideo ? 'block' : 'none',
-                  
-                }}
-              />
+              {/* LIVE video — only rendered when the track exists.
+                  Conditional rendering eliminates the race condition: when the
+                  user clicks the FAB before the track arrives, no <video> is
+                  in the DOM yet (no failed play() calls). When the track
+                  arrives React mounts the element, videoRef fires with both
+                  el AND avatarVideoTrack guaranteed non-null, attach() runs,
+                  and autoPlay+muted lets the browser start without a gesture.
+                  Hidden (display:none) until videoReady so the circle never
+                  flashes a black frame while the stream warms up. */}
+              {!!avatarVideoTrack && (
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    objectPosition: 'right top',
+                    transform: 'scale(2)',
+                    transformOrigin: '103% 2.5%',
+                    display: showLiveVideo ? 'block' : 'none',
+                  }}
+                />
+              )}
 
               {/* Spinner while avatar worker is connecting */}
               {showLoading && (
