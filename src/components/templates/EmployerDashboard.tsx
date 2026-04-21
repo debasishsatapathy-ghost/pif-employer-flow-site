@@ -1265,6 +1265,10 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
   const [activeTab, setActiveTab] = useState<NavTab>("home");
   const [hiringKey, setHiringKey] = useState(0);
   const [hoveredSidebarIcon, setHoveredSidebarIcon] = useState<number | null>(null);
+  const [hoveredNavTab, setHoveredNavTab] = useState<string | null>(null);
+  const [hoveredUserPill, setHoveredUserPill] = useState(false);
+  const [hoveredBell, setHoveredBell] = useState(false);
+  const [hoveredDashboardBack, setHoveredDashboardBack] = useState(false);
   const [chatMode, setChatMode] = useState(false);
   const [avatarMode, setAvatarMode] = useState(false); // default: text home (image 2); avatar (image 1) on explicit click
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -1928,28 +1932,54 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
             background: 'rgba(255,255,255,0.05)',
             boxShadow: '0px 0px 48px 48px rgba(9,9,11,0.25)',
           }}>
-          {(["home", "hiring", "workforce"] as NavTab[]).map((tab) => (
-            <button key={tab}
-              onClick={() => {
-                if (tab === "hiring" && activeTab === "hiring") setHiringKey((k) => k + 1);
-                setActiveTab(tab);
-                setChatMode(false);
-              }}
-              className={cn(
-                "flex items-center justify-center h-10 w-[132px] rounded-[100px] font-semibold text-base transition-all duration-200 whitespace-nowrap",
-                activeTab === tab && !chatMode ? "text-[#f4f4f5]" : "text-[#f4f4f5]/50 hover:text-[#f4f4f5]/75",
-              )}
-              style={activeTab === tab && !chatMode ? { background: 'rgba(255,255,255,0.10)' } : {}}>
-              {tab === "home" ? "Home" : tab === "hiring" ? "Hiring" : "Workforce"}
-            </button>
-          ))}
+          {(["home", "hiring", "workforce"] as NavTab[]).map((tab) => {
+            const isActive = activeTab === tab && !chatMode;
+            const isHovered = hoveredNavTab === tab;
+            const showGlass = isActive || isHovered;
+            return (
+              <button key={tab}
+                onClick={() => {
+                  if (tab === "hiring" && activeTab === "hiring") setHiringKey((k) => k + 1);
+                  setActiveTab(tab);
+                  setChatMode(false);
+                }}
+                onMouseEnter={() => setHoveredNavTab(tab)}
+                onMouseLeave={() => setHoveredNavTab(null)}
+                className={cn(
+                  "flex items-center justify-center h-10 w-[132px] rounded-[100px] font-semibold text-base transition-all duration-200 whitespace-nowrap",
+                  isActive ? "text-[#f4f4f5]" : "text-[#f4f4f5]/50",
+                )}
+                style={{
+                  background: showGlass ? 'rgba(255,255,255,0.12)' : 'transparent',
+                  backdropFilter: showGlass ? 'blur(12px)' : 'none',
+                  WebkitBackdropFilter: showGlass ? 'blur(12px)' : 'none',
+                  border: showGlass ? '1px solid rgba(255,255,255,0.18)' : '1px solid transparent',
+                  boxShadow: showGlass ? '0 2px 12px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.15)' : 'none',
+                }}>
+                {tab === "home" ? "Home" : tab === "hiring" ? "Hiring" : "Workforce"}
+              </button>
+            );
+          })}
         </div>
 
         {/* Right — notification bell + user menu (flex: 1 0 0, justify-end) */}
         <div className="flex items-center gap-3" style={{ flex: '1 0 0', justifyContent: 'flex-end' }}>
           {chatMode && (
-            <button onClick={() => setChatMode(false)}
-              className="text-xs text-white/40 hover:text-white/70 transition-colors mr-1">
+            <button
+              onClick={() => setChatMode(false)}
+              onMouseEnter={() => setHoveredDashboardBack(true)}
+              onMouseLeave={() => setHoveredDashboardBack(false)}
+              className="text-xs transition-all duration-200 mr-1"
+              style={{
+                color: hoveredDashboardBack ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.4)',
+                padding: '6px 12px',
+                borderRadius: 100,
+                background: hoveredDashboardBack ? 'rgba(255,255,255,0.12)' : 'transparent',
+                backdropFilter: hoveredDashboardBack ? 'blur(12px)' : 'none',
+                WebkitBackdropFilter: hoveredDashboardBack ? 'blur(12px)' : 'none',
+                border: hoveredDashboardBack ? '1px solid rgba(255,255,255,0.18)' : '1px solid transparent',
+                boxShadow: hoveredDashboardBack ? '0 2px 12px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.15)' : 'none',
+              }}>
               ← Dashboard
             </button>
           )}
@@ -1961,15 +1991,35 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
             </button>
           )}
           {/* Notification bell — 40×40, rounded-[100px] */}
-          <div className="relative flex items-center justify-center flex-shrink-0 cursor-pointer rounded-[100px]"
-            style={{ width: 40, height: 40, background: 'rgba(255,255,255,0.05)' }}>
+          <div
+            className="relative flex items-center justify-center flex-shrink-0 cursor-pointer rounded-[100px] transition-all duration-200"
+            onMouseEnter={() => setHoveredBell(true)}
+            onMouseLeave={() => setHoveredBell(false)}
+            style={{
+              width: 40,
+              height: 40,
+              background: hoveredBell ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.05)',
+              backdropFilter: hoveredBell ? 'blur(12px)' : 'none',
+              WebkitBackdropFilter: hoveredBell ? 'blur(12px)' : 'none',
+              border: hoveredBell ? '1px solid rgba(255,255,255,0.18)' : '1px solid transparent',
+              boxShadow: hoveredBell ? '0 2px 12px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.15)' : 'none',
+            }}>
             <Bell size={18} className="text-white/70" />
             <span className="absolute top-0 right-0 w-3 h-3 rounded-full border-2 border-[#09090b]"
               style={{ background: '#ff4040' }} />
           </div>
           {/* User menu pill — avatar + name + role + chevron */}
-          <button className="flex items-center gap-3 rounded-[100px] pl-2 pr-3 py-1.5 flex-shrink-0 hover:bg-white/5 transition-colors"
-            style={{ background: 'rgba(255,255,255,0.05)' }}>
+          <button
+            className="flex items-center gap-3 rounded-[100px] pl-2 pr-3 py-1.5 flex-shrink-0 transition-all duration-200"
+            onMouseEnter={() => setHoveredUserPill(true)}
+            onMouseLeave={() => setHoveredUserPill(false)}
+            style={{
+              background: hoveredUserPill ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.05)',
+              backdropFilter: hoveredUserPill ? 'blur(12px)' : 'none',
+              WebkitBackdropFilter: hoveredUserPill ? 'blur(12px)' : 'none',
+              border: hoveredUserPill ? '1px solid rgba(255,255,255,0.18)' : '1px solid transparent',
+              boxShadow: hoveredUserPill ? '0 2px 12px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.15)' : 'none',
+            }}>
             <div className="w-7 h-7 rounded-full overflow-hidden flex items-center justify-center text-[11px] font-bold flex-shrink-0"
               style={{ background: 'linear-gradient(135deg, #d2f3de, #a0e8b8)' }}>
               <span style={{ color: '#09090b' }}>O</span>
@@ -2019,7 +2069,11 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
                     alignItems: 'center',
                     gap: 8,
                     borderRadius: '100px',
-                    background: isHovered ? 'rgba(255,255,255,0.10)' : 'transparent',
+                    background: isHovered ? 'rgba(255,255,255,0.12)' : 'transparent',
+                    backdropFilter: isHovered ? 'blur(12px)' : 'none',
+                    WebkitBackdropFilter: isHovered ? 'blur(12px)' : 'none',
+                    border: isHovered ? '1px solid rgba(255,255,255,0.18)' : '1px solid transparent',
+                    boxShadow: isHovered ? '0 2px 12px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.15)' : 'none',
                   }}
                   onMouseEnter={() => setHoveredSidebarIcon(i)}
                   onMouseLeave={() => setHoveredSidebarIcon(null)}
