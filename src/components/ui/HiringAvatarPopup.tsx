@@ -35,10 +35,17 @@ interface HiringAvatarPopupProps {
    * 'hiring-avatar-options' event listener entirely.
    */
   staticOptions?: HiringOption[];
+  /**
+   * When true the popup is hidden with display:none but stays fully mounted.
+   * The <video> element and its live MediaStream are preserved so that when the
+   * popup becomes visible again (visuallyHidden → false) the video track is
+   * already attached and canplay has already fired — no loading spinner needed.
+   */
+  visuallyHidden?: boolean;
 }
 
 export function HiringAvatarPopup({
-  open, onClose, onOptionClick, silent, staticOptions,
+  open, onClose, onOptionClick, silent, staticOptions, visuallyHidden,
 }: HiringAvatarPopupProps) {
   const avatarVideoTrack   = useVoiceSessionStore((s) => s.avatarVideoTrack);
   const avatarEnabled      = useVoiceSessionStore((s) => s.avatarEnabled);
@@ -84,6 +91,28 @@ export function HiringAvatarPopup({
 
   // Stores cleanup for the current video element's listeners + track detach.
   const videoCleanupRef = useRef<(() => void) | null>(null);
+
+  // Tracks whether the popup has been in a hidden (display:none) state since
+  // the last full reset. Used to guard the visuallyHidden reset effect so it
+  // only fires on a genuine hidden→visible transition, not on initial mount.
+  const wasHiddenRef = useRef(false);
+
+  // ── Reset display state when popup re-appears from a hidden state ────────────
+  // Fired when visuallyHidden flips false (e.g. home→hiring mode switch).
+  // Resets conversation state (options/view/selected) WITHOUT touching videoReady
+  // or popupPhase — the video track is still live so the face shows immediately.
+  useEffect(() => {
+    if (visuallyHidden) {
+      wasHiddenRef.current = true;
+      return;
+    }
+    if (!wasHiddenRef.current) return; // initial mount — skip
+    wasHiddenRef.current = false;
+    setAgentOptions([]);
+    setSelectedOptionLabels([]);
+    setPopupView('options');
+    optionClickTimeRef.current = null;
+  }, [visuallyHidden]);
 
   // ── Reset on each open/close ─────────────────────────────────────────────────
   useEffect(() => {
@@ -187,10 +216,13 @@ export function HiringAvatarPopup({
   // ── Notify EmployerDashboard when video is ready so it fires the greeting ────
   // The greeting kick (sendText lk.chat) is sent AFTER frames are flowing so the
   // agent speaks only once the avatar face is already visible in the circle.
+  // Also fires when visuallyHidden becomes false (home→hiring mode switch):
+  // in that case videoReady is already true (track was preserved) and the popup
+  // is now visible, so we re-dispatch the event to trigger the greeting.
   useEffect(() => {
-    if (!videoReady || !open) return;
+    if (!videoReady || !open || visuallyHidden) return;
     window.dispatchEvent(new CustomEvent('hiring-avatar-video-ready'));
-  }, [videoReady, open]);
+  }, [videoReady, open, visuallyHidden]);
 
   // ── Unlock AudioContext on popup open (user gesture just occurred) ───────────
   // The popup opens from a user click. We use that gesture window to resume
@@ -355,6 +387,10 @@ export function HiringAvatarPopup({
             width: 480,
             height: 440,
             pointerEvents: 'none',
+            // display:none hides the popup visually but keeps the <video> element
+            // in the DOM so its MediaStream (live face frames) stays attached.
+            // On the next open the track is already ready — no loading spinner.
+            display: visuallyHidden ? 'none' : undefined,
           }}
         >
           {/* ── Glow — two-layer radial to match Figma 10954:73901 + 10954:73902 ─── */}

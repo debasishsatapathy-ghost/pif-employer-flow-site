@@ -1302,12 +1302,18 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
   const greetingFiredRef = useRef(false);
   // Cleanup for the avatarVideoTrack subscription + fallback timer used by the greeting kick.
   const greetingCleanupRef = useRef<(() => void) | null>(null);
-  const [hiringAvatarOpen, setHiringAvatarOpen] = useState(false);
+  // Single source of truth for which avatar popup context is open.
+  // null = popup hidden (avatar worker stays running so video track is preserved).
+  // 'home' = home-tab silent presence popup.
+  // 'hiring' = hiring-tab interactive popup.
+  const [avatarPopupMode, setAvatarPopupMode] = useState<'home' | 'hiring' | null>(null);
+  // Set to true the first time any avatar popup is opened. Once true it never
+  // flips back — keeps HiringAvatarPopup mounted in the DOM so the <video>
+  // element persists across home/hiring transitions (no re-attach = no loading).
+  const [avatarEverStarted, setAvatarEverStarted] = useState(false);
   // True when the user has drilled into a JobPostingTemplate within the hiring tab.
   // The avatar popup must not be shown or openable on that sub-page.
   const [isJobDetailOpen, setIsJobDetailOpen] = useState(false);
-  // Home tab avatar popup — live video, audio permanently muted, display-only pills.
-  const [homeAvatarOpen, setHomeAvatarOpen] = useState(false);
 
   // Fixed option pills for the home avatar popup (display-only, non-interactive).
   const HOME_AVATAR_OPTIONS: { label: string; value: string }[] = [
@@ -1315,6 +1321,17 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
     { label: 'Hiring update',     value: 'hiring-update' },
     { label: 'Training progress', value: 'training-progress' },
   ];
+
+  // Auto-hide avatar popup when user navigates away from its tab or into a sub-page.
+  // The avatar worker stays running (no toggleAvatarHard(off)) so the track is live.
+  useEffect(() => {
+    if (avatarPopupMode === 'hiring' && (activeTab !== 'hiring' || isJobDetailOpen)) {
+      setAvatarPopupMode(null);
+    } else if (avatarPopupMode === 'home' && activeTab !== 'home') {
+      setAvatarPopupMode(null);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, isJobDetailOpen]);
 
   const promptOptionsRef = useRef<PromptStepOptions>({ step1: [], step2: [], step3: [] });
   const collectedJobRef = useRef<{ role?: string; experience?: string; location?: string }>({});
@@ -1646,43 +1663,32 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
     return () => observer.disconnect();
   }, [chatMode]);
 
-  /* Manage audio and live avatar for the Hiring Avatar popup */
+  /* ── Unified avatar-mode effect ─────────────────────────────────────────────
+     Manages audio, live video, and greeting for all avatar contexts.
+     Key design principle: we NEVER call toggleAvatarHard(off) when the popup is
+     hidden/closed. The avatar worker stays running so the avatarVideoTrack in the
+     store remains subscribed and live. HiringAvatarPopup's <video> element (kept
+     in the DOM via display:none / visuallyHidden) retains the MediaStream and
+     videoReady stays true. When the popup becomes visible again (hiring tab open)
+     it shows the live face immediately — no loading spinner.             */
   useEffect(() => {
-    hiringAvatarActiveRef.current = hiringAvatarOpen;
-
-    if (hiringAvatarOpen) {
-      // Stop mute loop so new audio elements are not silenced
+    if (avatarPopupMode === 'hiring') {
+      hiringAvatarActiveRef.current = true;
+      // Stop the mute loop so audio elements are no longer silenced
       muteCleanupRef.current?.();
 
-      const { avatarAvailable, sessionState } =
-        useVoiceSessionStore.getState();
+      const { avatarAvailable, sessionState } = useVoiceSessionStore.getState();
 
       if (avatarAvailable) {
-        // Async-enable with toggle-pending guard.
-        // Problem: when the home avatar closes it fires toggleAvatarHard(off) — an async
-        // RPC that takes 1-3 s. If the user navigates to Hiring and opens the avatar
-        // before that RPC completes, a synchronous `!avatarEnabled` check sees the stale
-        // 'true' value and skips toggleAvatarHard(on), leaving the popup loading forever.
-        // Fix: poll avatarTogglePending until the in-flight RPC settles (up to 4 s), then
-        // read the final avatarEnabled value and enable if needed.
-        // hiringAvatarActiveRef.current is used as a cancellation flag — if the popup
-        // closes while we're polling, the ref flips to false and we bail out.
-        (async () => {
-          for (let i = 0; i < 40; i++) {
-            if (!hiringAvatarActiveRef.current) return;
-            const { avatarTogglePending } = useVoiceSessionStore.getState();
-            if (!avatarTogglePending) break;
-            await new Promise<void>((r) => setTimeout(r, 100));
-          }
-          if (!hiringAvatarActiveRef.current) return;
-          const { avatarEnabled: ae, toggleAvatarHard: tog } =
-            useVoiceSessionStore.getState();
-          if (!ae) {
-            tog().catch((e) => console.warn('[HiringAvatar] toggleAvatarHard(on) failed:', e));
-          }
-        })();
+        // If avatar is already enabled (running from home session) — nothing to do.
+        // The video track is still live; the popup will render it instantly.
+        // If not yet enabled (first-ever open), turn it on now.
+        const { avatarEnabled, toggleAvatarHard: tog } = useVoiceSessionStore.getState();
+        if (!avatarEnabled) {
+          tog().catch((e) => console.warn('[HiringAvatar] toggleAvatarHard(on) failed:', e));
+        }
       } else if (!avatarAvailable) {
-        // Fallback: no live avatar — manually unmute agent TTS audio
+        // Fallback: no live avatar feature — unmute agent TTS audio element
         const { agentAudioTrack, agentAudioElement } = useVoiceSessionStore.getState();
         let audioEl: HTMLAudioElement | null = null;
         if (agentAudioElement) {
@@ -1705,12 +1711,10 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
         hiringAudioRef.current = audioEl;
       }
 
-      // Kick the agent AFTER the avatar video track arrives.
-      // Firing too early (before audio/video is attached) causes the agent to
-      // speak before the audio element exists, so the browser's autoplay
-      // policy blocks play() when the element eventually arrives.
-      // We subscribe to avatarVideoTrack changes; if the track never arrives
-      // (no avatar feature) a 10-second fallback fires anyway.
+      // Kick the agent greeting AFTER the avatar video track delivers frames.
+      // HiringAvatarPopup dispatches 'hiring-avatar-video-ready' when its
+      // <video> fires canplay — OR when visuallyHidden flips false and videoReady
+      // is already true (home→hiring transition, track already warm).
       if (sessionState === 'connected' && !greetingFiredRef.current) {
         const sendGreeting = () => {
           if (greetingFiredRef.current) return;
@@ -1719,29 +1723,29 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
           greetingCleanupRef.current = null;
           const { room: liveRoom, sessionState: ss } = useVoiceSessionStore.getState();
           if (ss !== 'connected') return;
-          // Video is already confirmed ready when sendGreeting is called —
-          // no extra delay needed; send immediately.
           liveRoom?.localParticipant
             ?.sendText('[HIRING_ASSISTANT]', { topic: 'lk.chat' })
             .catch(() => {});
         };
 
-        // Wait for 'hiring-avatar-video-ready' — dispatched by HiringAvatarPopup
-        // when the <video> element fires canplay (actual frames flowing).
-        // 2-second grace delay after video-ready before sending [HIRING_ASSISTANT].
-        // Reason: if the user arrives from a chat session where the agent just
-        // said "Success! This role has been posted.", the Mobeus avatar may still
-        // be streaming that response when the popup opens. Sending the greeting
-        // immediately causes the agent to queue both responses and the user hears
-        // "Success!" then "How can I help?" in sequence. A 2 s pause lets any
-        // in-progress chat response finish before the greeting is triggered.
         let greetingDelayTimer: ReturnType<typeof setTimeout> | null = null;
         const onVideoReady = () => {
           greetingDelayTimer = setTimeout(sendGreeting, 2000);
         };
         window.addEventListener('hiring-avatar-video-ready', onVideoReady, { once: true });
-        // Hard fallback: if the event never fires (no avatar feature / timeout),
-        // greet after 20 s so the popup doesn't stay silent forever.
+
+        // If video is already ready (avatar was running from home session),
+        // HiringAvatarPopup's visuallyHidden→false effect re-dispatches the event.
+        // Belt-and-suspenders: also dispatch from here to cover the case where the
+        // popup effect runs slightly before this dashboard effect subscribes.
+        if (useVoiceSessionStore.getState().avatarVideoTrack) {
+          setTimeout(
+            () => window.dispatchEvent(new CustomEvent('hiring-avatar-video-ready')),
+            150,
+          );
+        }
+
+        // Hard fallback: greet after 20 s if event never fires
         const fallbackTimer = setTimeout(sendGreeting, 20_000);
         greetingCleanupRef.current = () => {
           window.removeEventListener('hiring-avatar-video-ready', onVideoReady);
@@ -1749,17 +1753,53 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
           clearTimeout(fallbackTimer);
         };
       }
+
+    } else if (avatarPopupMode === 'home') {
+      hiringAvatarActiveRef.current = false;
+      // Intentionally NOT stopping the mute loop — all audio stays muted.
+      // hiringAvatarActiveRef.current = false makes startMuteLoop's skip() return
+      // false so every audio/video element is muted on each tick.
+
+      const {
+        avatarAvailable,
+        avatarEnabled,
+        toggleAvatarHard,
+        sessionState: ss,
+      } = useVoiceSessionStore.getState();
+
+      // Enable the avatar worker if not already running (first-ever open)
+      if (avatarAvailable && !avatarEnabled) {
+        toggleAvatarHard().catch((e) =>
+          console.warn('[HomeAvatar] toggleAvatarHard(on) failed:', e),
+        );
+      }
+
+      // Assign the silent role — suppressResponse() returns
+      // disableNewResponseCreation:true so the platform generates no speech turn.
+      if (ss === 'connected') {
+        const { room: liveRoom } = useVoiceSessionStore.getState();
+        liveRoom?.localParticipant
+          ?.sendText('[HOME_ASSISTANT_SILENT]', { topic: 'lk.chat' })
+          .catch(() => {});
+      }
+
     } else {
-      // CLOSE — reset greeting guard, cancel any pending greeting kick, clean up
+      // avatarPopupMode = null: popup is hidden (display:none via visuallyHidden prop).
+      // The avatar WORKER STAYS RUNNING — we do NOT call toggleAvatarHard(off).
+      // This keeps avatarVideoTrack subscribed in the store and the <video>
+      // element's MediaStream intact. Next popup open is instant (no re-attach).
+      hiringAvatarActiveRef.current = false;
       greetingFiredRef.current = false;
       greetingCleanupRef.current?.();
       greetingCleanupRef.current = null;
-      useVoiceSessionStore.getState().clearScene();
 
-      const { avatarEnabled, toggleAvatarHard } = useVoiceSessionStore.getState();
-      if (avatarEnabled) {
-        toggleAvatarHard().catch((e) => console.warn('[HiringAvatar] toggleAvatarHard(off) failed:', e));
+      // Mute avatar audio immediately (worker still running but popup hidden)
+      const { avatarAudioElement } = useVoiceSessionStore.getState();
+      if (avatarAudioElement) {
+        avatarAudioElement.muted = true;
       }
+
+      // Clean up audio fallback element if present (no-avatar path)
       if (hiringAudioRef.current) {
         hiringAudioRef.current.muted = true;
         hiringAudioRef.current.volume = 0;
@@ -1770,53 +1810,14 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
         (el as HTMLMediaElement).muted = true;
         (el as HTMLMediaElement).volume = 0;
       });
+
+      // Clear any scene state (resets conversation context without disconnecting)
+      useVoiceSessionStore.getState().clearScene();
+
+      // Restart the mute loop so audio stays silent while popup is hidden
       muteCleanupRef.current = startMuteLoop(hiringAvatarActiveRef);
     }
-  }, [hiringAvatarOpen]);
-
-  /* Home Avatar — enables live avatar video and instructs the agent to adopt its
-     silent visual presence role via [HOME_ASSISTANT_SILENT].
-     The mute loop is intentionally NOT stopped here (unlike hiring avatar which
-     calls muteCleanupRef.current?.()). With hiringAvatarActiveRef.current = false,
-     startMuteLoop's skip() returns false and all audio/video stays muted continuously.
-     The silent prop on HiringAvatarPopup also guards doUnmute() as a safety net. */
-  useEffect(() => {
-    if (homeAvatarOpen) {
-      const {
-        avatarAvailable,
-        avatarEnabled,
-        toggleAvatarHard,
-        sessionState: ss,
-      } = useVoiceSessionStore.getState();
-
-      // Start the live avatar video (same as hiring avatar).
-      if (avatarAvailable && !avatarEnabled) {
-        toggleAvatarHard().catch((e) =>
-          console.warn('[HomeAvatar] toggleAvatarHard(on) failed:', e),
-        );
-      }
-
-      // Assign the agent its silent role — suppressResponse() returns
-      // disableNewResponseCreation:true so the platform generates no speech turn.
-      if (ss === 'connected') {
-        const { room: liveRoom } = useVoiceSessionStore.getState();
-        liveRoom?.localParticipant
-          ?.sendText('[HOME_ASSISTANT_SILENT]', { topic: 'lk.chat' })
-          .catch(() => {});
-      }
-    } else {
-      // On close: turn the avatar worker OFF so the track is fully released.
-      // The hiring avatar effect polls avatarTogglePending (see below) to handle
-      // the race where this OFF RPC is still in-flight when hiring opens.
-      useVoiceSessionStore.getState().clearScene();
-      const { avatarEnabled, toggleAvatarHard } = useVoiceSessionStore.getState();
-      if (avatarEnabled) {
-        toggleAvatarHard().catch((e) =>
-          console.warn('[HomeAvatar] toggleAvatarHard(off) failed:', e),
-        );
-      }
-    }
-  }, [homeAvatarOpen]);
+  }, [avatarPopupMode]);
 
   /* Connect the AI session on mount via the Zustand store */
   useEffect(() => {
@@ -2448,8 +2449,8 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
                     prefetchedJobsLoading={jobsFetching}
                     onJobDetailChange={(isOpen) => {
                       setIsJobDetailOpen(isOpen);
-                      // Auto-close the avatar popup when navigating into a job detail
-                      if (isOpen) setHiringAvatarOpen(false);
+                      // Auto-hide the avatar popup when navigating into a job detail
+                      if (isOpen) setAvatarPopupMode(null);
                     }}
                     onPostJob={() => {
                       setActiveTab("home");
@@ -2485,29 +2486,20 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
       </div>{/* end centering wrapper */}
       </div>{/* end below-header row */}
 
-      {/* Home Avatar Popup — live video, silent role, home tab only */}
-      {activeTab === 'home' && (
+      {/* Single persistent avatar popup.
+          open={avatarEverStarted} keeps it mounted once activated so the <video>
+          element is never destroyed — the live MediaStream stays attached.
+          visuallyHidden puts it in display:none when not in use so it's invisible
+          but the track keeps flowing. Mode switches (home↔hiring) are instant. */}
+      {avatarEverStarted && (
         <HiringAvatarPopup
-          open={homeAvatarOpen}
-          onClose={() => setHomeAvatarOpen(false)}
-          onOptionClick={() => {}}
-          silent
-          staticOptions={HOME_AVATAR_OPTIONS}
-        />
-      )}
-
-      {/* Hiring Avatar Popup — only on hiring dashboard, not job detail sub-page */}
-      {activeTab === 'hiring' && !isJobDetailOpen && (
-        <HiringAvatarPopup
-          open={hiringAvatarOpen}
-          onClose={() => setHiringAvatarOpen(false)}
+          open={avatarEverStarted}
+          visuallyHidden={avatarPopupMode === null}
+          silent={avatarPopupMode === 'home'}
+          staticOptions={avatarPopupMode === 'home' ? HOME_AVATAR_OPTIONS : undefined}
+          onClose={() => setAvatarPopupMode(null)}
           onOptionClick={(label) => {
-            // Use the same sendText+lk.chat mechanism as the greeting kick —
-            // this is the path that WORKS (confirmed in logs: triggers
-            // callSiteFunction). performRpc/tellAgent silently fails when the
-            // avatar worker is active because agentParticipant may be pointing
-            // at the wrong participant. sendText with lk.chat always reaches
-            // the Mobeus platform and forces an agent speech turn.
+            if (avatarPopupMode !== 'hiring') return;
             const { room: liveRoom } = useVoiceSessionStore.getState();
             liveRoom?.localParticipant
               ?.sendText(`[HIRING_ASSISTANT] user selected: ${label}`, { topic: 'lk.chat' })
@@ -2520,14 +2512,16 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
       <AvatarFAB
         onPersonClick={() => {
           if (activeTab === 'hiring' && !isJobDetailOpen) {
-            setHiringAvatarOpen(prev => !prev);
+            setAvatarEverStarted(true);
+            setAvatarPopupMode((prev) => (prev === 'hiring' ? null : 'hiring'));
           } else if (activeTab === 'home') {
-            setHomeAvatarOpen(prev => !prev);
+            setAvatarEverStarted(true);
+            setAvatarPopupMode((prev) => (prev === 'home' ? null : 'home'));
           }
         }}
         hidden={
-          (hiringAvatarOpen && activeTab === 'hiring' && !isJobDetailOpen) ||
-          (homeAvatarOpen && activeTab === 'home')
+          (avatarPopupMode === 'hiring' && activeTab === 'hiring' && !isJobDetailOpen) ||
+          (avatarPopupMode === 'home' && activeTab === 'home')
         }
       />
     </div>
