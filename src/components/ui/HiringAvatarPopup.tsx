@@ -96,7 +96,15 @@ export function HiringAvatarPopup({
     }
     setPopupPhase('loading');
     setAgentOptions([]);
-    setVideoReady(false);
+    // NOTE: do NOT call setVideoReady(false) here.
+    // React 18 batches all state updates from the commit phase (videoRef callback)
+    // and passive effects into the same render. When the avatar is already active
+    // (e.g. home avatar was open and we left it running), videoRef fires BEFORE
+    // this effect and calls setVideoReady(true). If we call setVideoReady(false)
+    // here, the last-write-wins batching rule means videoReady ends up false,
+    // showLiveVideo never becomes true, and the popup spins forever.
+    // videoReady is already false when the popup opens: either from the initial
+    // useState(false) or from the setVideoReady(false) in the !open branch above.
     setPopupView('options');
     setSelectedOptionLabels([]);
     optionClickTimeRef.current = null;
