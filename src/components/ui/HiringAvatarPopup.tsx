@@ -145,6 +145,11 @@ export function HiringAvatarPopup({
   // Stores cleanup for the current video element's listeners + track detach.
   const videoCleanupRef = useRef<(() => void) | null>(null);
 
+  // Direct reference to the mounted <video> DOM element.
+  // Needed so the visuallyHidden reset effect can call play() within the user
+  // gesture window (FAB click) when the track was attached while display:none.
+  const videoElRef = useRef<HTMLVideoElement | null>(null);
+
   // Tracks whether the popup has been in a hidden (display:none) state since
   // the last full reset. Used to guard the visuallyHidden reset effect so it
   // only fires on a genuine hidden→visible transition, not on initial mount.
@@ -170,6 +175,20 @@ export function HiringAvatarPopup({
     }
     if (!wasHiddenRef.current) return; // initial mount — skip
     wasHiddenRef.current = false;
+
+    // The popup just became visible from a user FAB click (gesture window open).
+    // If the track was attached while display:none, play() may have previously
+    // failed (autoplay policy — no gesture). Retry here within the gesture
+    // window so the browser starts delivering frames and fires canplay/playing.
+    // Also check readyState in case the browser decoded frames silently while
+    // hidden — in that case mark the video ready immediately.
+    if (videoElRef.current) {
+      videoElRef.current.play().catch(() => {});
+      if (videoElRef.current.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+        setVideoReady(true);
+      }
+    }
+
     clearSentenceTimers();
     setCurrentSentenceIdx(0);
     setAgentOptions([]);
@@ -224,6 +243,11 @@ export function HiringAvatarPopup({
   //     avatarVideoTrack changes, covering both orderings.
   const videoRef = useCallback(
     (el: HTMLVideoElement | null) => {
+      // Keep a direct DOM reference so the visuallyHidden effect can call
+      // play() within the user gesture window if the track was attached
+      // while the element was inside a display:none container.
+      videoElRef.current = el;
+
       // Run any previous cleanup (detach old track, remove old listeners)
       videoCleanupRef.current?.();
       videoCleanupRef.current = null;
