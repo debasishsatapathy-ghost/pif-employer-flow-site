@@ -1654,12 +1654,33 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
       // Stop mute loop so new audio elements are not silenced
       muteCleanupRef.current?.();
 
-      const { avatarAvailable, avatarEnabled, toggleAvatarHard, sessionState } =
+      const { avatarAvailable, sessionState } =
         useVoiceSessionStore.getState();
 
-      if (avatarAvailable && !avatarEnabled) {
-        // Enable the live Mobeus avatar (avatarToggle RPC → avatar worker joins → video ~2–5 s later)
-        toggleAvatarHard().catch((e) => console.warn('[HiringAvatar] toggleAvatarHard(on) failed:', e));
+      if (avatarAvailable) {
+        // Async-enable with toggle-pending guard.
+        // Problem: when the home avatar closes it fires toggleAvatarHard(off) — an async
+        // RPC that takes 1-3 s. If the user navigates to Hiring and opens the avatar
+        // before that RPC completes, a synchronous `!avatarEnabled` check sees the stale
+        // 'true' value and skips toggleAvatarHard(on), leaving the popup loading forever.
+        // Fix: poll avatarTogglePending until the in-flight RPC settles (up to 4 s), then
+        // read the final avatarEnabled value and enable if needed.
+        // hiringAvatarActiveRef.current is used as a cancellation flag — if the popup
+        // closes while we're polling, the ref flips to false and we bail out.
+        (async () => {
+          for (let i = 0; i < 40; i++) {
+            if (!hiringAvatarActiveRef.current) return;
+            const { avatarTogglePending } = useVoiceSessionStore.getState();
+            if (!avatarTogglePending) break;
+            await new Promise<void>((r) => setTimeout(r, 100));
+          }
+          if (!hiringAvatarActiveRef.current) return;
+          const { avatarEnabled: ae, toggleAvatarHard: tog } =
+            useVoiceSessionStore.getState();
+          if (!ae) {
+            tog().catch((e) => console.warn('[HiringAvatar] toggleAvatarHard(on) failed:', e));
+          }
+        })();
       } else if (!avatarAvailable) {
         // Fallback: no live avatar — manually unmute agent TTS audio
         const { agentAudioTrack, agentAudioElement } = useVoiceSessionStore.getState();
@@ -1783,15 +1804,18 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
           ?.sendText('[HOME_ASSISTANT_SILENT]', { topic: 'lk.chat' })
           .catch(() => {});
       }
+    } else {
+      // On close: turn the avatar worker OFF so the track is fully released.
+      // The hiring avatar effect polls avatarTogglePending (see below) to handle
+      // the race where this OFF RPC is still in-flight when hiring opens.
+      useVoiceSessionStore.getState().clearScene();
+      const { avatarEnabled, toggleAvatarHard } = useVoiceSessionStore.getState();
+      if (avatarEnabled) {
+        toggleAvatarHard().catch((e) =>
+          console.warn('[HomeAvatar] toggleAvatarHard(off) failed:', e),
+        );
+      }
     }
-    // On close: intentionally do NOT call toggleAvatarHard(off).
-    // Turning the avatar OFF here causes a race: if the user quickly navigates to the
-    // Hiring tab and opens the hiring avatar, the OFF RPC may still be in-flight
-    // (avatarEnabled still = true), so the hiring popup skips its own toggleAvatarHard(on)
-    // check and the video track never arrives — loading spinner forever.
-    // Leaving the avatar worker running is safe: the mute loop (hiringAvatarActiveRef=false)
-    // keeps all audio muted. The hiring avatar finds avatarEnabled=true and avatarVideoTrack
-    // already in the store, attaches it instantly, and works without any RPC round-trip.
   }, [homeAvatarOpen]);
 
   /* Connect the AI session on mount via the Zustand store */
