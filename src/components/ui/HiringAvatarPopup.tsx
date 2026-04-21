@@ -254,10 +254,18 @@ export function HiringAvatarPopup({
   // role has been posted.") that the Mobeus platform streams when the avatar
   // worker reconnects. The greeting ([HIRING_ASSISTANT]) is sent 2 s after video-
   // ready, which is always well past the swallow window.
+  //
+  // WHY visuallyHidden is in the deps:
+  // With the "hide not disconnect" architecture, silent=false in BOTH the null
+  // (hidden, visuallyHidden=true) and hiring (visible, visuallyHidden=false)
+  // phases. This means transitioning from null→hiring causes zero dep changes in
+  // [avatarAudioElement, open, silent] — the effect never fires and audio stays
+  // muted. Adding visuallyHidden to deps ensures the effect fires whenever the
+  // popup becomes visible (visuallyHidden: true→false), triggering doUnmute.
   useEffect(() => {
     // silent=true means home mode — audio must stay permanently muted.
-    // The mute loop in EmployerDashboard is also keeping all media muted.
-    if (!open || !avatarAudioElement || silent) return;
+    // visuallyHidden=true means popup is display:none — don't unmute yet.
+    if (!open || !avatarAudioElement || silent || visuallyHidden) return;
 
     const elapsed = popupOpenTimeRef.current ? Date.now() - popupOpenTimeRef.current : 0;
     const delay = Math.max(0, AUDIO_SWALLOW_MS - elapsed);
@@ -277,7 +285,7 @@ export function HiringAvatarPopup({
 
     const timer = setTimeout(doUnmute, delay);
     return () => clearTimeout(timer);
-  }, [avatarAudioElement, open, silent]);
+  }, [avatarAudioElement, open, silent, visuallyHidden]);
 
   // ── Listen for agent-driven option bubbles ───────────────────────────────────
   // The Mobeus agent calls callSiteFunction("showHiringOptions", { options: [...] })

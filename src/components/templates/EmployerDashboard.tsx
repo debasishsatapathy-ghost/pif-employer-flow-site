@@ -1677,6 +1677,21 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
       // Stop the mute loop so audio elements are no longer silenced
       muteCleanupRef.current?.();
 
+      // Belt-and-suspenders: explicitly unmute after AUDIO_SWALLOW_MS.
+      // HiringAvatarPopup's unmute effect also handles this (via visuallyHidden
+      // dep), but scheduling an explicit unmute here ensures audio plays even if
+      // the component effect is delayed by React's batched render cycle.
+      const { avatarAudioElement: ael } = useVoiceSessionStore.getState();
+      if (ael) {
+        setTimeout(() => {
+          // Only unmute if still in hiring mode (popup not closed in between)
+          if (!hiringAvatarActiveRef.current) return;
+          ael.muted = false;
+          ael.volume = 1;
+          ael.play().catch(() => {});
+        }, 2600); // slightly past AUDIO_SWALLOW_MS=2500 to align with swallow window
+      }
+
       const { avatarAvailable, sessionState } = useVoiceSessionStore.getState();
 
       if (avatarAvailable) {
