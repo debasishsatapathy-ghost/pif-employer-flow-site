@@ -18,6 +18,33 @@ const FALLBACK_PILLS: HiringOption[] = [
   { label: 'Market Trends',   value: 'market-trends' },
 ];
 
+// ─── Known response sentences per option ─────────────────────────────────────
+// Verbatim, matching the system prompt (HA-2-A / HA-2-B / HA-2-C).
+// Defined at module level so the reference is stable across renders — this
+// prevents unnecessary useEffect re-runs in the sentence-advancement effect.
+const OPTION_SENTENCES: Record<string, string[]> = {
+  'hiring metrics': [
+    "Here's a quick look at your hiring.",
+    "You have 107 active applicants with a strong average match time of 4.2 days.",
+    "However, skill readiness has dropped to 79% — down 5% since last month — leading to increased screening time.",
+    "While your pipeline is healthy, refine your job descriptions to close this quality gap and attract better-fit talent.",
+  ],
+  'best applicants': [
+    "You have two active roles open.",
+    "The Cloud Engineer role has great momentum with 17 shortlisted and 6 interviews booked.",
+    "For the Senior AI Developer role, you have 8 strong leads but one standout from the talent pool.",
+    "Sara Khalid is a perfect match with her generative AI background — she hasn't applied yet, so I'd suggest inviting her to apply.",
+  ],
+  'market trends': [
+    "Here's a look at the market:",
+    "In Jeddah, local AI graduates are showing 5% higher skill readiness than those in Riyadh, which is great for your Senior AI Developer search.",
+    "While global demand is surging, wage expectations have jumped 12% this quarter.",
+    "Two of your listings are now below market rate — adjusting those will keep you competitive.",
+  ],
+};
+// How many leading characters to match against — long enough to be unique per sentence.
+const SENTENCE_MATCH_LEN = 20;
+
 interface HiringAvatarPopupProps {
   open: boolean;
   onClose: () => void;
@@ -73,36 +100,16 @@ export function HiringAvatarPopup({
   const [selectedOptionLabels, setSelectedOptionLabels] = useState<string[]>([]);
 
   // Tracks the label of the most recently clicked option (lower-cased).
-  // Used to look up sentences for the current option response.
+  // Used to look up the sentence list from OPTION_SENTENCES (module-level constant).
   const [lastClickedOption, setLastClickedOption] = useState('');
 
-  // Known sentences per option — verbatim, matching the system prompt.
-  // Sentence-by-sentence display is driven by matching the rolling agent
-  // transcript text against these strings, not by counting isFinal segments.
-  // This works regardless of how many TTS utterances the LLM uses.
-  const OPTION_SENTENCES: Record<string, string[]> = {
-    'hiring metrics': [
-      "Here's a quick look at your hiring.",
-      "You have 107 active applicants with a strong average match time of 4.2 days.",
-      "However, skill readiness has dropped to 79% — down 5% since last month — leading to increased screening time.",
-      "While your pipeline is healthy, refine your job descriptions to close this quality gap and attract better-fit talent.",
-    ],
-    'best applicants': [
-      "You have two active roles open.",
-      "The Cloud Engineer role has great momentum with 17 shortlisted and 6 interviews booked.",
-      "For the Senior AI Developer role, you have 8 strong leads but one standout from the talent pool.",
-      "Sara Khalid is a perfect match with her generative AI background — she hasn't applied yet, so I'd suggest inviting her to apply.",
-    ],
-    'market trends': [
-      "Here's a look at the market:",
-      "In Jeddah, local AI graduates are showing 5% higher skill readiness than those in Riyadh, which is great for your Senior AI Developer search.",
-      "While global demand is surging, wage expectations have jumped 12% this quarter.",
-      "Two of your listings are now below market rate — adjusting those will keep you competitive.",
-    ],
-  };
-  // How many leading characters of each sentence to match against the transcript.
-  // 20 chars is long enough to uniquely identify each sentence.
-  const SENTENCE_MATCH_LEN = 20;
+  // Index of the sentence currently shown in the caption bubble (0-based).
+  // Managed as React state — NOT derived — so it can only advance ONE step at a
+  // time via a useEffect. This prevents React 18 batching from jumping directly
+  // from sentence 0 to sentence 3 in a single render when the full transcript
+  // arrives in one batch. Each advancement is one render cycle, creating the
+  // sequential fade-in/fade-out sentence transitions the user sees.
+  const [currentSentenceIdx, setCurrentSentenceIdx] = useState(0);
 
   // Timestamp of the most recent option pill click. Only transcripts that
   // arrive CAPTION_GRACE_MS after this time are shown as live captions,
@@ -145,6 +152,7 @@ export function HiringAvatarPopup({
     setPopupView('options');
     optionClickTimeRef.current = null;
     setLastClickedOption('');
+    setCurrentSentenceIdx(0);
   }, [visuallyHidden]);
 
   // ── Reset on each open/close ─────────────────────────────────────────────────
@@ -155,6 +163,7 @@ export function HiringAvatarPopup({
       setSelectedOptionLabels([]);
       optionClickTimeRef.current = null;
       setLastClickedOption('');
+      setCurrentSentenceIdx(0);
       return;
     }
     setPopupPhase('loading');
@@ -172,6 +181,7 @@ export function HiringAvatarPopup({
     setSelectedOptionLabels([]);
     optionClickTimeRef.current = null;
     setLastClickedOption('');
+    setCurrentSentenceIdx(0);
 
     // Hard fallback: show full UI after 8 s if video never becomes ready.
     // (was 20 s — reduced because the polling loop in videoRef now actively
@@ -374,6 +384,40 @@ export function HiringAvatarPopup({
     return () => window.removeEventListener('keydown', handler);
   }, [open, onClose]);
 
+  // ── Advance sentence index one step at a time as agent speaks ───────────────
+  // WHY this is state-driven, not derived:
+  // React 18 batches multiple transcript store updates that fire in the same
+  // event-loop tick into a single render. If the full agent response arrives in
+  // one batch, a derived index would jump 0→3 immediately (skipping sentences).
+  // By using useState + this effect we guarantee ONE advancement per render
+  // cycle: the effect fires, checks only the NEXT sentence, increments by 1,
+  // triggers a re-render, then fires again for the next step — giving the user
+  // the sequential 0→1→2→3 sentence transitions they see in the UI.
+  useEffect(() => {
+    if (popupView !== 'speaking') return;
+    if (!optionClickTimeRef.current) return;
+
+    const sentences = OPTION_SENTENCES[lastClickedOption] ?? [];
+    if (sentences.length === 0) return;
+    if (currentSentenceIdx >= sentences.length - 1) return;
+
+    const cutoff = new Date(optionClickTimeRef.current.getTime() + CAPTION_GRACE_MS);
+    const agentEntries = transcripts.filter(
+      (t) => t.isAgent && t.timestamp > cutoff,
+    );
+    if (agentEntries.length === 0) return;
+
+    const rollingText = agentEntries[agentEntries.length - 1].text;
+    if (!rollingText) return;
+
+    // Only check the IMMEDIATELY NEXT sentence — never skip ahead.
+    const nextIdx = currentSentenceIdx + 1;
+    const matchStr = sentences[nextIdx].substring(0, SENTENCE_MATCH_LEN);
+    if (rollingText.toLowerCase().includes(matchStr.toLowerCase())) {
+      setCurrentSentenceIdx(nextIdx);
+    }
+  }, [transcripts, currentSentenceIdx, lastClickedOption, popupView]);
+
   // ── Derived display state ────────────────────────────────────────────────────
   // Spinner while avatar is available but live video hasn't arrived yet
   const showLoading        = avatarAvailable && !showLiveVideo;
@@ -386,25 +430,18 @@ export function HiringAvatarPopup({
       ? staticOptions
       : agentOptions.length > 0 ? agentOptions : FALLBACK_PILLS;
 
-  // ── Rolling transcript text for sentence-by-sentence display ────────────────
-  // LiveKit delivers the agent's response as a single streaming transcript
-  // segment: first as isFinal=false (partial), then updated to isFinal=true
-  // (complete). The .text field grows as the agent speaks. We use the latest
-  // agent entry (regardless of isFinal) to drive real-time sentence matching.
-  const rollingAgentText = (() => {
-    if (!optionClickTimeRef.current) return '';
+  // ── Derived transcript helpers ───────────────────────────────────────────────
+  // Whether the agent has any transcript text after the option click (used to
+  // decide whether to show the waiting spinner or the first sentence).
+  const hasRollingText = (() => {
+    if (!optionClickTimeRef.current) return false;
     const cutoff = new Date(optionClickTimeRef.current.getTime() + CAPTION_GRACE_MS);
-    const agentEntries = transcripts.filter(
-      (t) => t.isAgent && t.timestamp > cutoff,
-    );
-    return agentEntries.length > 0
-      ? agentEntries[agentEntries.length - 1].text
-      : '';
+    return transcripts.some((t) => t.isAgent && t.timestamp > cutoff && !!t.text);
   })();
 
   // True once the agent has fully finished speaking (any isFinal=true segment
   // after the click). This is what makes the back button appear — it does not
-  // depend on the LLM producing exactly N segments.
+  // depend on the LLM producing exactly N TTS chunks.
   const agentFinishedSpeaking = (() => {
     if (!optionClickTimeRef.current) return false;
     const cutoff = new Date(optionClickTimeRef.current.getTime() + CAPTION_GRACE_MS);
@@ -413,29 +450,17 @@ export function HiringAvatarPopup({
     );
   })();
 
-  // Current sentence index: walk forward through the known sentences and
-  // record the highest index whose opening text appears in the rolling
-  // transcript. Advances in real time as the agent speaks through the response.
+  // Sentence list for the currently selected option (looked up from module-level
+  // constant). currentSentenceIdx is state managed by the advancement effect.
   const sentences = OPTION_SENTENCES[lastClickedOption] ?? [];
-  const currentSentenceIdx = (() => {
-    if (sentences.length === 0 || !rollingAgentText) return 0;
-    let idx = 0;
-    for (let i = 1; i < sentences.length; i++) {
-      const matchStr = sentences[i].substring(0, SENTENCE_MATCH_LEN);
-      if (rollingAgentText.toLowerCase().includes(matchStr.toLowerCase())) {
-        idx = i;
-      }
-    }
-    return idx;
-  })();
 
-  // Caption: show the current sentence from the known list. If no rolling text
-  // yet (agent hasn't started), show null so the waiting spinner displays.
-  // Falls back to raw rolling text for unknown options (future-proofing).
+  // Caption: show the sentence at currentSentenceIdx from the known list.
+  // Shows null (→ waiting spinner) until the agent has started speaking.
+  // Falls back to empty for unknown options.
   const captionDisplay: string | null =
     sentences.length > 0
-      ? (rollingAgentText ? sentences[currentSentenceIdx] : null)
-      : (rollingAgentText || null);
+      ? (hasRollingText ? (sentences[currentSentenceIdx] ?? null) : null)
+      : null;
 
   // Back button appears only when the agent has fully finished speaking.
   const isLastSentence = agentFinishedSpeaking;
@@ -455,6 +480,7 @@ export function HiringAvatarPopup({
     if (silent) return; // display-only mode — pills are non-interactive
     optionClickTimeRef.current = new Date();
     setLastClickedOption(label.toLowerCase());
+    setCurrentSentenceIdx(0); // always start from sentence 0 for a new option
     setSelectedOptionLabels((prev) => [...prev, label]);
     setPopupView('speaking');
     onOptionClick(label);
@@ -467,6 +493,7 @@ export function HiringAvatarPopup({
   const handleBack = () => {
     setPopupView('options');
     optionClickTimeRef.current = null;
+    setCurrentSentenceIdx(0);
     const { room: liveRoom } = useVoiceSessionStore.getState();
     liveRoom?.localParticipant
       ?.sendText('[HIRING_BACK]', { topic: 'lk.chat' })
