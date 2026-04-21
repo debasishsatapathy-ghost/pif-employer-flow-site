@@ -134,6 +134,13 @@ export function HiringAvatarPopup({
 
       // Attach LiveKit track → sets el.srcObject = new MediaStream([track])
       avatarVideoTrack.attach(el);
+      // Explicitly call play() after attach. LiveKit's lr() helper only schedules
+      // play() on Safari/iOS; on Chrome it relies on the `autoplay` attribute.
+      // When the track is re-attached to a new element (e.g. hiring popup opening
+      // after home popup already used this track), Chrome may not auto-start
+      // because the element was just created and the browser hasn't received a
+      // user-gesture-linked play() call for this specific element yet.
+      el.play().catch(() => {});
       console.log('[HiringAvatar] track attached to <video>, waiting for canplay…');
 
       const onReady = () => {
@@ -152,6 +159,15 @@ export function HiringAvatarPopup({
       videoCleanupRef.current = () => {
         el.removeEventListener('canplay', onReady);
         el.removeEventListener('playing', onReady);
+        // Null srcObject BEFORE calling LiveKit detach(). LiveKit's detach()
+        // internally calls ur() which does element.srcObject.removeTrack(track).
+        // If multiple popup instances share the same track (home→hiring reuse),
+        // that removeTrack call can corrupt the track's MediaStream state so that
+        // subsequent attach() on the next element gets an empty stream and canplay
+        // never fires. Nulling srcObject first makes ur() see null and skip the
+        // removeTrack call; detach() then only removes el from LiveKit's
+        // attachedElements tracking list, which is exactly what we want.
+        try { el.srcObject = null; } catch {}
         try { avatarVideoTrack.detach(el); } catch {}
         setVideoReady(false);
       };
