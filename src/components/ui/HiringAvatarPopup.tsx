@@ -732,7 +732,7 @@ export function HiringAvatarPopup({
                 ref={videoRef}
                 autoPlay
                 playsInline
-                muted={false}
+                muted
                 style={{
                   position: 'absolute',
                   inset: 0,
