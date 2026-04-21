@@ -2164,7 +2164,7 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
                   wizardOpen={wizardOpen}
                   wizardInitialData={wizardInitialData}
                   wizardPreFilled={wizardPreFilled}
-                  onGoToHiring={() => setActiveTab("hiring")}
+                  onGoToHiring={() => { setActiveTab("hiring"); setChatMode(false); }}
                   onWizardClose={() => {
                     setWizardOpen(false);
                     setWizardInitialData({});
