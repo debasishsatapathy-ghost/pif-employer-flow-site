@@ -2746,9 +2746,6 @@ function TalentPoolCard({ candidate, onInvite, onClick }: {
       className="flex flex-col gap-3 p-4 rounded-xl transition-all hover:bg-white/5 cursor-pointer"
       style={{
         background: "rgba(255,255,255,0.04)",
-        border: candidate.invited
-          ? "1px solid rgba(29,197,88,0.2)"
-          : "1px solid rgba(255,255,255,0.08)",
       }}
       onClick={onClick}
     >
@@ -2785,7 +2782,6 @@ function TalentPoolCard({ candidate, onInvite, onClick }: {
           className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all hover:brightness-110 active:scale-[0.98]"
           style={{
             background: "rgba(255,255,255,0.07)",
-            border: "1px solid rgba(255,255,255,0.1)",
             color: "rgba(255,255,255,0.8)",
           }}
         >
@@ -3739,7 +3735,7 @@ export function JobPostingTemplate({
                 <div className="flex flex-col gap-4 max-w-2xl">
                   <div
                     className="rounded-2xl p-6 flex flex-col gap-4"
-                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+                    style={{ background: "rgba(255,255,255,0.04)" }}
                   >
                     <h2 className="text-xl font-semibold text-white">{posting.title}</h2>
                     <div className="flex flex-wrap gap-3">
@@ -3973,7 +3969,7 @@ export function JobPostingTemplate({
             setSaraInterviewState("second_booked");
             setSelectedProfile(null);
           }}
-          onAddFeedback={() => setShowFeedbackModal(true)}
+          onAddFeedback={() => { setShowFeedbackModal(true); setSelectedProfile(null); }}
           onAddToHire={saraInterviewState === "feedback_captured" ? () => {
             setSaraInterviewState("hire");
             setKanban((prev) => {
