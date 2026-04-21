@@ -72,6 +72,13 @@ export function HiringAvatarPopup({
   // within a session — used to filter remaining pills on subsequent phases).
   const [selectedOptionLabels, setSelectedOptionLabels] = useState<string[]>([]);
 
+  // Sentence-by-sentence caption state.
+  // sentenceList is populated via the 'hiring-option-sentences' DOM event that
+  // getHiringOptionResponse dispatches when the agent calls it. sentenceIdx is
+  // advanced by a transcript-watching effect as each sentence is spoken.
+  const [sentenceList, setSentenceList] = useState<string[]>([]);
+  const [sentenceIdx, setSentenceIdx] = useState(0);
+
   // Timestamp of the most recent option pill click. Only transcripts that
   // arrive CAPTION_GRACE_MS after this time are shown as live captions,
   // filtering out any in-flight greeting or stale Back-response transcripts.
@@ -112,6 +119,8 @@ export function HiringAvatarPopup({
     setSelectedOptionLabels([]);
     setPopupView('options');
     optionClickTimeRef.current = null;
+    setSentenceList([]);
+    setSentenceIdx(0);
   }, [visuallyHidden]);
 
   // ── Reset on each open/close ─────────────────────────────────────────────────
@@ -121,6 +130,8 @@ export function HiringAvatarPopup({
       setPopupView('options');
       setSelectedOptionLabels([]);
       optionClickTimeRef.current = null;
+      setSentenceList([]);
+      setSentenceIdx(0);
       return;
     }
     setPopupPhase('loading');
@@ -137,6 +148,8 @@ export function HiringAvatarPopup({
     setPopupView('options');
     setSelectedOptionLabels([]);
     optionClickTimeRef.current = null;
+    setSentenceList([]);
+    setSentenceIdx(0);
 
     // Hard fallback: show full UI after 20 s if video never becomes ready.
     const fallbackTimer = setTimeout(() => setPopupPhase('ready'), 20_000);
@@ -310,6 +323,51 @@ export function HiringAvatarPopup({
     return () => window.removeEventListener('hiring-avatar-options', handler);
   }, [open, staticOptions]);
 
+  // ── Receive sentence list from getHiringOptionResponse ──────────────────────
+  // getHiringOptionResponse dispatches 'hiring-option-sentences' synchronously
+  // (before the agent starts speaking) so sentenceList is populated before the
+  // first transcript arrives. sentenceIdx starts at 0 — first sentence shows
+  // immediately, subsequent ones advance as the transcript grows.
+  useEffect(() => {
+    if (!open || visuallyHidden) return;
+    const handler = (e: Event) => {
+      const { sentences } = (e as CustomEvent<{ sentences: string[] }>).detail ?? {};
+      if (Array.isArray(sentences) && sentences.length > 0) {
+        setSentenceList(sentences);
+        setSentenceIdx(0);
+      }
+    };
+    window.addEventListener('hiring-option-sentences', handler);
+    return () => window.removeEventListener('hiring-option-sentences', handler);
+  }, [open, visuallyHidden]);
+
+  // ── Advance sentence index as agent speaks ───────────────────────────────────
+  // Watches the live transcript and advances sentenceIdx when the opening words
+  // of the next sentence appear in the accumulated agent text. This ensures each
+  // sentence bubble updates exactly when the agent starts speaking it, not at a
+  // fixed timer interval.
+  useEffect(() => {
+    if (popupView !== 'speaking' || sentenceList.length === 0) return;
+    if (sentenceIdx >= sentenceList.length - 1) return;
+    if (!optionClickTimeRef.current) return;
+
+    const cutoff = new Date(optionClickTimeRef.current.getTime() + CAPTION_GRACE_MS);
+    const fullText = transcripts
+      .filter((t) => t.isAgent && t.timestamp > cutoff)
+      .map((t) => t.text)
+      .join(' ');
+
+    // Match the first ~18 chars of the next sentence — enough to be unique
+    // but short enough to appear early in the streamed transcript.
+    const nextSentence = sentenceList[sentenceIdx + 1];
+    const matchStr = nextSentence.substring(0, Math.min(18, nextSentence.length));
+
+    if (fullText.toLowerCase().includes(matchStr.toLowerCase())) {
+      setSentenceIdx((prev) => Math.min(prev + 1, sentenceList.length - 1));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [transcripts, sentenceList, sentenceIdx, popupView]);
+
   // ── Close on Escape ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (!open) return;
@@ -345,6 +403,20 @@ export function HiringAvatarPopup({
     return newAgentSegments[newAgentSegments.length - 1].text || null;
   })();
 
+  // Sentence-by-sentence caption display.
+  // When sentenceList is available (getHiringOptionResponse returned sentences),
+  // show the current sentence rather than the raw rolling transcript text. This
+  // gives clean, complete sentences rather than streaming partial words.
+  // Falls back to liveCaptionText for the Back-response path (no sentences event).
+  const captionDisplay: string | null =
+    sentenceList.length > 0 ? sentenceList[sentenceIdx] : liveCaptionText;
+
+  // Back button is only shown on the last sentence (or immediately when no
+  // sentence list is available — preserves existing behaviour for HIRING_BACK).
+  const isLastSentence = sentenceList.length > 0
+    ? sentenceIdx === sentenceList.length - 1
+    : true;
+
   // Remaining selectable options = all display options minus already-clicked ones.
   const remainingOptions = displayOptions.filter(
     (opt) => !selectedOptionLabels.includes(opt.label),
@@ -359,6 +431,8 @@ export function HiringAvatarPopup({
   const handleOptionClick = (label: string) => {
     if (silent) return; // display-only mode — pills are non-interactive
     optionClickTimeRef.current = new Date();
+    setSentenceList([]);   // cleared now; repopulated by 'hiring-option-sentences' event
+    setSentenceIdx(0);
     setSelectedOptionLabels((prev) => [...prev, label]);
     setPopupView('speaking');
     onOptionClick(label);
@@ -369,6 +443,8 @@ export function HiringAvatarPopup({
   // showHiringOptions then speaks "Do you need anything else?" — distinct from
   // [HIRING_ASSISTANT] (HA-1) which would incorrectly say "Hello! How can I help?".
   const handleBack = () => {
+    setSentenceList([]);
+    setSentenceIdx(0);
     setPopupView('options');
     const { room: liveRoom } = useVoiceSessionStore.getState();
     liveRoom?.localParticipant
@@ -776,7 +852,7 @@ export function HiringAvatarPopup({
               </motion.div>
             )}
 
-            {/* ── PHASE B: speaking — real-time closed captions + Back button ── */}
+            {/* ── PHASE B: speaking — sentence-by-sentence captions + Back button ── */}
             {popupPhase === 'ready' && popupView === 'speaking' && (
               <motion.div
                 key="phase-speaking"
@@ -797,72 +873,84 @@ export function HiringAvatarPopup({
                   pointerEvents: 'auto',
                 }}
               >
-                {/* Caption bubble */}
-                <div
-                  style={{
-                    background: 'rgba(39, 39, 42, 0.92)',
-                    backdropFilter: 'blur(12px)',
-                    WebkitBackdropFilter: 'blur(12px)',
-                    borderRadius: '16px 16px 0 16px',
-                    padding: '14px 18px',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
-                    width: '100%',
-                    minHeight: 52,
-                    display: 'flex',
-                    alignItems: liveCaptionText ? 'flex-start' : 'center',
-                    justifyContent: liveCaptionText ? 'flex-start' : 'center',
-                  }}
-                >
-                  {liveCaptionText ? (
-                    <span
-                      style={{
-                        fontFamily: "'Outfit', sans-serif",
-                        fontSize: 15,
-                        fontWeight: 400,
-                        color: '#f4f4f5',
-                        lineHeight: '22px',
-                      }}
-                    >
-                      {liveCaptionText}
-                    </span>
-                  ) : (
-                    /* Waiting for agent to begin speaking */
-                    <div
-                      style={{
-                        width: 22,
-                        height: 22,
-                        borderRadius: '50%',
-                        border: '2px solid rgba(255,255,255,0.15)',
-                        borderTopColor: 'rgba(134,239,172,0.85)',
-                        animation: 'hiring-avatar-spin 0.8s linear infinite',
-                      }}
-                    />
-                  )}
-                </div>
+                {/* Caption bubble — sentence-by-sentence when sentences available */}
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={sentenceList.length > 0 ? sentenceIdx : 'raw'}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.18 }}
+                    style={{
+                      background: 'rgba(39, 39, 42, 0.92)',
+                      backdropFilter: 'blur(12px)',
+                      WebkitBackdropFilter: 'blur(12px)',
+                      borderRadius: '16px 16px 0 16px',
+                      padding: '14px 18px',
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+                      minHeight: 52,
+                      display: 'flex',
+                      alignItems: captionDisplay ? 'flex-start' : 'center',
+                      justifyContent: captionDisplay ? 'flex-start' : 'center',
+                    }}
+                  >
+                    {captionDisplay ? (
+                      <span
+                        style={{
+                          fontFamily: "'Outfit', sans-serif",
+                          fontSize: 15,
+                          fontWeight: 400,
+                          color: '#f4f4f5',
+                          lineHeight: '22px',
+                        }}
+                      >
+                        {captionDisplay}
+                      </span>
+                    ) : (
+                      /* Waiting for agent to begin speaking / sentences to arrive */
+                      <div
+                        style={{
+                          width: 22,
+                          height: 22,
+                          borderRadius: '50%',
+                          border: '2px solid rgba(255,255,255,0.15)',
+                          borderTopColor: 'rgba(134,239,172,0.85)',
+                          animation: 'hiring-avatar-spin 0.8s linear infinite',
+                        }}
+                      />
+                    )}
+                  </motion.div>
+                </AnimatePresence>
 
-                {/* Back button */}
-                <button
-                  onClick={handleBack}
-                  style={{
-                    background: 'rgba(255,255,255,0.06)',
-                    border: '1px solid rgba(255,255,255,0.14)',
-                    borderRadius: 24,
-                    padding: '8px 18px',
-                    cursor: 'pointer',
-                    outline: 'none',
-                    fontFamily: "'Outfit', sans-serif",
-                    fontSize: 14,
-                    fontWeight: 400,
-                    color: 'rgba(255,255,255,0.60)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    backdropFilter: 'blur(14px)',
-                    WebkitBackdropFilter: 'blur(14px)',
-                  }}
-                >
-                  ← Back
-                </button>
+                {/* Back button — shown only on the last sentence (or immediately
+                    when no sentence list is available for the HIRING_BACK path) */}
+                {isLastSentence && (
+                  <motion.button
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.2 }}
+                    onClick={handleBack}
+                    style={{
+                      background: 'rgba(255,255,255,0.06)',
+                      border: '1px solid rgba(255,255,255,0.14)',
+                      borderRadius: 24,
+                      padding: '8px 18px',
+                      cursor: 'pointer',
+                      outline: 'none',
+                      fontFamily: "'Outfit', sans-serif",
+                      fontSize: 14,
+                      fontWeight: 400,
+                      color: 'rgba(255,255,255,0.60)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      backdropFilter: 'blur(14px)',
+                      WebkitBackdropFilter: 'blur(14px)',
+                    }}
+                  >
+                    ← Back
+                  </motion.button>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
