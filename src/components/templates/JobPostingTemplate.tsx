@@ -1520,29 +1520,29 @@ function ApplicantCard({ applicant, delay = 0, compact = false, starred = false,
 
 /** SVG circular progress score ring — matches Figma Skill Score component */
 function ScoreCircle({ score, size = 44, fontSize, textColor, scoreIncreased }: { score: number; size?: number; fontSize?: number; textColor?: string; scoreIncreased?: boolean }) {
-  const r   = (size - 5) / 2;
+  const r   = (size - 6) / 2;
   const c   = size / 2;
   const circ = 2 * Math.PI * r;
   const dash = circ * (1 - score / 100);
 
   // Quality-based color: green>=80%, yellow>=60%, red<60%
   const arcColor = score >= 80 ? "#1dc558" : score >= 60 ? "#f59e0b" : "#f87171";
-  const numColor = textColor ?? arcColor;
+  const numColor = textColor ?? "#ffffff";
   const numSize  = fontSize ?? (size <= 36 ? 11 : size <= 48 ? 14 : 16);
 
   return (
     <div style={{ width: size, height: size, position: "relative", flexShrink: 0 }}>
-      <svg width={size} height={size} style={{ transform: "rotate(-90deg) scaleY(-1)" }}>
-        <circle cx={c} cy={c} r={r} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth={2.5} />
+      <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
+        <circle cx={c} cy={c} r={r} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth={4} />
         <circle cx={c} cy={c} r={r} fill="none"
-          stroke={arcColor} strokeWidth={2.5}
+          stroke={arcColor} strokeWidth={4}
           strokeDasharray={circ}
           strokeDashoffset={dash}
-          strokeLinecap="round"
+          strokeLinecap="butt"
         />
       </svg>
       <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <span style={{ fontSize: numSize, fontWeight: 700, color: numColor }}>{score}</span>
+        <span style={{ fontSize: numSize, fontWeight: 600, color: numColor }}>{score}</span>
       </div>
       {/* Score increase indicator — two green upward chevrons, transparent bg (Figma 6657:30508) */}
       {scoreIncreased && (
