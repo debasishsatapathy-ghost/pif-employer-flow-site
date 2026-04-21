@@ -1343,6 +1343,16 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
     const full = chunkBufferRef.current.join(" ").trim();
     if (!full || !sessionReady) { chunkBufferRef.current = []; return; }
 
+    // ── Global guard: wait for complete [JOB_LIST: ...] marker ───────────────
+    // This fires regardless of fetchJobsRequestedRef state. If the LLM sends a
+    // [JOB_LIST: ...] whose closing ] is split into a later speech chunk, we wait
+    // 1.5 s for the rest rather than letting a partial / unclosed marker reach the
+    // chat UI where the safeText regex (which requires ]) cannot strip it.
+    if (/\[JOB_LIST:/i.test(full) && !/\[JOB_LIST:[\s\S]*?\]/i.test(full)) {
+      silenceTimerRef.current = setTimeout(flushResponse, 1500);
+      return;
+    }
+
     // ── 0. Intercept [FETCH_JOBS] response — never show in chat UI ────────────
     // The AI responds with [JOB_LIST: id|title|location|status, ...] or plain
     // text if it doesn't understand the request. Either way: parse jobs if
@@ -1472,8 +1482,10 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
     // ── 3. Normal message — resolve chips and track current step ─────────────
     // Safety: strip any bracket markers that leaked through (e.g. [JOB_LIST:...]
     // arriving outside the fetchJobsRequestedRef guard due to AI timing).
+    // [^\]]*\]? matches the marker body with OR without a closing ] — handles
+    // the case where the LLM omitted the bracket or it was truncated.
     const safeText = full
-      .replace(/\[JOB_LIST:[\s\S]*?\]/gi, "")
+      .replace(/\[JOB_LIST:[^\]]*\]?/gi, "")
       .replace(/\[FETCH_JOBS\]/gi, "")
       .trim();
     // If stripping left us with nothing, suppress silently
@@ -1767,16 +1779,15 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
           ?.sendText('[HOME_ASSISTANT_SILENT]', { topic: 'lk.chat' })
           .catch(() => {});
       }
-    } else {
-      // Close — disable avatar and clear scene.
-      useVoiceSessionStore.getState().clearScene();
-      const { avatarEnabled, toggleAvatarHard } = useVoiceSessionStore.getState();
-      if (avatarEnabled) {
-        toggleAvatarHard().catch((e) =>
-          console.warn('[HomeAvatar] toggleAvatarHard(off) failed:', e),
-        );
-      }
     }
+    // On close: intentionally do NOT call toggleAvatarHard(off).
+    // Turning the avatar OFF here causes a race: if the user quickly navigates to the
+    // Hiring tab and opens the hiring avatar, the OFF RPC may still be in-flight
+    // (avatarEnabled still = true), so the hiring popup skips its own toggleAvatarHard(on)
+    // check and the video track never arrives — loading spinner forever.
+    // Leaving the avatar worker running is safe: the mute loop (hiringAvatarActiveRef=false)
+    // keeps all audio muted. The hiring avatar finds avatarEnabled=true and avatarVideoTrack
+    // already in the store, attaches it instantly, and works without any RPC round-trip.
   }, [homeAvatarOpen]);
 
   /* Connect the AI session on mount via the Zustand store */
