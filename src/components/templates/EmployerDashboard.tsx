@@ -1973,7 +1973,7 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
             boxShadow: '0px 0px 48px 48px rgba(9,9,11,0.25)',
           }}>
           {(["home", "hiring", "workforce"] as NavTab[]).map((tab) => {
-            const isActive = activeTab === tab && !chatMode;
+            const isActive = activeTab === tab && !chatMode && !isJobDetailOpen;
             const isHovered = hoveredNavTab === tab;
             const showGlass = isActive || isHovered;
             return (
