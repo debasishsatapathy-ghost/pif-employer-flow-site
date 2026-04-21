@@ -1689,7 +1689,7 @@ function KanbanColumnPanel({
           className="w-full flex items-center justify-center rounded-xl"
           style={{
             border: "1.5px dashed rgba(255,255,255,0.15)",
-            minHeight: 120,
+            minHeight: 76,
           }}
         >
           <p
