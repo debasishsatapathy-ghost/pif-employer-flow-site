@@ -43,6 +43,16 @@ const OPTION_SENTENCES: Record<string, string[]> = {
   ],
 };
 
+// Brief gap between displayed sentences (ms). Gives a natural pause feel.
+const SENTENCE_GAP_MS = 300;
+
+// Estimate how long a sentence takes to speak at ~2.8 words/second (professional TTS).
+// Used to build the timer chain that advances the caption display in sync with audio.
+function sentenceDurationMs(text: string): number {
+  const words = text.trim().split(/\s+/).length;
+  return Math.round((words / 2.8) * 1000);
+}
+
 interface HiringAvatarPopupProps {
   open: boolean;
   onClose: () => void;
@@ -101,6 +111,20 @@ export function HiringAvatarPopup({
   // Used to look up the sentence list from OPTION_SENTENCES (module-level constant).
   const [lastClickedOption, setLastClickedOption] = useState('');
 
+  // Index of the sentence currently shown in the caption bubble (0-based).
+  // Advanced by a word-count-based timer chain that starts the moment the
+  // agent's first transcript arrives (i.e. when TTS has actually begun),
+  // not from the click — this aligns display with real audio timing.
+  const [currentSentenceIdx, setCurrentSentenceIdx] = useState(0);
+
+  // Pending setTimeout IDs for the sentence-advance chain.
+  // Cleared whenever an option click, back, or popup close resets the flow.
+  const sentenceTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  // Flipped to true once the timer chain has been started for the current
+  // option click, preventing the useEffect from starting it a second time.
+  const speechStartedRef = useRef(false);
+
   // Timestamp of the most recent option pill click. Only transcripts that
   // arrive CAPTION_GRACE_MS after this time are shown as live captions,
   // filtering out any in-flight greeting or stale Back-response transcripts.
@@ -126,6 +150,15 @@ export function HiringAvatarPopup({
   // only fires on a genuine hidden→visible transition, not on initial mount.
   const wasHiddenRef = useRef(false);
 
+  // ── Sentence-timer helpers ───────────────────────────────────────────────────
+  // Cancels every pending sentence-advance timer and resets the "started" flag.
+  // Must be called on every flow reset (option click, back, popup close/hide).
+  const clearSentenceTimers = useCallback(() => {
+    sentenceTimersRef.current.forEach(clearTimeout);
+    sentenceTimersRef.current = [];
+    speechStartedRef.current = false;
+  }, []);
+
   // ── Reset display state when popup re-appears from a hidden state ────────────
   // Fired when visuallyHidden flips false (e.g. home→hiring mode switch).
   // Resets conversation state (options/view/selected) WITHOUT touching videoReady
@@ -137,16 +170,20 @@ export function HiringAvatarPopup({
     }
     if (!wasHiddenRef.current) return; // initial mount — skip
     wasHiddenRef.current = false;
+    clearSentenceTimers();
+    setCurrentSentenceIdx(0);
     setAgentOptions([]);
     setSelectedOptionLabels([]);
     setPopupView('options');
     optionClickTimeRef.current = null;
     setLastClickedOption('');
-  }, [visuallyHidden]);
+  }, [visuallyHidden, clearSentenceTimers]);
 
   // ── Reset on each open/close ─────────────────────────────────────────────────
   useEffect(() => {
     if (!open) {
+      clearSentenceTimers();
+      setCurrentSentenceIdx(0);
       setVideoReady(false);
       setPopupView('options');
       setSelectedOptionLabels([]);
@@ -165,6 +202,8 @@ export function HiringAvatarPopup({
     // showLiveVideo never becomes true, and the popup spins forever.
     // videoReady is already false when the popup opens: either from the initial
     // useState(false) or from the setVideoReady(false) in the !open branch above.
+    clearSentenceTimers();
+    setCurrentSentenceIdx(0);
     setPopupView('options');
     setSelectedOptionLabels([]);
     optionClickTimeRef.current = null;
@@ -175,7 +214,7 @@ export function HiringAvatarPopup({
     // retries play() and checks readyState, so 20 s is far too conservative.)
     const fallbackTimer = setTimeout(() => setPopupPhase('ready'), 8_000);
     return () => clearTimeout(fallbackTimer);
-  }, [open]);
+  }, [open, clearSentenceTimers]);
 
   // ── useCallback ref — the candidate-experiment-site pattern ─────────────────
   // Unlike useRef + useEffect([avatarVideoTrack]):
@@ -371,35 +410,46 @@ export function HiringAvatarPopup({
     return () => window.removeEventListener('keydown', handler);
   }, [open, onClose]);
 
-  // ── Auto-send [HA_NEXT] as each sentence finishes ────────────────────────────
-  // When the agent completes a sentence (isFinal transcript arrives), we
-  // immediately ping the agent with the NEXT sentence text inside [HA_NEXT].
-  // The agent speaks it verbatim then hard-stops, triggering this effect again.
-  // This ping-pong loop is the synchronisation source of truth — no text
-  // matching, no timers, no React state juggling required.
+  // ── Start sentence-advance timer chain on first agent speech ─────────────────
+  // The agent speaks all 4 sentences in one TTS turn, so there is only ONE
+  // isFinal event at the very end — not one per sentence. We therefore cannot
+  // rely on isFinal to advance the display mid-response.
+  //
+  // Strategy: watch for the first non-final agent transcript after the option
+  // click (= TTS has actually started). At that moment schedule a chain of
+  // setTimeouts — one per inter-sentence transition — using word-count-based
+  // duration estimates (~2.8 words/sec). The timers only advance the displayed
+  // sentence; the back button appearance is anchored to isFinal (see isLastSentence).
+  //
+  // speechStartedRef prevents the chain from being registered more than once
+  // per option click even though the effect re-runs on every transcript update.
   useEffect(() => {
     if (popupView !== 'speaking') return;
-    if (!lastClickedOption) return;
     if (!optionClickTimeRef.current) return;
-
-    const sentences = OPTION_SENTENCES[lastClickedOption] ?? [];
-    if (sentences.length === 0) return;
+    if (speechStartedRef.current) return; // chain already scheduled
 
     const cutoff = new Date(optionClickTimeRef.current.getTime() + CAPTION_GRACE_MS);
-    const finalCount = transcripts.filter(
-      (t) => t.isAgent && t.isFinal && t.timestamp > cutoff,
-    ).length;
+    const hasStarted = transcripts.some(
+      (t) => t.isAgent && t.timestamp > cutoff && !!t.text,
+    );
+    if (!hasStarted) return;
 
-    // Need to send the next sentence: finalCount >= 1 (prev sentence done)
-    // and finalCount < sentences.length (still more to speak).
-    if (finalCount < 1 || finalCount >= sentences.length) return;
+    // First transcript detected — lock in and build the timer chain.
+    speechStartedRef.current = true;
 
-    const nextSentence = sentences[finalCount]; // sentences[1], [2], [3]…
-    const { room: liveRoom } = useVoiceSessionStore.getState();
-    liveRoom?.localParticipant
-      ?.sendText(`[HA_NEXT] "${nextSentence}"`, { topic: 'lk.chat' })
-      .catch(() => {});
-  }, [transcripts, lastClickedOption, popupView]);
+    const sentences = OPTION_SENTENCES[lastClickedOption] ?? [];
+    if (sentences.length <= 1) return;
+
+    // Schedule one timeout per sentence transition (0→1, 1→2, …).
+    // accumulated = total delay from "speech started" for each step.
+    let accumulated = 0;
+    for (let i = 0; i < sentences.length - 1; i++) {
+      accumulated += sentenceDurationMs(sentences[i]) + SENTENCE_GAP_MS;
+      const nextIdx = i + 1;
+      const t = setTimeout(() => setCurrentSentenceIdx(nextIdx), accumulated);
+      sentenceTimersRef.current.push(t);
+    }
+  }, [transcripts, popupView, lastClickedOption]);
 
   // ── Derived display state ────────────────────────────────────────────────────
   // Spinner while avatar is available but live video hasn't arrived yet
@@ -417,41 +467,36 @@ export function HiringAvatarPopup({
   // Sentence list for the currently selected option.
   const sentences = OPTION_SENTENCES[lastClickedOption] ?? [];
 
-  // Count of isFinal agent transcript segments since the option click.
-  // Each completed sentence produces exactly one isFinal=true segment.
-  // This count directly maps to how many sentences have finished speaking.
-  const finalSegmentCount = (() => {
-    if (!optionClickTimeRef.current) return 0;
-    const cutoff = new Date(optionClickTimeRef.current.getTime() + CAPTION_GRACE_MS);
-    return transcripts.filter((t) => t.isAgent && t.isFinal && t.timestamp > cutoff).length;
-  })();
-
-  // Whether the agent has started producing any text after the option click
-  // (used to show the waiting spinner vs the first sentence bubble).
+  // Whether the agent has started producing any text after the option click.
+  // This is the trigger for both showing sentence 0 and starting the timer chain.
   const agentHasStarted = (() => {
     if (!optionClickTimeRef.current) return false;
     const cutoff = new Date(optionClickTimeRef.current.getTime() + CAPTION_GRACE_MS);
     return transcripts.some((t) => t.isAgent && t.timestamp > cutoff && !!t.text);
   })();
 
-  // currentSentenceIdx is fully derived — no state needed.
-  // finalSegmentCount = 0 → sentence 0 (agent speaking first sentence)
-  // finalSegmentCount = 1 → sentence 1 (agent speaking second sentence)  …
-  // Clamped to last sentence so the bubble stays visible once all are done.
-  const currentSentenceIdx = sentences.length > 0
-    ? Math.min(finalSegmentCount, sentences.length - 1)
-    : 0;
+  // True once the agent's full TTS turn is complete (isFinal=true fires once,
+  // after all 4 sentences have been spoken). Used as a safety-net: the back
+  // button appears either when the timer reaches the last sentence OR when
+  // isFinal fires — whichever comes first.
+  const agentFinishedSpeaking = (() => {
+    if (!optionClickTimeRef.current) return false;
+    const cutoff = new Date(optionClickTimeRef.current.getTime() + CAPTION_GRACE_MS);
+    return transcripts.some((t) => t.isAgent && t.isFinal && t.timestamp > cutoff);
+  })();
 
-  // Caption: null until the agent has started (→ spinner). Once speaking,
-  // shows the sentence at currentSentenceIdx from the known list.
+  // Caption: null (→ spinner) until agent has started speaking.
+  // currentSentenceIdx is useState, advanced by the timer chain.
   const captionDisplay: string | null =
     agentHasStarted && sentences.length > 0
       ? (sentences[currentSentenceIdx] ?? null)
       : null;
 
-  // Back button appears once all sentences have been spoken (finalSegmentCount
-  // reaches the total sentence count for this option).
-  const isLastSentence = sentences.length > 0 && finalSegmentCount >= sentences.length;
+  // Back button: timer reached last sentence OR isFinal fired (safety net).
+  const isLastSentence =
+    sentences.length > 0 &&
+    agentHasStarted &&
+    (currentSentenceIdx >= sentences.length - 1 || agentFinishedSpeaking);
 
   // Remaining selectable options = all display options minus already-clicked ones.
   const remainingOptions = displayOptions.filter(
@@ -466,6 +511,8 @@ export function HiringAvatarPopup({
   // in-flight transcripts (greeting / stale Back response) via the grace window.
   const handleOptionClick = (label: string) => {
     if (silent) return; // display-only mode — pills are non-interactive
+    clearSentenceTimers();
+    setCurrentSentenceIdx(0);
     optionClickTimeRef.current = new Date();
     setLastClickedOption(label.toLowerCase());
     setSelectedOptionLabels((prev) => [...prev, label]);
@@ -478,6 +525,8 @@ export function HiringAvatarPopup({
   // showHiringOptions then speaks "Do you need anything else?" — distinct from
   // [HIRING_ASSISTANT] (HA-1) which would incorrectly say "Hello! How can I help?".
   const handleBack = () => {
+    clearSentenceTimers();
+    setCurrentSentenceIdx(0);
     setPopupView('options');
     optionClickTimeRef.current = null;
     const { room: liveRoom } = useVoiceSessionStore.getState();
