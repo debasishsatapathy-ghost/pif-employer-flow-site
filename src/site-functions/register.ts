@@ -21,6 +21,7 @@
 import setTheme from './setTheme';
 import showHiringOptions from './showHiringOptions';
 import getHiringOptionResponse from './getHiringOptionResponse';
+import suppressResponse from './suppressResponse';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -115,6 +116,17 @@ export const siteFunctionManifest: Record<string, SiteFunctionEntry> = {
       required: ['option'],
     },
     defaults: { option: 'hiring-metrics' },
+  },
+
+  suppressResponse: {
+    fn: suppressResponse,
+    description:
+      'Signals this agent turn is complete with no spoken response. ' +
+      'Returns disableNewResponseCreation:true (HARD STOP). ' +
+      'Call this when the agent role requires complete silence ' +
+      '(e.g. [HOME_ASSISTANT_SILENT] context on the home dashboard).',
+    schema: { type: 'object', properties: {} },
+    defaults: {},
   },
 };
 

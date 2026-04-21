@@ -1302,6 +1302,16 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
   // True when the user has drilled into a JobPostingTemplate within the hiring tab.
   // The avatar popup must not be shown or openable on that sub-page.
   const [isJobDetailOpen, setIsJobDetailOpen] = useState(false);
+  // Home tab avatar popup — live video, audio permanently muted, display-only pills.
+  const [homeAvatarOpen, setHomeAvatarOpen] = useState(false);
+
+  // Fixed option pills for the home avatar popup (display-only, non-interactive).
+  const HOME_AVATAR_OPTIONS: { label: string; value: string }[] = [
+    { label: 'Find talent',       value: 'find-talent' },
+    { label: 'Hiring update',     value: 'hiring-update' },
+    { label: 'Training progress', value: 'training-progress' },
+  ];
+
   const promptOptionsRef = useRef<PromptStepOptions>({ step1: [], step2: [], step3: [] });
   const collectedJobRef = useRef<{ role?: string; experience?: string; location?: string }>({});
   const pendingFieldRef = useRef<"role" | "experience" | "location" | null>(null);
@@ -1726,6 +1736,48 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
       muteCleanupRef.current = startMuteLoop(hiringAvatarActiveRef);
     }
   }, [hiringAvatarOpen]);
+
+  /* Home Avatar — enables live avatar video and instructs the agent to adopt its
+     silent visual presence role via [HOME_ASSISTANT_SILENT].
+     The mute loop is intentionally NOT stopped here (unlike hiring avatar which
+     calls muteCleanupRef.current?.()). With hiringAvatarActiveRef.current = false,
+     startMuteLoop's skip() returns false and all audio/video stays muted continuously.
+     The silent prop on HiringAvatarPopup also guards doUnmute() as a safety net. */
+  useEffect(() => {
+    if (homeAvatarOpen) {
+      const {
+        avatarAvailable,
+        avatarEnabled,
+        toggleAvatarHard,
+        sessionState: ss,
+      } = useVoiceSessionStore.getState();
+
+      // Start the live avatar video (same as hiring avatar).
+      if (avatarAvailable && !avatarEnabled) {
+        toggleAvatarHard().catch((e) =>
+          console.warn('[HomeAvatar] toggleAvatarHard(on) failed:', e),
+        );
+      }
+
+      // Assign the agent its silent role — suppressResponse() returns
+      // disableNewResponseCreation:true so the platform generates no speech turn.
+      if (ss === 'connected') {
+        const { room: liveRoom } = useVoiceSessionStore.getState();
+        liveRoom?.localParticipant
+          ?.sendText('[HOME_ASSISTANT_SILENT]', { topic: 'lk.chat' })
+          .catch(() => {});
+      }
+    } else {
+      // Close — disable avatar and clear scene.
+      useVoiceSessionStore.getState().clearScene();
+      const { avatarEnabled, toggleAvatarHard } = useVoiceSessionStore.getState();
+      if (avatarEnabled) {
+        toggleAvatarHard().catch((e) =>
+          console.warn('[HomeAvatar] toggleAvatarHard(off) failed:', e),
+        );
+      }
+    }
+  }, [homeAvatarOpen]);
 
   /* Connect the AI session on mount via the Zustand store */
   useEffect(() => {
@@ -2344,6 +2396,17 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
       </div>{/* end centering wrapper */}
       </div>{/* end below-header row */}
 
+      {/* Home Avatar Popup — live video, silent role, home tab only */}
+      {activeTab === 'home' && (
+        <HiringAvatarPopup
+          open={homeAvatarOpen}
+          onClose={() => setHomeAvatarOpen(false)}
+          onOptionClick={() => {}}
+          silent
+          staticOptions={HOME_AVATAR_OPTIONS}
+        />
+      )}
+
       {/* Hiring Avatar Popup — only on hiring dashboard, not job detail sub-page */}
       {activeTab === 'hiring' && !isJobDetailOpen && (
         <HiringAvatarPopup
@@ -2369,9 +2432,14 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
         onPersonClick={() => {
           if (activeTab === 'hiring' && !isJobDetailOpen) {
             setHiringAvatarOpen(prev => !prev);
+          } else if (activeTab === 'home') {
+            setHomeAvatarOpen(prev => !prev);
           }
         }}
-        hidden={hiringAvatarOpen && activeTab === 'hiring' && !isJobDetailOpen}
+        hidden={
+          (hiringAvatarOpen && activeTab === 'hiring' && !isJobDetailOpen) ||
+          (homeAvatarOpen && activeTab === 'home')
+        }
       />
     </div>
   );

@@ -23,9 +23,23 @@ interface HiringAvatarPopupProps {
   onClose: () => void;
   /** Called with the option label when the employer clicks a bubble. */
   onOptionClick: (label: string) => void;
+  /**
+   * When true: audio unmuting is permanently skipped and option pills are
+   * non-interactive. The agent's silent role (system prompt) is the primary
+   * guarantee; this is a belt-and-suspenders code-level safety net.
+   */
+  silent?: boolean;
+  /**
+   * Fixed option pills shown immediately when popup is ready.
+   * When provided, overrides FALLBACK_PILLS and skips the
+   * 'hiring-avatar-options' event listener entirely.
+   */
+  staticOptions?: HiringOption[];
 }
 
-export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatarPopupProps) {
+export function HiringAvatarPopup({
+  open, onClose, onOptionClick, silent, staticOptions,
+}: HiringAvatarPopupProps) {
   const avatarVideoTrack   = useVoiceSessionStore((s) => s.avatarVideoTrack);
   const avatarEnabled      = useVoiceSessionStore((s) => s.avatarEnabled);
   const avatarAvailable    = useVoiceSessionStore((s) => s.avatarAvailable);
@@ -185,7 +199,9 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
   // worker reconnects. The greeting ([HIRING_ASSISTANT]) is sent 2 s after video-
   // ready, which is always well past the swallow window.
   useEffect(() => {
-    if (!open || !avatarAudioElement) return;
+    // silent=true means home mode — audio must stay permanently muted.
+    // The mute loop in EmployerDashboard is also keeping all media muted.
+    if (!open || !avatarAudioElement || silent) return;
 
     const elapsed = popupOpenTimeRef.current ? Date.now() - popupOpenTimeRef.current : 0;
     const delay = Math.max(0, AUDIO_SWALLOW_MS - elapsed);
@@ -205,16 +221,19 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
 
     const timer = setTimeout(doUnmute, delay);
     return () => clearTimeout(timer);
-  }, [avatarAudioElement, open]);
+  }, [avatarAudioElement, open, silent]);
 
   // ── Listen for agent-driven option bubbles ───────────────────────────────────
   // The Mobeus agent calls callSiteFunction("showHiringOptions", { options: [...] })
   // which dispatches the 'hiring-avatar-options' event on window.
+  // When staticOptions are provided (home/silent mode), we skip the listener —
+  // options are already set and the agent is not involved.
   useEffect(() => {
     if (!open) {
       setAgentOptions([]);
       return;
     }
+    if (staticOptions) return; // fixed options provided — skip event listener
     const handler = (e: Event) => {
       const detail = (e as CustomEvent<{ options: HiringOption[] }>).detail;
       if (Array.isArray(detail?.options) && detail.options.length > 0) {
@@ -225,7 +244,7 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
     };
     window.addEventListener('hiring-avatar-options', handler);
     return () => window.removeEventListener('hiring-avatar-options', handler);
-  }, [open]);
+  }, [open, staticOptions]);
 
   // ── Close on Escape ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -241,9 +260,11 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
   // Static fallback only when avatar feature is genuinely unavailable
   const showStaticFallback = !showLiveVideo && !avatarAvailable;
 
-  // Use agent-provided options when available, otherwise fallback pills
+  // staticOptions (home mode) > agent-provided options > fallback pills
   const displayOptions: HiringOption[] =
-    agentOptions.length > 0 ? agentOptions : FALLBACK_PILLS;
+    staticOptions
+      ? staticOptions
+      : agentOptions.length > 0 ? agentOptions : FALLBACK_PILLS;
 
   // Caption text for the current answer — only shows transcripts that arrived
   // at least CAPTION_GRACE_MS after the option was clicked. This filters out
@@ -272,6 +293,7 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
   // Records the click timestamp so liveCaptionText can filter out any
   // in-flight transcripts (greeting / stale Back response) via the grace window.
   const handleOptionClick = (label: string) => {
+    if (silent) return; // display-only mode — pills are non-interactive
     optionClickTimeRef.current = new Date();
     setSelectedOptionLabels((prev) => [...prev, label]);
     setPopupView('speaking');
@@ -347,6 +369,49 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
           />
        
 
+
+          {/* ── Dedicated close button — always visible at top-right of circle ── */}
+          {/* Positioned at the top-right corner of the 174×174 avatar circle.
+              Circle is at bottom:0, right:0 inside the 480×440 popup container.
+              This button is visible in all phases (loading, ready, speaking). */}
+          <button
+            onClick={onClose}
+            aria-label="Close avatar"
+            style={{
+              position: 'absolute',
+              bottom: 162,
+              right: -4,
+              width: 26,
+              height: 26,
+              borderRadius: '50%',
+              background: 'rgba(30, 30, 32, 0.88)',
+              border: '1px solid rgba(255,255,255,0.22)',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+              cursor: 'pointer',
+              outline: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'rgba(255,255,255,0.85)',
+              fontSize: 15,
+              lineHeight: 1,
+              zIndex: 10,
+              pointerEvents: 'auto',
+              flexShrink: 0,
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.background = 'rgba(50,50,54,0.95)';
+              (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,1)';
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.background = 'rgba(30,30,32,0.88)';
+              (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.85)';
+            }}
+          >
+            ×
+          </button>
 
           {/* ── Avatar circle — 174×174 px ────────────────────────────────── */}
           {/*
@@ -586,7 +651,7 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
                             padding: '10px 18px',
                             backdropFilter: 'blur(14px)',
                             WebkitBackdropFilter: 'blur(14px)',
-                            cursor: 'pointer',
+                            cursor: silent ? 'default' : 'pointer',
                             outline: 'none',
                             whiteSpace: 'nowrap',
                             transition: 'background 0.15s ease, border-color 0.15s ease',
@@ -597,11 +662,11 @@ export function HiringAvatarPopup({ open, onClose, onOptionClick }: HiringAvatar
                             lineHeight: '24px',
                             boxShadow: '0 2px 12px rgba(0,0,0,0.25)',
                           }}
-                          onMouseEnter={(e) => {
+                          onMouseEnter={silent ? undefined : (e) => {
                             (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.10)';
                             (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.22)';
                           }}
-                          onMouseLeave={(e) => {
+                          onMouseLeave={silent ? undefined : (e) => {
                             (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.05)';
                             (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.14)';
                           }}
