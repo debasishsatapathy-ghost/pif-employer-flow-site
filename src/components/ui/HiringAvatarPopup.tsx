@@ -73,16 +73,36 @@ export function HiringAvatarPopup({
   const [selectedOptionLabels, setSelectedOptionLabels] = useState<string[]>([]);
 
   // Tracks the label of the most recently clicked option (lower-cased).
-  // Used to look up the expected sentence count for the back-button visibility.
+  // Used to look up sentences for the current option response.
   const [lastClickedOption, setLastClickedOption] = useState('');
 
-  // How many isFinal=true agent segments we expect for each option.
-  // The back button appears once this many final segments have arrived.
-  const OPTION_SENTENCE_COUNT: Record<string, number> = {
-    'hiring metrics':  4,
-    'best applicants': 4,
-    'market trends':   4,
+  // Known sentences per option — verbatim, matching the system prompt.
+  // Sentence-by-sentence display is driven by matching the rolling agent
+  // transcript text against these strings, not by counting isFinal segments.
+  // This works regardless of how many TTS utterances the LLM uses.
+  const OPTION_SENTENCES: Record<string, string[]> = {
+    'hiring metrics': [
+      "Here's a quick look at your hiring.",
+      "You have 107 active applicants with a strong average match time of 4.2 days.",
+      "However, skill readiness has dropped to 79% — down 5% since last month — leading to increased screening time.",
+      "While your pipeline is healthy, refine your job descriptions to close this quality gap and attract better-fit talent.",
+    ],
+    'best applicants': [
+      "You have two active roles open.",
+      "The Cloud Engineer role has great momentum with 17 shortlisted and 6 interviews booked.",
+      "For the Senior AI Developer role, you have 8 strong leads but one standout from the talent pool.",
+      "Sara Khalid is a perfect match with her generative AI background — she hasn't applied yet, so I'd suggest inviting her to apply.",
+    ],
+    'market trends': [
+      "Here's a look at the market:",
+      "In Jeddah, local AI graduates are showing 5% higher skill readiness than those in Riyadh, which is great for your Senior AI Developer search.",
+      "While global demand is surging, wage expectations have jumped 12% this quarter.",
+      "Two of your listings are now below market rate — adjusting those will keep you competitive.",
+    ],
   };
+  // How many leading characters of each sentence to match against the transcript.
+  // 20 chars is long enough to uniquely identify each sentence.
+  const SENTENCE_MATCH_LEN = 20;
 
   // Timestamp of the most recent option pill click. Only transcripts that
   // arrive CAPTION_GRACE_MS after this time are shown as live captions,
@@ -366,31 +386,59 @@ export function HiringAvatarPopup({
       ? staticOptions
       : agentOptions.length > 0 ? agentOptions : FALLBACK_PILLS;
 
-  // isFinal=true agent transcript segments that arrived after the grace window.
-  // Each element corresponds to one fully-spoken sentence from the agent.
-  // Showing only the LAST one creates the sentence-by-sentence effect: each new
-  // sentence replaces the previous bubble as the agent finishes speaking it.
-  const finalSegments = (() => {
-    if (!optionClickTimeRef.current) return [];
+  // ── Rolling transcript text for sentence-by-sentence display ────────────────
+  // LiveKit delivers the agent's response as a single streaming transcript
+  // segment: first as isFinal=false (partial), then updated to isFinal=true
+  // (complete). The .text field grows as the agent speaks. We use the latest
+  // agent entry (regardless of isFinal) to drive real-time sentence matching.
+  const rollingAgentText = (() => {
+    if (!optionClickTimeRef.current) return '';
     const cutoff = new Date(optionClickTimeRef.current.getTime() + CAPTION_GRACE_MS);
-    return transcripts.filter(
+    const agentEntries = transcripts.filter(
+      (t) => t.isAgent && t.timestamp > cutoff,
+    );
+    return agentEntries.length > 0
+      ? agentEntries[agentEntries.length - 1].text
+      : '';
+  })();
+
+  // True once the agent has fully finished speaking (any isFinal=true segment
+  // after the click). This is what makes the back button appear — it does not
+  // depend on the LLM producing exactly N segments.
+  const agentFinishedSpeaking = (() => {
+    if (!optionClickTimeRef.current) return false;
+    const cutoff = new Date(optionClickTimeRef.current.getTime() + CAPTION_GRACE_MS);
+    return transcripts.some(
       (t) => t.isAgent && t.isFinal && t.timestamp > cutoff,
     );
   })();
 
-  // Show only the most recently completed sentence.
-  const captionDisplay: string | null =
-    finalSegments.length > 0
-      ? finalSegments[finalSegments.length - 1].text || null
-      : null;
+  // Current sentence index: walk forward through the known sentences and
+  // record the highest index whose opening text appears in the rolling
+  // transcript. Advances in real time as the agent speaks through the response.
+  const sentences = OPTION_SENTENCES[lastClickedOption] ?? [];
+  const currentSentenceIdx = (() => {
+    if (sentences.length === 0 || !rollingAgentText) return 0;
+    let idx = 0;
+    for (let i = 1; i < sentences.length; i++) {
+      const matchStr = sentences[i].substring(0, SENTENCE_MATCH_LEN);
+      if (rollingAgentText.toLowerCase().includes(matchStr.toLowerCase())) {
+        idx = i;
+      }
+    }
+    return idx;
+  })();
 
-  // Back button appears once the expected number of sentences have been spoken.
-  // Falls back to showing the back button after any sentence if the option is
-  // unknown (e.g. future options not yet in OPTION_SENTENCE_COUNT).
-  const expectedSentences = OPTION_SENTENCE_COUNT[lastClickedOption] ?? 0;
-  const isLastSentence = expectedSentences > 0
-    ? finalSegments.length >= expectedSentences
-    : finalSegments.length > 0;
+  // Caption: show the current sentence from the known list. If no rolling text
+  // yet (agent hasn't started), show null so the waiting spinner displays.
+  // Falls back to raw rolling text for unknown options (future-proofing).
+  const captionDisplay: string | null =
+    sentences.length > 0
+      ? (rollingAgentText ? sentences[currentSentenceIdx] : null)
+      : (rollingAgentText || null);
+
+  // Back button appears only when the agent has fully finished speaking.
+  const isLastSentence = agentFinishedSpeaking;
 
   // Remaining selectable options = all display options minus already-clicked ones.
   const remainingOptions = displayOptions.filter(
@@ -846,10 +894,10 @@ export function HiringAvatarPopup({
                   pointerEvents: 'auto',
                 }}
               >
-                {/* Caption bubble — one isFinal segment at a time, each replacing the last */}
+                {/* Caption bubble — one sentence at a time, fades as currentSentenceIdx advances */}
                 <AnimatePresence mode="wait">
                   <motion.div
-                    key={finalSegments.length}
+                    key={currentSentenceIdx}
                     initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -6 }}
