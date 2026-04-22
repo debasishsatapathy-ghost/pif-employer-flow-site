@@ -1392,19 +1392,33 @@ export function HiringPage({ onSelectJob, onPostJob, apiJobs: externalJobs, apiJ
                 {jobTab === "Active" && (
                   <div className="flex flex-col gap-4 flex-1 min-h-0">
                     {filteredJobs.length > 0
-                      ? filteredJobs.map((job) => (
-                          <LiveJobCard
-                            key={job.id}
-                            job={job}
-                            onClick={() => onSelectJob?.(job.id, {
-                              title: job.title,
-                              department: job.department || "",
-                              location: job.location || "",
-                              status: job.status,
-                              posted_at: job.created_at,
+                      ? (
+                        <>
+                          {filteredJobs.map((job) => (
+                            <LiveJobCard
+                              key={job.id}
+                              job={job}
+                              onClick={() => onSelectJob?.(job.id, {
+                                title: job.title,
+                                department: job.department || "",
+                                location: job.location || "",
+                                status: job.status,
+                                posted_at: job.created_at,
+                              })}
+                            />
+                          ))}
+                          <DetailedJobCard
+                            job={JOBS[1]}
+                            onClick={() => onSelectJob?.("mock-cloud-engineer", {
+                              title: JOBS[1].title,
+                              department: JOBS[1].metaParts[0],
+                              location: JOBS[1].metaParts[1],
+                              status: JOBS[1].status,
+                              posted_at: JOBS[1].metaParts[2],
                             })}
                           />
-                        ))
+                        </>
+                      )
                       : (
                         <>
                           <DetailedJobCard
