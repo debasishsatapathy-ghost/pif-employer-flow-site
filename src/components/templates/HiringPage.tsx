@@ -1388,29 +1388,48 @@ export function HiringPage({ onSelectJob, onPostJob, apiJobs: externalJobs, apiJ
                   </div>
                 )}
 
-                {/* ── Job postings list — always show both mock cards to match Figma ── */}
+                {/* ── Job postings list ── */}
                 {jobTab === "Active" && (
                   <div className="flex flex-col gap-4 flex-1 min-h-0">
-                    <DetailedJobCard
-                      job={JOBS[0]}
-                      onClick={() => onSelectJob?.("mock-senior-ai-dev", {
-                        title: JOBS[0].title,
-                        department: JOBS[0].metaParts[0],
-                        location: JOBS[0].metaParts[1],
-                        status: JOBS[0].status,
-                        posted_at: JOBS[0].metaParts[2],
-                      })}
-                    />
-                    <DetailedJobCard
-                      job={JOBS[1]}
-                      onClick={() => onSelectJob?.("mock-cloud-engineer", {
-                        title: JOBS[1].title,
-                        department: JOBS[1].metaParts[0],
-                        location: JOBS[1].metaParts[1],
-                        status: JOBS[1].status,
-                        posted_at: JOBS[1].metaParts[2],
-                      })}
-                    />
+                    {filteredJobs.length > 0
+                      ? filteredJobs.map((job) => (
+                          <LiveJobCard
+                            key={job.id}
+                            job={job}
+                            onClick={() => onSelectJob?.(job.id, {
+                              title: job.title,
+                              department: job.department || "",
+                              location: job.location || "",
+                              status: job.status,
+                              posted_at: job.created_at,
+                            })}
+                          />
+                        ))
+                      : (
+                        <>
+                          <DetailedJobCard
+                            job={JOBS[0]}
+                            onClick={() => onSelectJob?.("mock-senior-ai-dev", {
+                              title: JOBS[0].title,
+                              department: JOBS[0].metaParts[0],
+                              location: JOBS[0].metaParts[1],
+                              status: JOBS[0].status,
+                              posted_at: JOBS[0].metaParts[2],
+                            })}
+                          />
+                          <DetailedJobCard
+                            job={JOBS[1]}
+                            onClick={() => onSelectJob?.("mock-cloud-engineer", {
+                              title: JOBS[1].title,
+                              department: JOBS[1].metaParts[0],
+                              location: JOBS[1].metaParts[1],
+                              status: JOBS[1].status,
+                              posted_at: JOBS[1].metaParts[2],
+                            })}
+                          />
+                        </>
+                      )
+                    }
                   </div>
                 )}
 
