@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 // The wizard sends a structured lk.chat message instead (see handleFinish).
 import { AvatarFAB } from "@/components/ui/AvatarFAB";
 import { HiringAvatarPopup } from "@/components/ui/HiringAvatarPopup";
+import { PageBackground, type BackgroundVariant } from "@/components/ui/PageBackground";
 import { HiringPage } from "./HiringPage";
 import { JobPostingTemplate } from "./JobPostingTemplate";
 import WorkforcePage from "./WorkforcePage";
@@ -1952,23 +1953,30 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
   }, []);
 
 
+  /* Background variant — matches the Figma prototype mapping exactly:
+   *   Home      → Dashboard     (node 3271:11731 — R-top + L-bottom glow)
+   *   Hiring    → Dashboard ALT (node 3271:15211 — L-top + R-bottom glow, mirror)
+   *   Workforce → Dashboard     (node 3271:15282 — same as Home)
+   *
+   * Because Home and Workforce share the same variant, switching between them
+   * is invisible. Home/Workforce↔Hiring is a soft mirror-flip (same canvas
+   * dimensions, same asset types, just X-mirrored) so the 700ms cross-fade
+   * reads as a gentle glow shift rather than a page load.
+   *
+   * The Post-a-Job wizard is a MODAL overlay, not a page, so the background
+   * stays on the tab's variant while it's open (no disorienting flash). */
+  const backgroundVariant: BackgroundVariant =
+    activeTab === 'hiring' ? 'dashboard-alt' : 'dashboard';
+
   return (
     <div className="relative w-screen h-screen overflow-hidden flex flex-col gap-6" style={{ zIndex: 100, position: "relative" }}>
       {/* Singleton timer — drives job progression regardless of active page */}
       <JobProgressionManager />
 
-      {/* ── Background — Figma node 3509:46544 "Widescreen background" ──
-           Uses CSS radial-gradient (not filter:blur) so overflow:hidden never clips them.
-           Gradient centers match Figma exactly; CSS renders only the in-bounds portion. ── */}
-      <div className="absolute inset-0 pointer-events-none" style={{
-        background: `
-          radial-gradient(ellipse 950px 950px at calc(50% - 720px) 319px,
-            rgba(0,130,75,0.72) 0%, rgba(0,85,50,0.36) 38%, transparent 65%),
-          radial-gradient(ellipse 1800px 1800px at calc(50% + 608px) 1452px,
-            rgba(0,115,64,0.58) 0%, rgba(0,72,38,0.24) 38%, transparent 60%),
-          #09090b
-        `,
-      }} />
+      {/* ── Background — Figma "Widescreen background" (frame 13:3160) ──
+           4 variants mounted simultaneously, cross-faded on `variant` change.
+           Sized to fill the viewport via a CSS `cover`-style transform. ── */}
+      <PageBackground variant={backgroundVariant} />
 
       {/* ── Full-width Header — Figma 3921:21663 (1728px wide, h:96px, padding: 20px 32px) ── */}
       <motion.header
