@@ -1268,8 +1268,6 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
   const [hiringKey, setHiringKey] = useState(0);
   const [hoveredSidebarIcon, setHoveredSidebarIcon] = useState<number | null>(null);
   const [hoveredNavTab, setHoveredNavTab] = useState<string | null>(null);
-  const [hoveredUserPill, setHoveredUserPill] = useState(false);
-  const [hoveredBell, setHoveredBell] = useState(false);
   const [hoveredDashboardBack, setHoveredDashboardBack] = useState(false);
   const [chatMode, setChatMode] = useState(false);
   const [avatarMode, setAvatarMode] = useState(false); // default: text home (image 2); avatar (image 1) on explicit click
@@ -2042,49 +2040,60 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
               ← Switch role
             </button>
           )}
-          {/* Notification bell — 40×40, rounded-[100px] */}
-          <div
-            className="relative flex items-center justify-center flex-shrink-0 cursor-pointer rounded-[100px] transition-all duration-200"
-            onMouseEnter={() => setHoveredBell(true)}
-            onMouseLeave={() => setHoveredBell(false)}
-            style={{
-              width: 40,
-              height: 40,
-              background: hoveredBell ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.05)',
-              backdropFilter: hoveredBell ? 'blur(12px)' : 'none',
-              WebkitBackdropFilter: hoveredBell ? 'blur(12px)' : 'none',
-              border: hoveredBell ? '1px solid rgba(255,255,255,0.18)' : '1px solid transparent',
-              boxShadow: hoveredBell ? '0 2px 12px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.15)' : 'none',
-            }}>
-            <Bell size={18} className="text-white/70" />
-            <span className="absolute top-0 right-0 w-3 h-3 rounded-full border-2 border-[#09090b]"
-              style={{ background: '#ff4040' }} />
+          {/* Notification bell — 40×40, rounded-[100px] (glass outer layer) */}
+          <div className="relative flex-shrink-0" style={{ width: 40, height: 40 }}>
+            <div
+              className="glass-wrap cursor-pointer"
+              style={{ width: 40, height: 40, borderRadius: '100px' }}
+            >
+              <div className="glass-filter"></div>
+              <div className="glass-overlay"></div>
+              <div className="glass-specular"></div>
+              <div
+                className="glass-content"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  justifyContent: 'center',
+                }}
+              >
+                <Bell size={18} className="text-white/70" />
+              </div>
+            </div>
+            {/* Notification dot — positioned OUTSIDE glass-wrap to avoid overflow clipping */}
+            <span
+              className="absolute top-0 right-0 w-3 h-3 rounded-full border-2 border-[#09090b]"
+              style={{ background: '#ff4040', zIndex: 10 }}
+            />
           </div>
-          {/* User menu pill — avatar + name + role + chevron */}
-          <button
-            className="flex items-center gap-3 rounded-[100px] pl-2 pr-3 py-1.5 flex-shrink-0 transition-all duration-200"
-            onMouseEnter={() => setHoveredUserPill(true)}
-            onMouseLeave={() => setHoveredUserPill(false)}
-            style={{
-              background: hoveredUserPill ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.05)',
-              backdropFilter: hoveredUserPill ? 'blur(12px)' : 'none',
-              WebkitBackdropFilter: hoveredUserPill ? 'blur(12px)' : 'none',
-              border: hoveredUserPill ? '1px solid rgba(255,255,255,0.18)' : '1px solid transparent',
-              boxShadow: hoveredUserPill ? '0 2px 12px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.15)' : 'none',
-            }}>
-            <div className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0">
-              <img
-                src="/avatar/omar-s.png"
-                alt="Omar S."
-                className="w-full h-full object-cover"
-              />
-            </div>
-            <div className="hidden sm:flex flex-col items-start leading-none gap-0.5">
-              <span className="text-[14px] font-bold text-[#fafafa] leading-5">Omar S.</span>
-              <span className="text-[12px] leading-4" style={{ color: 'rgba(250,250,250,0.5)' }}>Hiring Manager</span>
-            </div>
-            <ChevronDown size={14} className="hidden sm:block flex-shrink-0" style={{ color: 'rgba(255,255,255,0.4)' }} />
-          </button>
+          {/* User menu pill — avatar + name + role + chevron (glass outer layer) */}
+          <div className="glass-wrap flex-shrink-0" style={{ borderRadius: '100px' }}>
+            <div className="glass-filter"></div>
+            <div className="glass-overlay"></div>
+            <div className="glass-specular"></div>
+            <button
+              className="glass-content gap-3 pl-2 pr-3 py-1.5"
+              style={{
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                outline: 'none',
+              }}
+            >
+              <div className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0">
+                <img
+                  src="/avatar/omar-s.png"
+                  alt="Omar S."
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="hidden sm:flex flex-col items-start leading-none gap-0.5">
+                <span className="text-[14px] font-bold text-[#fafafa] leading-5">Omar S.</span>
+                <span className="text-[12px] leading-4" style={{ color: 'rgba(250,250,250,0.5)' }}>Hiring Manager</span>
+              </div>
+              <ChevronDown size={14} className="hidden sm:block flex-shrink-0" style={{ color: 'rgba(255,255,255,0.4)' }} />
+            </button>
+          </div>
         </div>
       </motion.header>
 
@@ -2096,17 +2105,19 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
         initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.45 }}
         className="hidden md:flex relative z-20 items-start justify-center"
         style={{ width: 68, flexShrink: 0, paddingTop: 300 }}>
-        <div
-          style={{
-            display: 'flex',
-            padding: 8,
-            flexDirection: 'column',
-            alignItems: 'flex-start',
-            gap: 8,
-            borderRadius: '100px',
-            background: 'rgba(255, 255, 255, 0.05)',
-          }}
-        >
+        <div className="glass-wrap" style={{ borderRadius: '100px' }}>
+          <div className="glass-filter"></div>
+          <div className="glass-overlay"></div>
+          <div className="glass-specular"></div>
+          <div
+            className="glass-content"
+            style={{
+              padding: 8,
+              flexDirection: 'column',
+              alignItems: 'flex-start',
+              gap: 8,
+            }}
+          >
           {sidebarIcons.map(({ img, label }, i) => {
             const isHovered = hoveredSidebarIcon === i;
             return (
@@ -2170,6 +2181,7 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
               </div>
             );
           })}
+          </div>
         </div>
       </motion.aside>
 
