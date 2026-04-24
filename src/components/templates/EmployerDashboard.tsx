@@ -1973,39 +1973,45 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
         </div>
 
         {/* Center — nav pill (Home / Hiring / Workforce) */}
-        <div className="hidden sm:flex items-center p-2 gap-2 rounded-[100px] flex-shrink-0"
-          style={{
-            background: 'rgba(255,255,255,0.05)',
-            boxShadow: '0px 0px 48px 48px rgba(9,9,11,0.25)',
-          }}>
-          {(["home", "hiring", "workforce"] as NavTab[]).map((tab) => {
-            const isActive = activeTab === tab && !chatMode && !isJobDetailOpen;
-            const isHovered = hoveredNavTab === tab;
-            const showGlass = isActive || isHovered;
-            return (
-              <button key={tab}
-                onClick={() => {
-                  if (tab === "hiring" && activeTab === "hiring") setHiringKey((k) => k + 1);
-                  setActiveTab(tab);
-                  setChatMode(false);
-                }}
-                onMouseEnter={() => setHoveredNavTab(tab)}
-                onMouseLeave={() => setHoveredNavTab(null)}
-                className={cn(
-                  "flex items-center justify-center h-10 w-[132px] rounded-[100px] font-semibold text-base transition-all duration-200 whitespace-nowrap",
-                  isActive ? "text-[#f4f4f5]" : "text-[#f4f4f5]/50",
-                )}
-                style={{
-                  background: showGlass ? 'rgba(255,255,255,0.12)' : 'transparent',
-                  backdropFilter: showGlass ? 'blur(12px)' : 'none',
-                  WebkitBackdropFilter: showGlass ? 'blur(12px)' : 'none',
-                  border: showGlass ? '1px solid rgba(255,255,255,0.18)' : '1px solid transparent',
-                  boxShadow: showGlass ? '0 2px 12px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.15)' : 'none',
-                }}>
-                {tab === "home" ? "Home" : tab === "hiring" ? "Hiring" : "Workforce"}
-              </button>
-            );
-          })}
+        <div className="glass-wrap hidden sm:flex flex-shrink-0" style={{ borderRadius: '100px' }}>
+          <div className="glass-filter"></div>
+          <div className="glass-overlay"></div>
+          <div className="glass-specular"></div>
+          <div className="glass-content p-2 gap-2">
+            {(["home", "hiring", "workforce"] as NavTab[]).map((tab) => {
+              const isActive = activeTab === tab && !chatMode && !isJobDetailOpen;
+              const isHovered = hoveredNavTab === tab;
+              const showGlass = isActive || isHovered;
+              return (
+                <button
+                  key={tab}
+                  className={cn(
+                    showGlass ? "nav-tab-active" : "nav-tab-inactive",
+                    "font-semibold text-base whitespace-nowrap",
+                    isActive ? "text-[#f4f4f5]" : "text-[#f4f4f5]/50"
+                  )}
+                  onClick={() => {
+                    if (tab === "hiring" && activeTab === "hiring") setHiringKey((k) => k + 1);
+                    setActiveTab(tab);
+                    setChatMode(false);
+                  }}
+                  onMouseEnter={() => setHoveredNavTab(tab)}
+                  onMouseLeave={() => setHoveredNavTab(null)}
+                >
+                  <span style={{
+                    padding: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '100%',
+                    height: '100%',
+                  }}>
+                    {tab === "home" ? "Home" : tab === "hiring" ? "Hiring" : "Workforce"}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Right — notification bell + user menu (flex: 1 0 0, justify-end) */}
