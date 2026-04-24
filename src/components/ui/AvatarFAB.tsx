@@ -2,57 +2,90 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles } from 'lucide-react';
 
-const glassBtnStyle: React.CSSProperties = {
-  width: 56,
-  height: 56,
-  borderRadius: 100,
-  background: 'rgba(255, 255, 255, 0.05)',
-  border: '1px solid rgba(255, 255, 255, 0.12)',
-  backdropFilter: 'blur(16px)',
-  WebkitBackdropFilter: 'blur(16px)',
-  boxShadow: '0 4px 24px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.08)',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  cursor: 'pointer',
-  outline: 'none',
-  flexShrink: 0,
-  transition: 'box-shadow 0.2s ease, background 0.2s ease',
-};
-
-function ChatAIIcon() {
+/* ── Chat AI icon (Figma svg/Chat.svg) ─────────────────────────────────── */
+function ChatAIIcon({ size = 24 }: { size?: number }) {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
-      <path d="M7.291 20.824L2 22l1.176-5.291A9.956 9.956 0 0 1 2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10a9.956 9.956 0 0 1-4.709-1.176zm.583-2.138.266.148A7.967 7.967 0 0 0 12 20c4.418 0 8-3.582 8-8s-3.582-8-8-8-8 3.582-8 8c0 1.541.399 2.995 1.172 4.145l.148.266-.697 3.139 3.14-.697zM13 11h3l-4 5v-3H9l4-5v3z" />
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M20.713 8.12713L20.467 8.69313C20.4286 8.78529 20.3637 8.86402 20.2806 8.9194C20.1975 8.97478 20.0999 9.00433 20 9.00433C19.9001 9.00433 19.8025 8.97478 19.7194 8.9194C19.6363 8.86402 19.5714 8.78529 19.533 8.69313L19.287 8.12713C18.8545 7.12585 18.0624 6.32305 17.067 5.87713L16.308 5.53813C16.2159 5.49577 16.1379 5.4279 16.0832 5.34256C16.0286 5.25722 15.9995 5.15798 15.9995 5.05663C15.9995 4.95527 16.0286 4.85604 16.0832 4.7707C16.1379 4.68536 16.2159 4.61749 16.308 4.57513L17.025 4.25613C18.0454 3.79751 18.8511 2.96501 19.276 1.93013L19.529 1.31913C19.5662 1.22448 19.631 1.14323 19.715 1.08595C19.799 1.02868 19.8983 0.998047 20 0.998047C20.1017 0.998047 20.201 1.02868 20.285 1.08595C20.369 1.14323 20.4338 1.22448 20.471 1.31913L20.724 1.92913C21.1485 2.9642 21.9538 3.79706 22.974 4.25613L23.692 4.57613C23.7838 4.61861 23.8615 4.68647 23.916 4.7717C23.9705 4.85693 23.9994 4.95597 23.9994 5.05713C23.9994 5.15828 23.9705 5.25732 23.916 5.34255C23.8615 5.42779 23.7838 5.49565 23.692 5.53813L22.932 5.87613C21.9368 6.32249 21.1451 7.12565 20.713 8.12713ZM10 2.99913H14V4.99913H10C8.4087 4.99913 6.88258 5.63127 5.75736 6.75649C4.63214 7.88171 4 9.40783 4 10.9991C4 14.6091 6.462 16.9651 12 19.4791V16.9991H14C15.5913 16.9991 17.1174 16.367 18.2426 15.2418C19.3679 14.1166 20 12.5904 20 10.9991H22C22 13.1209 21.1571 15.1557 19.6569 16.656C18.1566 18.1563 16.1217 18.9991 14 18.9991V22.4991C9 20.4991 2 17.4991 2 10.9991C2 8.8774 2.84285 6.84256 4.34315 5.34227C5.84344 3.84198 7.87827 2.99913 10 2.99913Z" fill="currentColor"/>
     </svg>
   );
 }
 
-function PersonAIIcon() {
+/* ── Avatar icon (Figma svg/Avatar.svg) — person + sparkle ─────────────── */
+function AvatarIcon({ size = 28 }: { size?: number }) {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
-      <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v1h16v-1c0-2.66-5.33-4-8-4z" />
-      <path d="M19.5 8.5l.5-1.5 1.5-.5-1.5-.5-.5-1.5-.5 1.5-1.5.5 1.5.5.5 1.5z" fillOpacity="0.9" />
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M13.3333 16.0007C16.28 16.0007 18.6667 13.614 18.6667 10.6673C18.6667 7.72065 16.28 5.33398 13.3333 5.33398C10.3867 5.33398 8 7.72065 8 10.6673C8 13.614 10.3867 16.0007 13.3333 16.0007ZM13.3333 8.00065C14.8 8.00065 16 9.20065 16 10.6673C16 12.134 14.8 13.334 13.3333 13.334C11.8667 13.334 10.6667 12.134 10.6667 10.6673C10.6667 9.20065 11.8667 8.00065 13.3333 8.00065Z" fill="currentColor"/>
+      <path d="M5.33333 24.0007C5.62666 23.0407 9.74666 21.334 13.3333 21.334C13.3333 20.4007 13.5067 19.5073 13.8 18.6807C10.16 18.5473 2.66666 20.3607 2.66666 24.0007V26.6673H15.3867C14.6933 25.894 14.1467 25.0007 13.8 24.0007H5.33333Z" fill="currentColor"/>
+      <path d="M22.7135 24.1291L22.4675 24.6951C22.4291 24.7872 22.3642 24.866 22.2811 24.9214C22.198 24.9767 22.1004 25.0063 22.0005 25.0063C21.9006 25.0063 21.803 24.9767 21.7199 24.9214C21.6368 24.866 21.572 24.7872 21.5335 24.6951L21.2875 24.1291C20.855 23.1278 20.0629 22.325 19.0675 21.8791L18.3085 21.5401C18.2164 21.4977 18.1384 21.4299 18.0837 21.3445C18.0291 21.2592 18 21.1599 18 21.0586C18 20.9572 18.0291 20.858 18.0837 20.7727C18.1384 20.6873 18.2164 20.6194 18.3085 20.5771L19.0255 20.2581C20.0459 19.7995 20.8516 18.967 21.2765 17.9321L21.5295 17.3211C21.5667 17.2264 21.6315 17.1452 21.7155 17.0879C21.7995 17.0306 21.8988 17 22.0005 17C22.1022 17 22.2015 17.0306 22.2855 17.0879C22.3695 17.1452 22.4344 17.2264 22.4715 17.3211L22.7245 17.9311C23.149 18.9662 23.9543 19.799 24.9745 20.2581L25.6925 20.5781C25.7843 20.6206 25.862 20.6884 25.9165 20.7737C25.971 20.8589 25.9999 20.9579 25.9999 21.0591C25.9999 21.1602 25.971 21.2593 25.9165 21.3445C25.862 21.4297 25.7843 21.4976 25.6925 21.5401L24.9325 21.8781C23.9373 22.3244 23.1456 23.1276 22.7135 24.1291Z" fill="currentColor"/>
+    </svg>
+  );
+}
+
+/* ── Auto-Awesome icon (default FAB — Figma svg/icon.svg) ──────────────── */
+function AutoAwesomeIcon({ size = 24 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M9.37027 12.5153C8.87527 12.3503 8.87527 11.6513 9.37027 11.4863L12.2758 10.5188C12.9145 10.3058 13.4948 9.94701 13.9707 9.47081C14.4467 8.99461 14.8052 8.41409 15.0178 7.77527L15.9853 4.87127C16.1503 4.37627 16.8493 4.37627 17.0143 4.87127L17.9818 7.77677C18.1947 8.41547 18.5535 8.99579 19.0297 9.47174C19.5059 9.94768 20.0864 10.3062 20.7253 10.5188L23.6293 11.4863C23.7377 11.5218 23.832 11.5907 23.899 11.6831C23.9659 11.7755 24.0019 11.8867 24.0019 12.0008C24.0019 12.1149 23.9659 12.226 23.899 12.3184C23.832 12.4108 23.7377 12.4797 23.6293 12.5153L20.7238 13.4828C20.0852 13.6956 19.505 14.0541 19.0291 14.5301C18.5531 15.006 18.1946 15.5862 17.9818 16.2248L17.0143 19.1303C16.9787 19.2387 16.9098 19.3331 16.8174 19.4C16.725 19.4669 16.6138 19.5029 16.4998 19.5029C16.3857 19.5029 16.2745 19.4669 16.1821 19.4C16.0897 19.3331 16.0208 19.2387 15.9853 19.1303L15.0178 16.2248C14.805 15.5862 14.4464 15.006 13.9705 14.5301C13.4945 14.0542 12.9143 13.6956 12.2758 13.4828L9.37027 12.5153ZM1.72177 18.3098C1.65681 18.2883 1.60028 18.2468 1.56022 18.1914C1.52015 18.1359 1.49859 18.0692 1.49859 18.0008C1.49859 17.9323 1.52015 17.8657 1.56022 17.8102C1.60028 17.7547 1.65681 17.7133 1.72177 17.6918L3.46477 17.1113C4.24177 16.8518 4.85077 16.2428 5.11027 15.4658L5.69077 13.7228C5.71228 13.6578 5.75371 13.6013 5.80918 13.5612C5.86465 13.5212 5.93134 13.4996 5.99977 13.4996C6.0682 13.4996 6.13488 13.5212 6.19035 13.5612C6.24582 13.6013 6.28726 13.6578 6.30877 13.7228L6.88927 15.4658C7.01694 15.849 7.23211 16.1972 7.51773 16.4828C7.80335 16.7684 8.15156 16.9836 8.53477 17.1113L10.2778 17.6918C10.3427 17.7133 10.3993 17.7547 10.4393 17.8102C10.4794 17.8657 10.5009 17.9323 10.5009 18.0008C10.5009 18.0692 10.4794 18.1359 10.4393 18.1914C10.3993 18.2468 10.3427 18.2883 10.2778 18.3098L8.53477 18.8903C8.15156 19.0179 7.80335 19.2331 7.51773 19.5187C7.23211 19.8043 7.01694 20.1526 6.88927 20.5358L6.30877 22.2788C6.28726 22.3437 6.24582 22.4003 6.19035 22.4403C6.13488 22.4804 6.0682 22.502 5.99977 22.502C5.93134 22.502 5.86466 22.4804 5.80918 22.4403C5.75371 22.4003 5.71228 22.3437 5.69077 22.2788L5.11027 20.5358C4.98259 20.1526 4.76742 19.8044 4.48181 19.5187C4.19619 19.2331 3.84798 19.0179 3.46477 18.8903L1.72177 18.3098ZM0.148269 7.70627C0.105558 7.69147 0.0685224 7.66372 0.0423109 7.62689C0.0160994 7.59006 0.00201456 7.54598 0.00201455 7.50077C0.00201455 7.45557 0.0160994 7.41149 0.0423109 7.37466C0.0685224 7.33783 0.105558 7.31008 0.148268 7.29527L1.30927 6.90827C1.82827 6.73577 2.23477 6.32927 2.40727 5.81027L2.79427 4.64927C2.80908 4.60656 2.83682 4.56953 2.87365 4.54331C2.91048 4.5171 2.95456 4.50302 2.99977 4.50302C3.04497 4.50302 3.08905 4.5171 3.12588 4.54331C3.16271 4.56953 3.19046 4.60656 3.20527 4.64927L3.59227 5.81027C3.67735 6.06604 3.82089 6.29845 4.01149 6.48905C4.20209 6.67965 4.4345 6.82319 4.69027 6.90827L5.85127 7.29527C5.89398 7.31008 5.93101 7.33783 5.95723 7.37466C5.98344 7.41149 5.99752 7.45557 5.99752 7.50077C5.99752 7.54598 5.98344 7.59006 5.95723 7.62689C5.93101 7.66372 5.89398 7.69147 5.85127 7.70627L4.69027 8.09327C4.4345 8.17836 4.20209 8.3219 4.01149 8.5125C3.82089 8.7031 3.67735 8.9355 3.59227 9.19127L3.20527 10.3508C3.19046 10.3935 3.16271 10.4305 3.12588 10.4567C3.08905 10.4829 3.04497 10.497 2.99977 10.497C2.95456 10.497 2.91048 10.4829 2.87365 10.4567C2.83682 10.4305 2.80908 10.3935 2.79427 10.3508L2.40727 9.18977C2.23477 8.67077 1.82827 8.26427 1.30927 8.09177L0.149769 7.70627L0.148269 7.70627Z" fill="currentColor"/>
     </svg>
   );
 }
 
 const expandEasing = [0.34, 1.56, 0.64, 1] as const;
 
-function handleBtnMouseEnter(e: React.MouseEvent<HTMLButtonElement>) {
-  const btn = e.currentTarget;
-  btn.style.boxShadow =
-    '0 4px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15), 0 0 0 1px rgba(255,255,255,0.18)';
-  btn.style.background = 'rgba(255,255,255,0.09)';
-}
-
-function handleBtnMouseLeave(e: React.MouseEvent<HTMLButtonElement>) {
-  const btn = e.currentTarget;
-  btn.style.boxShadow =
-    '0 4px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08)';
-  btn.style.background = 'rgba(255,255,255,0.05)';
+/* ──────────────────────────────────────────────────────────────────────────
+ * GlassFabButton — shared 56×56 glass pill matching the notification bell
+ * and Omar profile pills. NO per-button hover animations; the glass is
+ * "always on" exactly like those elements.
+ * ────────────────────────────────────────────────────────────────────────── */
+function GlassFabButton({
+  ariaLabel,
+  onClick,
+  disabled = false,
+  dimmed = false,
+  children,
+}: {
+  ariaLabel: string;
+  onClick?: () => void;
+  disabled?: boolean;
+  dimmed?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className="glass-wrap"
+      style={{
+        width: 56,
+        height: 56,
+        borderRadius: 100,
+        opacity: dimmed ? 0.55 : 1,
+      }}
+    >
+      <div className="glass-filter"></div>
+      <div className="glass-overlay"></div>
+      <div className="glass-specular"></div>
+      <button
+        type="button"
+        className="glass-content"
+        style={{
+          width: '100%',
+          height: '100%',
+          justifyContent: 'center',
+          background: 'transparent',
+          border: 'none',
+          outline: 'none',
+          padding: 0,
+          cursor: disabled ? 'default' : 'pointer',
+          color: 'white',
+        }}
+        aria-label={ariaLabel}
+        onClick={disabled ? undefined : onClick}
+      >
+        {children}
+      </button>
+    </div>
+  );
 }
 
 interface AvatarFABProps {
@@ -84,68 +117,61 @@ export function AvatarFAB({ onPersonClick, hidden, avatarReady = false }: Avatar
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
           >
-            {/* Chat AI button — top */}
-            <motion.button
+            {/* Chat AI button — top (svg/Chat.svg) */}
+            <motion.div
               initial={{ opacity: 0, y: 20, scale: 0.75 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 16, scale: 0.75 }}
               transition={{ duration: 0.22, ease: expandEasing, delay: 0.06 }}
-              style={glassBtnStyle}
-              aria-label="AI Chat"
-              onMouseEnter={handleBtnMouseEnter}
-              onMouseLeave={handleBtnMouseLeave}
             >
-              <ChatAIIcon />
-            </motion.button>
+              <GlassFabButton ariaLabel="AI Chat">
+                <ChatAIIcon size={24} />
+              </GlassFabButton>
+            </motion.div>
 
-            {/* Person Search / Avatar button — bottom */}
-            <motion.button
+            {/* Person / Avatar button — bottom (svg/Avatar.svg) */}
+            <motion.div
               initial={{ opacity: 0, y: 20, scale: 0.75 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 16, scale: 0.75 }}
               transition={{ duration: 0.22, ease: expandEasing, delay: 0 }}
-              style={{
-                ...glassBtnStyle,
-                cursor: avatarReady ? 'pointer' : 'default',
-                opacity: avatarReady ? 1 : 0.55,
-              }}
-              aria-label={avatarReady ? 'AI Avatar' : 'AI Avatar connecting…'}
-              onClick={avatarReady ? onPersonClick : undefined}
-              onMouseEnter={avatarReady ? handleBtnMouseEnter : undefined}
-              onMouseLeave={avatarReady ? handleBtnMouseLeave : undefined}
             >
-              {avatarReady ? (
-                <PersonAIIcon />
-              ) : (
-                <div
-                  style={{
-                    width: 20,
-                    height: 20,
-                    borderRadius: '50%',
-                    border: '2px solid rgba(255,255,255,0.18)',
-                    borderTopColor: 'rgba(255,255,255,0.75)',
-                    animation: 'hiring-avatar-spin 0.8s linear infinite',
-                  }}
-                />
-              )}
-            </motion.button>
+              <GlassFabButton
+                ariaLabel={avatarReady ? 'AI Avatar' : 'AI Avatar connecting…'}
+                onClick={avatarReady ? onPersonClick : undefined}
+                disabled={!avatarReady}
+                dimmed={!avatarReady}
+              >
+                {avatarReady ? (
+                  <AvatarIcon size={28} />
+                ) : (
+                  <div
+                    style={{
+                      width: 20,
+                      height: 20,
+                      borderRadius: '50%',
+                      border: '2px solid rgba(255,255,255,0.18)',
+                      borderTopColor: 'rgba(255,255,255,0.75)',
+                      animation: 'hiring-avatar-spin 0.8s linear infinite',
+                    }}
+                  />
+                )}
+              </GlassFabButton>
+            </motion.div>
           </motion.div>
         ) : (
-          /* Default sparkles button */
-          <motion.button
+          /* Default FAB — shows sparkle icon (svg/icon.svg) */
+          <motion.div
             key="default"
             initial={{ opacity: 0, scale: 0.7 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.7, y: 10 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
-            style={glassBtnStyle}
-            aria-label="AI Assistant"
           >
-            <Sparkles
-              size={24}
-              style={{ transform: 'rotate(-90deg)', color: 'white' }}
-            />
-          </motion.button>
+            <GlassFabButton ariaLabel="AI Assistant">
+              <AutoAwesomeIcon size={24} />
+            </GlassFabButton>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

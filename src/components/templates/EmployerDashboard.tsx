@@ -23,8 +23,6 @@ import {
   ArrowUp,
   Loader2,
   Building2,
-  Users,
-  BookOpen,
   X,
   Pencil,
   AlertTriangle,
@@ -795,14 +793,35 @@ const sidebarIcons = [
   { img: "/Agentic Assist Icons (4).png", label: "Add Agents" },
 ];
 
-/* ── Sparkle icon ────────────────────────────────────────────────────────── */
+/* ── Sparkle icon (Home Page Sparkle — Figma svg/Home Page Sparkle.svg) ─── */
 const SparkleIcon = ({ size = 14 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
-    {/* Primary large 4-point star (centered, slightly bottom-right) */}
-    <path d="M14 4 L15.8 9.2 L21 11 L15.8 12.8 L14 18 L12.2 12.8 L7 11 L12.2 9.2 Z" />
-    {/* Secondary smaller 4-point star (upper-left, fully opaque) */}
-    <path d="M6 3 L6.8 5.2 L9 6 L6.8 6.8 L6 9 L5.2 6.8 L3 6 L5.2 5.2 Z" />
-    <path d="M19 12.5 L19.7 14.6 L21.8 15.3 L19.7 16 L19 18.1 L18.3 16 L16.2 15.3 L18.3 14.6 Z" opacity="0.5" />
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M8.72851 15.7548C8.95336 15.9144 9.22212 16.0005 9.49788 16.0013C9.77363 16.002 10.0428 15.9173 10.2685 15.7588C10.4705 15.6148 10.6295 15.4178 10.7265 15.1893L11.3445 13.3048C11.4957 12.8506 11.7506 12.4379 12.0891 12.0994C12.4276 11.7609 12.8403 11.506 13.2945 11.3548L15.11 10.7633C15.3705 10.6714 15.5961 10.501 15.7557 10.2755C15.9153 10.05 16.001 9.78057 16.001 9.50432C16.001 9.22807 15.9153 8.95862 15.7557 8.73312C15.5961 8.50763 15.3705 8.33719 15.11 8.24532L13.26 7.64882C12.8073 7.49726 12.3958 7.24285 12.0579 6.90556C11.72 6.56828 11.4649 6.15728 11.3125 5.70482L10.723 3.89032C10.6313 3.62969 10.4608 3.40407 10.235 3.24482C10.0084 3.08795 9.73936 3.00391 9.46376 3.00391C9.18816 3.00391 8.91911 3.08795 8.69251 3.24482C8.46277 3.40751 8.2901 3.63844 8.19901 3.90482L7.60251 5.73832C7.45097 6.17926 7.20146 6.58011 6.87272 6.91076C6.54398 7.2414 6.14457 7.49323 5.70451 7.64732L3.89101 8.23632C3.6291 8.32858 3.40248 8.50022 3.2427 8.72733C3.08293 8.95444 2.99795 9.22573 2.9996 9.50341C3.00125 9.78109 3.08945 10.0513 3.25191 10.2765C3.41438 10.5017 3.64302 10.6707 3.90601 10.7598L5.69951 11.3423C6.15388 11.4949 6.56662 11.7509 6.90518 12.0901C7.24375 12.4294 7.49889 12.8426 7.65051 13.2973L8.24051 15.1088C8.33201 15.3693 8.50301 15.5953 8.72851 15.7548ZM16.437 20.3208C16.6013 20.4372 16.7976 20.5 16.999 20.5003L17.0015 20.5018C17.2053 20.5014 17.4039 20.4371 17.5692 20.318C17.7346 20.1989 17.8585 20.031 17.9235 19.8378L18.208 18.9628C18.2663 18.7882 18.3644 18.6295 18.4944 18.4992C18.6245 18.3688 18.783 18.2705 18.9575 18.2118L19.8525 17.9208C19.9943 17.8707 20.1225 17.7884 20.2271 17.6803C20.3317 17.5723 20.4098 17.4415 20.4553 17.2982C20.5009 17.1549 20.5126 17.003 20.4895 16.8544C20.4665 16.7058 20.4093 16.5646 20.3225 16.4418C20.199 16.2689 20.0227 16.1408 19.82 16.0768L18.9415 15.7923C18.767 15.7338 18.6085 15.6356 18.4783 15.5055C18.3482 15.3754 18.25 15.2168 18.1915 15.0423L17.9005 14.1478C17.8334 13.9565 17.7081 13.791 17.5422 13.6744C17.3763 13.5578 17.1781 13.496 16.9754 13.4976C16.7726 13.4993 16.5755 13.5643 16.4115 13.6836C16.2476 13.8029 16.125 13.9704 16.061 14.1628L15.775 15.0413C15.7182 15.2132 15.6229 15.3699 15.4964 15.4995C15.3699 15.629 15.2155 15.728 15.045 15.7888L14.15 16.0798C13.9588 16.1469 13.7933 16.272 13.6768 16.4378C13.5602 16.6036 13.4984 16.8016 13.5 17.0042C13.5016 17.2069 13.5665 17.4039 13.6857 17.5678C13.8048 17.7317 13.9723 17.8543 14.1645 17.9183L15.0405 18.2033C15.2155 18.2618 15.3745 18.3603 15.5047 18.491C15.6349 18.6217 15.7328 18.7811 15.7905 18.9563L16.0815 19.8503C16.1485 20.0403 16.273 20.2048 16.437 20.3208Z" fill="currentColor"/>
+  </svg>
+);
+
+/* ── Business Center icon (Post a job — Figma svg/business_center.svg) ───── */
+const BusinessCenterIcon = ({ size = 20 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M16.6667 5.83333H13.3333V4.16667L11.6667 2.5H8.33334L6.66667 4.16667V5.83333H3.33334C2.41667 5.83333 1.66667 6.58333 1.66667 7.5V11.6667C1.66667 12.2917 2.00001 12.8167 2.50001 13.1083V15.8333C2.50001 16.7583 3.24167 17.5 4.16667 17.5H15.8333C16.7583 17.5 17.5 16.7583 17.5 15.8333V13.1C17.9917 12.8083 18.3333 12.275 18.3333 11.6667V7.5C18.3333 6.58333 17.5833 5.83333 16.6667 5.83333ZM8.33334 4.16667H11.6667V5.83333H8.33334V4.16667ZM3.33334 7.5H16.6667V11.6667H12.5V9.16667H7.5V11.6667H3.33334V7.5ZM10.8333 12.5H9.16667V10.8333H10.8333V12.5ZM15.8333 15.8333H4.16667V13.3333H7.5V14.1667H12.5V13.3333H15.8333V15.8333Z" fill="currentColor"/>
+  </svg>
+);
+
+/* ── People Alt icon (Review applicants — Figma svg/people_alt.svg) ─────── */
+const PeopleAltIcon = ({ size = 20 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M13.8917 10.9414C15.0333 11.7164 15.8333 12.7664 15.8333 14.1664V16.6664H19.1667V14.1664C19.1667 12.3497 16.1917 11.2747 13.8917 10.9414Z" fill="currentColor"/>
+    <path d="M12.5 10.0007C14.3417 10.0007 15.8333 8.50898 15.8333 6.66732C15.8333 4.82565 14.3417 3.33398 12.5 3.33398C12.1083 3.33398 11.7417 3.41732 11.3917 3.53398C12.0833 4.39232 12.5 5.48398 12.5 6.66732C12.5 7.85065 12.0833 8.94232 11.3917 9.80065C11.7417 9.91732 12.1083 10.0007 12.5 10.0007Z" fill="currentColor"/>
+    <path d="M7.5 10.0007C9.34166 10.0007 10.8333 8.50898 10.8333 6.66732C10.8333 4.82565 9.34166 3.33398 7.5 3.33398C5.65833 3.33398 4.16666 4.82565 4.16666 6.66732C4.16666 8.50898 5.65833 10.0007 7.5 10.0007ZM7.5 5.00065C8.41666 5.00065 9.16666 5.75065 9.16666 6.66732C9.16666 7.58398 8.41666 8.33398 7.5 8.33398C6.58333 8.33398 5.83333 7.58398 5.83333 6.66732C5.83333 5.75065 6.58333 5.00065 7.5 5.00065Z" fill="currentColor"/>
+    <path d="M7.5 10.834C5.275 10.834 0.833332 11.9507 0.833332 14.1673V16.6673H14.1667V14.1673C14.1667 11.9507 9.725 10.834 7.5 10.834ZM12.5 15.0007H2.5V14.1757C2.66667 13.5757 5.25 12.5007 7.5 12.5007C9.75 12.5007 12.3333 13.5757 12.5 14.1673V15.0007Z" fill="currentColor"/>
+  </svg>
+);
+
+/* ── Psychology icon (Track Development — Figma svg/psychology.svg) ─────── */
+const PsychologyIcon = ({ size = 20 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M13.1833 6.01667L12.35 6.35C12.175 6.21667 11.9917 6.10833 11.7917 6.025L11.6667 5.14167C11.65 5.05833 11.5833 5 11.5 5H10.1667C10.0833 5 10.0167 5.05833 10.0083 5.14167L9.88335 6.025C9.68335 6.10833 9.49168 6.21667 9.32501 6.35L8.49168 6.01667C8.41668 5.99167 8.32501 6.01667 8.29168 6.09167L7.62501 7.24167C7.58335 7.31667 7.60001 7.40833 7.66668 7.45833L8.37501 8.00833C8.35001 8.10833 8.33335 8.225 8.33335 8.33333C8.33335 8.44167 8.34168 8.55 8.35835 8.65833L7.65835 9.20833C7.59168 9.25833 7.57501 9.35 7.61668 9.41667L8.28335 10.575C8.32501 10.65 8.40835 10.675 8.49168 10.65L9.31668 10.3167C9.49168 10.45 9.67501 10.5583 9.88335 10.6417L10 11.525C10.0167 11.6083 10.0833 11.6667 10.1667 11.6667H11.5C11.5833 11.6667 11.65 11.6083 11.6667 11.525L11.7917 10.6417C11.9917 10.5583 12.1833 10.45 12.35 10.3167L13.175 10.65C13.25 10.6833 13.3417 10.65 13.375 10.575L14.0417 9.41667C14.0833 9.34167 14.0667 9.25833 14 9.20833L13.3083 8.65833C13.325 8.55 13.3333 8.44167 13.3333 8.33333C13.3333 8.21667 13.325 8.10833 13.3083 8.00833L14.0167 7.45833C14.0833 7.40833 14.1 7.31667 14.0583 7.24167L13.3917 6.09167C13.35 6.01667 13.2583 5.99167 13.1833 6.01667ZM10.8333 9.525C10.175 9.525 9.64168 8.99167 9.64168 8.33333C9.64168 7.675 10.175 7.14167 10.8333 7.14167C11.4917 7.14167 12.025 7.675 12.025 8.33333C12.025 8.99167 11.4917 9.525 10.8333 9.525Z" fill="currentColor"/>
+    <path d="M16.6167 7.55C16.2583 4.825 13.925 2.66667 11.175 2.50833C11.0583 2.5 10.95 2.5 10.8333 2.5C7.89167 2.5 5.475 4.675 5.06667 7.5L3.45834 10.4C3.11667 10.95 3.51667 11.6667 4.16667 11.6667H5V13.3333C5 14.25 5.75 15 6.66667 15H7.5V17.5H13.3333V13.6C15.5167 12.5583 16.9583 10.2 16.6167 7.55ZM12.4083 12.1917L11.6667 12.5417V15.8333H9.16667V13.3333H6.66667V10H5.58334L6.69167 8.05833C6.84167 5.88333 8.625 4.16667 10.8333 4.16667C13.1333 4.16667 15 6.03333 15 8.33333C15 10.075 13.925 11.5667 12.4083 12.1917Z" fill="currentColor"/>
   </svg>
 );
 
@@ -1021,12 +1040,9 @@ function ChatInputBar({
           ) : (
             <motion.div key="wave" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="flex items-center justify-center text-white/35">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-                <rect x="2" y="9" width="2.5" height="6" rx="1.25" opacity="0.4" />
-                <rect x="6" y="6" width="2.5" height="12" rx="1.25" opacity="0.6" />
-                <rect x="10" y="3" width="2.5" height="18" rx="1.25" />
-                <rect x="14" y="6" width="2.5" height="12" rx="1.25" opacity="0.6" />
-                <rect x="18" y="9" width="2.5" height="6" rx="1.25" opacity="0.4" />
+              {/* Soundwave icon — Figma svg/proicons_soundwave.svg */}
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 20.75V3.25M20 14.96V9.04M4 14.96V9.04M16 17.912V6.088M8 17.912V6.088" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </motion.div>
           )}
@@ -2364,8 +2380,8 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
                                 setChatMode(true);
                                 setTimeout(() => setWizardOpen(true), 200);
                               }}>
-                              <div className="flex items-center gap-2">
-                                <Building2 size={20} style={{ color: '#1ed25e' }} />
+                              <div className="flex items-center gap-2" style={{ color: '#1ed25e' }}>
+                                <BusinessCenterIcon size={20} />
                                 <span className="text-base font-normal text-[#fafafa]">Post a job</span>
                               </div>
                               <ChevronRight size={18} className="text-white/40" />
@@ -2375,8 +2391,8 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
                               className="flex flex-1 h-[52px] items-center justify-between px-4 rounded-2xl transition-all duration-200 hover:bg-white/10 active:scale-[0.98] border-0"
                               style={{ background: 'rgba(255,255,255,0.05)', border: 'none', minWidth: 0 }}
                               onClick={() => { setAvatarMode(false); handleSend("Review applicants"); }}>
-                              <div className="flex items-center gap-2">
-                                <Users size={20} style={{ color: '#51a2ff' }} />
+                              <div className="flex items-center gap-2" style={{ color: '#51a2ff' }}>
+                                <PeopleAltIcon size={20} />
                                 <span className="text-base font-normal text-[#fafafa]">Review applicants</span>
                               </div>
                               <ChevronRight size={18} className="text-white/40" />
@@ -2386,8 +2402,8 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
                               className="flex flex-1 h-[52px] items-center justify-between px-4 rounded-2xl transition-all duration-200 hover:bg-white/10 active:scale-[0.98] border-0"
                               style={{ background: 'rgba(255,255,255,0.05)', border: 'none', minWidth: 0 }}
                               onClick={() => { setAvatarMode(false); handleSend("How is my training program?"); }}>
-                              <div className="flex items-center gap-2">
-                                <BookOpen size={20} style={{ color: '#a78bfa' }} />
+                              <div className="flex items-center gap-2" style={{ color: '#a78bfa' }}>
+                                <PsychologyIcon size={20} />
                                 <span className="text-base font-normal text-[#fafafa]">Track Development</span>
                               </div>
                               <ChevronRight size={18} className="text-white/40" />
@@ -2421,8 +2437,8 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
                               setChatMode(true);
                               setTimeout(() => setWizardOpen(true), 200);
                             }}>
-                            <div className="flex items-center gap-2">
-                              <Building2 size={20} style={{ color: '#1ed25e' }} />
+                            <div className="flex items-center gap-2" style={{ color: '#1ed25e' }}>
+                              <BusinessCenterIcon size={20} />
                               <span className="text-base font-normal text-[#fafafa]">Post a job</span>
                             </div>
                             <ArrowRight size={20} className="text-white/40" />
@@ -2431,8 +2447,8 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
                             className="flex flex-1 h-[52px] items-center justify-between px-4 rounded-2xl transition-all duration-200 hover:bg-white/10 active:scale-[0.98] border-0"
                             style={{ background: 'rgba(255,255,255,0.05)', border: 'none', minWidth: 0 }}
                             onClick={() => handleSend("Review applicants")}>
-                            <div className="flex items-center gap-2">
-                              <Users size={20} style={{ color: '#51a2ff' }} />
+                            <div className="flex items-center gap-2" style={{ color: '#51a2ff' }}>
+                              <PeopleAltIcon size={20} />
                               <span className="text-base font-normal text-[#fafafa]">Review applicants</span>
                             </div>
                             <ArrowRight size={20} className="text-white/40" />
@@ -2441,8 +2457,8 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
                             className="flex flex-1 h-[52px] items-center justify-between px-4 rounded-2xl transition-all duration-200 hover:bg-white/10 active:scale-[0.98] border-0"
                             style={{ background: 'rgba(255,255,255,0.05)', border: 'none', minWidth: 0 }}
                             onClick={() => handleSend("How is my training program?")}>
-                            <div className="flex items-center gap-2">
-                              <BookOpen size={20} style={{ color: '#a78bfa' }} />
+                            <div className="flex items-center gap-2" style={{ color: '#a78bfa' }}>
+                              <PsychologyIcon size={20} />
                               <span className="text-base font-normal text-[#fafafa]">Track Development</span>
                             </div>
                             <ArrowRight size={20} className="text-white/40" />
