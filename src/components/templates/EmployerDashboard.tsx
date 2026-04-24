@@ -798,8 +798,10 @@ const sidebarIcons = [
 /* ── Sparkle icon ────────────────────────────────────────────────────────── */
 const SparkleIcon = ({ size = 14 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M12 1.5 L13.6 6.8 L19 8 L13.6 9.2 L12 14.5 L10.4 9.2 L5 8 L10.4 6.8 Z" />
-    <path d="M5 15 L5.9 17.6 L8.5 18.5 L5.9 19.4 L5 22 L4.1 19.4 L1.5 18.5 L4.1 17.6 Z" opacity="0.7" />
+    {/* Primary large 4-point star (centered, slightly bottom-right) */}
+    <path d="M14 4 L15.8 9.2 L21 11 L15.8 12.8 L14 18 L12.2 12.8 L7 11 L12.2 9.2 Z" />
+    {/* Secondary smaller 4-point star (upper-left, fully opaque) */}
+    <path d="M6 3 L6.8 5.2 L9 6 L6.8 6.8 L6 9 L5.2 6.8 L3 6 L5.2 5.2 Z" />
     <path d="M19 12.5 L19.7 14.6 L21.8 15.3 L19.7 16 L19 18.1 L18.3 16 L16.2 15.3 L18.3 14.6 Z" opacity="0.5" />
   </svg>
 );
@@ -2064,9 +2066,12 @@ export function EmployerDashboard({ onBack }: EmployerDashboardProps) {
               border: hoveredUserPill ? '1px solid rgba(255,255,255,0.18)' : '1px solid transparent',
               boxShadow: hoveredUserPill ? '0 2px 12px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.15)' : 'none',
             }}>
-            <div className="w-7 h-7 rounded-full overflow-hidden flex items-center justify-center text-[11px] font-bold flex-shrink-0"
-              style={{ background: 'linear-gradient(135deg, #d2f3de, #a0e8b8)' }}>
-              <span style={{ color: '#09090b' }}>O</span>
+            <div className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0">
+              <img
+                src="/avatar/omar-s.png"
+                alt="Omar S."
+                className="w-full h-full object-cover"
+              />
             </div>
             <div className="hidden sm:flex flex-col items-start leading-none gap-0.5">
               <span className="text-[14px] font-bold text-[#fafafa] leading-5">Omar S.</span>
